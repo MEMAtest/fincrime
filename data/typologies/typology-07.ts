@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology07: Typology = {
+  id: 7,
+  slug: "shell-company-indicators",
+  title: "Shell Company Indicators",
+  riskTheme: "money_laundering",
+  description:
+    "Use of corporate entities with no genuine commercial activity to obscure beneficial ownership, layer funds, or create false invoicing chains. Shell companies are commonly used in trade-based money laundering and corruption schemes.",
+  applicableFirmTypes: ["emi", "pi", "bank", "neobank"],
+  applicableProducts: ["cross_border_payments", "domestic_payments", "trade_finance", "e_money_accounts"],
+  applicableCustomerTypes: ["smes", "corporates", "agents_intermediaries"],
+  controlObjective:
+    "Identify corporate customers displaying shell company characteristics, including lack of genuine business activity, nominee structures, and mismatched transaction patterns.",
+  dataRequired: [
+    "Company incorporation date and jurisdiction",
+    "Companies House or equivalent registry data",
+    "Beneficial ownership declarations",
+    "Website and digital presence verification",
+    "Director and shareholder history",
+    "Registered address type (virtual, shared, residential)",
+    "Declared business activity vs. actual transaction types",
+    "Number of employees (declared and verified)",
+  ],
+  detectionLogic: [
+    {
+      id: "SHELL-07-R1",
+      name: "Recently incorporated high-volume entity",
+      logic: "Entity incorporated < 6 months ago AND transaction volume > £50,000 in first 90 days of relationship",
+      threshold: "< 6 months old + £50k+ volume in 90 days",
+      priority: "high",
+    },
+    {
+      id: "SHELL-07-R2",
+      name: "No web presence with significant transactions",
+      logic: "No verifiable website, social media, or business listing AND monthly transaction volume > £10,000",
+      threshold: "No digital presence + £10k+ monthly",
+      priority: "medium",
+    },
+    {
+      id: "SHELL-07-R3",
+      name: "Shared address or nominee directors",
+      logic: "Registered address shared with 3+ other entities at same address, OR director listed on 5+ active companies",
+      threshold: "3+ entities same address OR 5+ directorships",
+      priority: "high",
+    },
+    {
+      id: "SHELL-07-R4",
+      name: "Revenue without employees or premises",
+      logic: "Declared zero employees AND no business premises AND annual revenue declared > £100,000",
+      threshold: "No staff/premises + £100k+ revenue",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Entity Verification",
+      description: "Check Companies House for incorporation details, filing history, and active status. Verify directors and significant persons of control. Check for adverse filings.",
+      sla: "8 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Digital Presence Investigation",
+      description: "Attempt to verify business through website, LinkedIn, industry directories. Check phone numbers and email domains. Assess whether business appears genuine.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Beneficial Ownership Tracing",
+      description: "Trace ultimate beneficial owners through all layers. Check for circular ownership, offshore entities, or PEP connections. Verify against CDD declarations.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "Transaction Analysis",
+      description: "Analyse transaction patterns: are they consistent with declared business? Look for round-tripping, back-to-back invoicing, or payments inconsistent with sector.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 5,
+      title: "MLRO Decision & Remediation",
+      description: "MLRO reviews case. File SAR if shell company activity confirmed. Consider exiting relationship. Report to Companies House if registry data appears false.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+  ],
+  metrics: [
+    { name: "Shell indicator alert rate", target: "Monitor", description: "Monthly alerts matching shell company patterns" },
+    { name: "Confirmed shell rate", target: "Track", description: "Alerts confirmed as genuine shell company activity" },
+    { name: "Relationship exit rate", target: "Track", description: "Shell company confirmations leading to relationship exit" },
+    { name: "Companies House referral rate", target: "Track", description: "Cases resulting in registry referral" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Companies House data integration current and accurate", frequency: "Monthly", owner: "Data / Compliance" },
+    { id: "GOV-02", item: "Beneficial ownership verification process reviewed", frequency: "Semi-annual", owner: "Onboarding / Compliance" },
+    { id: "GOV-03", item: "Shell company red flag training for onboarding staff", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-04", item: "Virtual office / registered agent address database maintained", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-05", item: "Shell company detection effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 24", title: "Transparency of Legal Persons" },
+    { org: "FCA", reference: "FG/18/5 Chapter 4", title: "Customer Due Diligence" },
+    { org: "Wolfsberg", reference: "CBDDQ 2023", title: "Correspondent Banking Due Diligence" },
+    { org: "JMLSG", reference: "Part I, Chapter 5.3", title: "Corporate Customer CDD" },
+  ],
+};

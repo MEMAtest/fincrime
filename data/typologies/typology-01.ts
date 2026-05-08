@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology01: Typology = {
+  id: 1,
+  slug: "low-value-tf-high-risk-countries",
+  title: "Low-Value Terrorist Financing to High-Risk Countries",
+  riskTheme: "terrorist_financing",
+  description:
+    "Small-value transfers sent frequently to jurisdictions with known TF exposure. Individually unremarkable but collectively indicative of financing activity directed at conflict zones or sanctioned regions.",
+  applicableFirmTypes: ["emi", "pi", "msb", "bank"],
+  applicableProducts: ["cross_border_payments", "remittance", "e_money_accounts"],
+  applicableCustomerTypes: ["individuals", "non_profit", "agents_intermediaries"],
+  controlObjective:
+    "Detect and investigate patterns of low-value transfers to FATF-identified high-risk jurisdictions that may indicate terrorist financing, ensuring timely SAR submission where appropriate.",
+  dataRequired: [
+    "Transaction amount and currency",
+    "Beneficiary country and institution",
+    "Sender identification and verification records",
+    "Transaction frequency per sender (rolling 30-day)",
+    "FATF high-risk country list (current)",
+    "UN sanctions list matches",
+    "Sender declared purpose of payment",
+    "Historical transaction pattern baseline",
+  ],
+  detectionLogic: [
+    {
+      id: "TF-01-R1",
+      name: "Cumulative low-value to high-risk corridor",
+      logic: "SUM(transactions) to FATF high-risk jurisdiction within 30 days > £3,000 AND each transaction < £500",
+      threshold: "£3,000 cumulative / 30 days",
+      priority: "high",
+    },
+    {
+      id: "TF-01-R2",
+      name: "Frequency spike to high-risk destination",
+      logic: "Transaction count to single high-risk country > 3x rolling 90-day average",
+      threshold: "3x baseline frequency",
+      priority: "high",
+    },
+    {
+      id: "TF-01-R3",
+      name: "Multiple beneficiaries in same high-risk region",
+      logic: "Sender sends to >= 5 distinct beneficiaries in same FATF high-risk country within 60 days",
+      threshold: "5 unique beneficiaries / 60 days",
+      priority: "critical",
+    },
+    {
+      id: "TF-01-R4",
+      name: "Round-amount clustering",
+      logic: "More than 60% of transactions to high-risk jurisdictions are exact round amounts (e.g., £100, £200, £500)",
+      threshold: "60% round amounts",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Alert Triage",
+      description: "Review alert details: sender profile, destination country risk level, transaction pattern summary. Confirm FATF high-risk status of destination.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Enhanced Review",
+      description: "Pull full transaction history for sender. Map all beneficiaries and destinations. Check sanctions screening results. Review CDD file for consistency with declared activity.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Source of Funds Assessment",
+      description: "Request and verify source of funds documentation. Compare declared income with transaction volumes. Assess whether pattern is consistent with legitimate remittance activity.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Decision",
+      description: "MLRO reviews case file, assesses reasonable grounds for suspicion. Decide: dismiss with rationale, file SAR, or request further information.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Post-Decision Actions",
+      description: "If SAR filed: apply consent regime if needed, update risk rating, consider ongoing monitoring uplift. If dismissed: document rationale, adjust thresholds if false positive pattern identified.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Alert-to-SAR conversion rate", target: ">15%", description: "Proportion of TF corridor alerts resulting in SAR submission" },
+    { name: "Average investigation time", target: "<72 hours", description: "Time from alert generation to MLRO decision" },
+    { name: "False positive rate", target: "<40%", description: "Alerts dismissed at triage with no further action" },
+    { name: "Coverage rate", target: "100%", description: "Percentage of FATF high-risk jurisdictions included in monitoring rules" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "FATF high-risk country list reviewed and monitoring rules updated", frequency: "Within 30 days of FATF publication", owner: "Compliance" },
+    { id: "GOV-02", item: "TF detection thresholds reviewed against SAR outcomes", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-03", item: "Staff TF awareness training delivered", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-04", item: "TF typology alert volumes reported to Board/Committee", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-05", item: "Independent assurance review of TF monitoring controls", frequency: "Annual", owner: "Internal Audit / 3LoD" },
+  ],
+  sources: [
+    { org: "FATF", reference: "FATF Recommendation 16", title: "Wire Transfers" },
+    { org: "FATF", reference: "FATF Typologies Report 2022", title: "Terrorist Financing Risk Indicators" },
+    { org: "FCA", reference: "FG/18/5", title: "Financial Crime Guide" },
+    { org: "JMLSG", reference: "Part II, Sector 15", title: "Money Service Businesses" },
+  ],
+};

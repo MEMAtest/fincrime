@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology04: Typology = {
+  id: 4,
+  slug: "behavioural-change-indicators",
+  title: "Behavioural Change Indicators",
+  riskTheme: "money_laundering",
+  description:
+    "Sudden or unexplained changes in a customer's transaction behaviour relative to their established profile — such as new geographies, increased volumes, or different payment types — potentially indicating account takeover or use for laundering.",
+  applicableFirmTypes: ["emi", "pi", "bank", "neobank", "wealth_manager"],
+  applicableProducts: ["cross_border_payments", "domestic_payments", "e_money_accounts", "fx_transfers", "card_issuing"],
+  applicableCustomerTypes: ["individuals", "smes", "corporates", "high_net_worth"],
+  controlObjective:
+    "Detect significant deviations from established customer transaction patterns that may indicate account compromise, coercion, or use of the account for financial crime.",
+  dataRequired: [
+    "Customer baseline transaction profile (90-day rolling)",
+    "Current transaction details (amount, type, destination)",
+    "Login and access patterns (device, location, time)",
+    "Account age and relationship tenure",
+    "Customer risk rating history",
+    "Previous transaction destinations and beneficiaries",
+    "Declared business activity and expected turnover",
+    "Communication history (complaints, contact centre)",
+  ],
+  detectionLogic: [
+    {
+      id: "BCI-04-R1",
+      name: "Volume deviation",
+      logic: "Monthly transaction volume > 3 standard deviations above 90-day rolling average",
+      threshold: "3σ above baseline",
+      priority: "high",
+    },
+    {
+      id: "BCI-04-R2",
+      name: "New geography introduction",
+      logic: "First-ever transaction to a country not seen in previous 180 days of activity, where country risk >= medium",
+      threshold: "New medium/high-risk country",
+      priority: "medium",
+    },
+    {
+      id: "BCI-04-R3",
+      name: "Dormancy break with high activity",
+      logic: "Account inactive > 60 days followed by >= 5 transactions within 7 days of reactivation",
+      threshold: "60-day dormancy + 5 txns in 7 days",
+      priority: "high",
+    },
+    {
+      id: "BCI-04-R4",
+      name: "Payment type shift",
+      logic: "Customer switches from predominantly domestic payments to > 60% cross-border within 30-day window",
+      threshold: "60% cross-border shift in 30 days",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Baseline Comparison",
+      description: "Pull customer's historical profile. Quantify the deviation. Confirm the alert is genuine behavioural change vs. one-off transaction.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Account Integrity Check",
+      description: "Check for signs of account takeover: new devices, IP changes, contact detail amendments. Review recent customer communications.",
+      sla: "24 hours",
+      responsible: "L2 Analyst / Fraud",
+    },
+    {
+      step: 3,
+      title: "Customer Engagement",
+      description: "Contact customer to understand reason for change. Document explanation. Request supporting documentation if commercial justification provided.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "Risk Reassessment",
+      description: "Based on customer response and supporting evidence, determine if change is legitimate. Reassess customer risk rating. Escalate to MLRO if suspicion remains.",
+      sla: "72 hours",
+      responsible: "L2 Analyst / MLRO",
+    },
+    {
+      step: 5,
+      title: "Outcome & Monitoring Adjustment",
+      description: "Update baseline if legitimate change. File SAR if suspicious. Increase monitoring frequency if risk uplifted.",
+      sla: "5 business days",
+      responsible: "Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Behavioural alert volume", target: "Monitor trend", description: "Monthly count of behavioural deviation alerts" },
+    { name: "Customer contact rate", target: ">80%", description: "Percentage of behavioural alerts where customer was contacted" },
+    { name: "False positive rate", target: "<50%", description: "Alerts explained by legitimate business changes" },
+    { name: "Account takeover detection", target: "Track", description: "Behavioural alerts that revealed account compromise" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Baseline calculation methodology reviewed", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Behavioural thresholds tuned against outcomes", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-03", item: "Integration with fraud team on account takeover patterns", frequency: "Monthly", owner: "FinCrime / Fraud" },
+    { id: "GOV-04", item: "Dormancy monitoring rules tested", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-05", item: "Behavioural detection effectiveness reported to risk committee", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Guidance on RBA", title: "Risk-Based Approach for the Banking Sector" },
+    { org: "FCA", reference: "FG/18/5 Chapter 3", title: "Risk Assessment" },
+    { org: "Wolfsberg", reference: "TM FAQ 2021", title: "Behavioural Analytics in Transaction Monitoring" },
+    { org: "JMLSG", reference: "Part I, Chapter 5.6", title: "Ongoing Monitoring" },
+  ],
+};

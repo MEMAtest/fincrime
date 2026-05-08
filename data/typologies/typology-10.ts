@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology10: Typology = {
+  id: 10,
+  slug: "unusual-business-vs-declared-profile",
+  title: "Unusual Business Activity vs Declared Profile",
+  riskTheme: "fraud",
+  description:
+    "Transaction activity that is materially inconsistent with the customer's declared business profile, sector, or expected turnover — potentially indicating front company activity, invoice fraud, or undisclosed business changes.",
+  applicableFirmTypes: ["emi", "pi", "bank", "neobank", "wealth_manager"],
+  applicableProducts: ["domestic_payments", "cross_border_payments", "e_money_accounts", "trade_finance", "marketplace_payouts"],
+  applicableCustomerTypes: ["smes", "corporates", "individuals"],
+  controlObjective:
+    "Detect and investigate material discrepancies between customer declared profiles and actual transaction activity to identify potential fraud, ML, or undisclosed business activity.",
+  dataRequired: [
+    "Customer declared business type and SIC code",
+    "Declared expected monthly turnover",
+    "Actual monthly transaction volumes and values",
+    "Transaction counterparty sectors (where identifiable)",
+    "Seasonal patterns for declared industry",
+    "Geographic spread of transactions vs. declared markets",
+    "Average transaction size vs. industry benchmarks",
+    "Customer communications about business changes",
+  ],
+  detectionLogic: [
+    {
+      id: "UBA-10-R1",
+      name: "Turnover breach",
+      logic: "Actual monthly volume > 200% of declared expected turnover for 2+ consecutive months",
+      threshold: "200% of declared turnover for 2+ months",
+      priority: "high",
+    },
+    {
+      id: "UBA-10-R2",
+      name: "Sector mismatch",
+      logic: "Transaction counterparties predominantly in sectors unrelated to customer's declared business (> 60% of payments to different sector)",
+      threshold: "60% payments to unrelated sectors",
+      priority: "medium",
+    },
+    {
+      id: "UBA-10-R3",
+      name: "Geographic expansion without notification",
+      logic: "Customer transacting in 3+ new countries not declared during onboarding, within 90-day period",
+      threshold: "3+ new undeclared countries / 90 days",
+      priority: "medium",
+    },
+    {
+      id: "UBA-10-R4",
+      name: "Transaction size anomaly",
+      logic: "Average transaction size > 5x industry benchmark for customer's declared SIC code",
+      threshold: "5x industry average transaction size",
+      priority: "high",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Profile vs. Activity Comparison",
+      description: "Pull customer's declared profile from onboarding. Compare against actual activity metrics. Quantify discrepancy with specific data points.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Business Verification",
+      description: "Research customer's actual business activity through public sources. Check for legitimate business changes, new contracts, or seasonal factors. Verify trading status.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Customer Engagement",
+      description: "Contact customer to discuss discrepancy. Request updated business documentation, recent accounts, or contracts justifying changed activity.",
+      sla: "48 hours",
+      responsible: "L2 Analyst / Relationship Manager",
+    },
+    {
+      step: 4,
+      title: "Risk Assessment Update",
+      description: "If legitimate: update customer profile and expected activity. If unsatisfactory: escalate to MLRO. Consider EDD requirements for updated risk assessment.",
+      sla: "72 hours",
+      responsible: "L2 Analyst / Compliance",
+    },
+    {
+      step: 5,
+      title: "Decision & Action",
+      description: "MLRO decides: update profile (if explained), file SAR (if suspicious), or exit relationship (if ongoing concern). Document rationale comprehensively.",
+      sla: "5 business days",
+      responsible: "MLRO",
+    },
+  ],
+  metrics: [
+    { name: "Profile deviation alerts", target: "Monitor trend", description: "Monthly count of profile mismatch alerts" },
+    { name: "Profile update rate", target: ">60%", description: "Alerts resolved by legitimate profile update" },
+    { name: "SAR conversion rate", target: "Track", description: "Alerts leading to SAR filing" },
+    { name: "Customer exit rate", target: "Track", description: "Alerts resulting in relationship termination" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Customer profile refresh programme on schedule", frequency: "Annual review cycle", owner: "Compliance / Onboarding" },
+    { id: "GOV-02", item: "Industry benchmark data refreshed for transaction sizing", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Declared vs. actual thresholds calibrated", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-04", item: "Event-driven review triggers documented and active", frequency: "Ongoing", owner: "Compliance" },
+    { id: "GOV-05", item: "Profile mismatch detection effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 10", title: "Customer Due Diligence" },
+    { org: "FCA", reference: "FG/18/5 Chapter 3", title: "Risk Assessment and CDD" },
+    { org: "Wolfsberg", reference: "KYC Guidance 2023", title: "Ongoing Due Diligence" },
+    { org: "JMLSG", reference: "Part I, Chapter 5.6", title: "Ongoing Monitoring" },
+  ],
+};

@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology09: Typology = {
+  id: 9,
+  slug: "high-risk-corridor-remittances",
+  title: "High-Risk Corridor Remittances",
+  riskTheme: "money_laundering",
+  description:
+    "Concentration of remittance flows through high-risk corridors where informal value transfer, hawala networks, and limited transparency create elevated ML/TF risks. Particularly relevant for MSBs and EMIs serving diaspora communities.",
+  applicableFirmTypes: ["msb", "emi", "pi", "bank"],
+  applicableProducts: ["remittance", "cross_border_payments", "fx_transfers"],
+  applicableCustomerTypes: ["individuals", "agents_intermediaries", "smes"],
+  controlObjective:
+    "Monitor remittance corridors for unusual patterns, concentration risks, and indicators of informal value transfer or ML/TF exploitation, while maintaining financial inclusion objectives.",
+  dataRequired: [
+    "Remittance corridor volumes and trends (monthly)",
+    "Individual sender frequency and amounts per corridor",
+    "Agent/branch level corridor concentration",
+    "FATF mutual evaluation status of destination country",
+    "Correspondent banking availability in destination",
+    "Known hawala network indicators",
+    "Customer employment and income data",
+    "Market rates vs. offered rates comparison",
+  ],
+  detectionLogic: [
+    {
+      id: "HRC-09-R1",
+      name: "Corridor volume spike",
+      logic: "Individual corridor volume increase > 50% month-on-month without corresponding seasonal or geopolitical explanation",
+      threshold: "50% MoM increase in corridor",
+      priority: "medium",
+    },
+    {
+      id: "HRC-09-R2",
+      name: "Agent-level concentration",
+      logic: "Single agent/branch accounts for > 40% of total corridor volume where firm has multiple locations",
+      threshold: "40% single-agent concentration",
+      priority: "high",
+    },
+    {
+      id: "HRC-09-R3",
+      name: "Sender diversity anomaly",
+      logic: "Corridor dominated by < 10 unique senders contributing > 60% of total volume, suggesting potential hawala collection point",
+      threshold: "10 senders = 60% corridor volume",
+      priority: "high",
+    },
+    {
+      id: "HRC-09-R4",
+      name: "Off-market pricing",
+      logic: "Exchange rate offered consistently below market rate by > 2%, suggesting cross-subsidy from parallel value transfer",
+      threshold: "Exchange rate > 2% below market",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Corridor Analysis",
+      description: "Analyse corridor volume trends, sender demographics, and seasonal patterns. Compare against peer firms and market intelligence. Identify anomalies.",
+      sla: "8 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 2,
+      title: "Agent Due Diligence",
+      description: "If agent-level concentration flagged: review agent's CDD, visit records, compliance history. Check for agent-facilitated structuring or collusion indicators.",
+      sla: "48 hours",
+      responsible: "Agent Oversight / Compliance",
+    },
+    {
+      step: 3,
+      title: "Sender Deep Dive",
+      description: "For high-volume individual senders: verify employment, income consistency, purpose of remittance. Assess if acting on behalf of third parties.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "Hawala / IVT Assessment",
+      description: "Assess whether patterns indicate parallel or informal value transfer activity. Consider whether legitimate remittance or potential nesting of hawala flows.",
+      sla: "72 hours",
+      responsible: "MLRO / Intelligence",
+    },
+    {
+      step: 5,
+      title: "Regulatory Response",
+      description: "File SAR if ML/TF suspected. Consider corridor-level risk rating uplift. Report to FCA if systemic agent issues identified.",
+      sla: "5 business days",
+      responsible: "MLRO",
+    },
+  ],
+  metrics: [
+    { name: "High-risk corridor coverage", target: "100%", description: "All identified high-risk corridors have specific monitoring rules" },
+    { name: "Agent visit completion rate", target: ">90%", description: "Planned agent visits completed within schedule" },
+    { name: "Corridor SAR rate", target: "Track per corridor", description: "SARs filed per corridor as proportion of transactions" },
+    { name: "Financial inclusion balance", target: "Track", description: "Service availability maintained for legitimate customers" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "High-risk corridor list reviewed against FATF mutual evaluations", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-02", item: "Agent oversight programme executed for high-risk corridor agents", frequency: "Quarterly", owner: "Agent Oversight" },
+    { id: "GOV-03", item: "Corridor-level MI produced and reviewed", frequency: "Monthly", owner: "Financial Crime Systems" },
+    { id: "GOV-04", item: "Hawala/IVT red flag training delivered to frontline staff", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-05", item: "Correspondent banking relationships for corridors reviewed", frequency: "Annual", owner: "Banking / Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 14", title: "Money or Value Transfer Services" },
+    { org: "FCA", reference: "FG/18/5 Chapter 15", title: "Money Service Businesses" },
+    { org: "JMLSG", reference: "Part II, Sector 15", title: "MSB Sector Guidance" },
+    { org: "Wolfsberg", reference: "Correspondent Banking Principles", title: "Risk Assessment for Corridors" },
+  ],
+};

@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology03: Typology = {
+  id: 3,
+  slug: "structuring-threshold-avoidance",
+  title: "Structuring / Threshold Avoidance",
+  riskTheme: "money_laundering",
+  description:
+    "Deliberate splitting of transactions to remain below reporting thresholds or monitoring triggers. Commonly associated with layering proceeds of crime or avoiding CTR filings.",
+  applicableFirmTypes: ["emi", "pi", "bank", "msb", "neobank"],
+  applicableProducts: ["cross_border_payments", "domestic_payments", "remittance", "e_money_accounts"],
+  applicableCustomerTypes: ["individuals", "smes", "agents_intermediaries"],
+  controlObjective:
+    "Identify customers deliberately structuring transactions below monitoring or reporting thresholds to evade detection controls.",
+  dataRequired: [
+    "Individual transaction amounts",
+    "Transaction timestamps (to identify clustering)",
+    "Internal monitoring thresholds (£10k, £15k etc.)",
+    "Customer cumulative daily/weekly totals",
+    "Payment channel used (online, branch, API)",
+    "Beneficiary consistency across structured payments",
+    "Customer profile and declared activity",
+    "Historical baseline transaction sizes",
+  ],
+  detectionLogic: [
+    {
+      id: "STR-03-R1",
+      name: "Just-under-threshold clustering",
+      logic: "3+ transactions between 80-99% of reporting threshold within 48 hours from same customer",
+      threshold: "3+ txns at 80-99% of threshold / 48hrs",
+      priority: "high",
+    },
+    {
+      id: "STR-03-R2",
+      name: "Cumulative threshold breach via splitting",
+      logic: "Sum of transactions within 24 hours exceeds threshold where no single transaction does, AND count > 4",
+      threshold: "Cumulative > threshold, individual < threshold, count > 4",
+      priority: "high",
+    },
+    {
+      id: "STR-03-R3",
+      name: "Decreasing amount pattern",
+      logic: "Sequential transactions showing decreasing amounts (e.g., £9,900 → £9,800 → £9,700) suggesting threshold testing",
+      threshold: "3+ descending transactions near threshold",
+      priority: "medium",
+    },
+    {
+      id: "STR-03-R4",
+      name: "Multi-channel structuring",
+      logic: "Same customer uses 2+ payment channels within 24 hours with cumulative total exceeding threshold",
+      threshold: "2+ channels, cumulative > threshold / 24hrs",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Pattern Identification",
+      description: "Confirm structuring pattern against known thresholds. Document exact amounts, timing, and channels used. Calculate cumulative total.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Customer Context Review",
+      description: "Review customer profile, declared activity, and source of funds. Assess whether splitting has legitimate explanation (e.g., payment limits, daily caps).",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Intent Assessment",
+      description: "Determine whether structuring appears deliberate. Look for: awareness of thresholds, changes in behaviour after system changes, inconsistency with declared pattern.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Decision",
+      description: "MLRO assesses whether structuring constitutes grounds for suspicion. Consider: is the customer aware of reporting obligations? Is the structuring tied to predicate offence?",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: file SAR, update risk rating, consider account action. If benign: document rationale, consider threshold/rule refinement to reduce false positives.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Structuring alert volume", target: "Monitor trend", description: "Monthly count of structuring pattern alerts" },
+    { name: "True positive rate", target: ">25%", description: "Proportion of structuring alerts confirmed as deliberate" },
+    { name: "Detection coverage", target: "100%", description: "All internal thresholds have associated structuring detection rules" },
+    { name: "Time to detection", target: "<48 hours", description: "Average time from first structured transaction to alert generation" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Monitoring thresholds reviewed and structuring rules updated", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Cross-channel structuring detection validated", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-03", item: "Threshold values not exposed to customers", frequency: "Ongoing", owner: "Product / Engineering" },
+    { id: "GOV-04", item: "Structuring detection effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-05", item: "Rule tuning based on SAR feedback and NCA guidance", frequency: "Semi-annual", owner: "Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting" },
+    { org: "Wolfsberg", reference: "TM Guidance 2023", title: "Transaction Monitoring Principles" },
+  ],
+};

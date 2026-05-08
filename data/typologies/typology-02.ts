@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology02: Typology = {
+  id: 2,
+  slug: "rapid-movement-of-funds",
+  title: "Rapid Movement of Funds",
+  riskTheme: "money_laundering",
+  description:
+    "Funds received and immediately transferred onward with minimal dwell time, suggesting the account is being used as a pass-through to layer illicit proceeds and obscure audit trails.",
+  applicableFirmTypes: ["emi", "pi", "bank", "neobank", "crypto"],
+  applicableProducts: ["cross_border_payments", "domestic_payments", "e_money_accounts", "fx_transfers"],
+  applicableCustomerTypes: ["individuals", "smes", "corporates", "agents_intermediaries"],
+  controlObjective:
+    "Detect accounts exhibiting pass-through behaviour where funds are received and disbursed rapidly, indicating potential layering activity.",
+  dataRequired: [
+    "Inbound credit timestamp and amount",
+    "Outbound debit timestamp and amount",
+    "Account balance over time (dwell time calculation)",
+    "Sender and beneficiary details",
+    "Account declared purpose and expected activity",
+    "Customer risk rating",
+    "Onboarding date relative to first rapid movement",
+    "Number of unique funding sources and destinations",
+  ],
+  detectionLogic: [
+    {
+      id: "RMF-02-R1",
+      name: "Rapid in-out within 24 hours",
+      logic: "Debit >= 80% of credit amount within 24 hours of receipt, where credit > £1,000",
+      threshold: "80% pass-through within 24hrs",
+      priority: "high",
+    },
+    {
+      id: "RMF-02-R2",
+      name: "Consistent low dwell time",
+      logic: "Average balance holding period < 4 hours over 7-day rolling window with >= 3 transactions",
+      threshold: "Avg dwell < 4 hours",
+      priority: "high",
+    },
+    {
+      id: "RMF-02-R3",
+      name: "New account rapid movement",
+      logic: "Account opened < 30 days AND exhibits rapid pass-through behaviour (R1 or R2 triggered)",
+      threshold: "Account age < 30 days + pass-through",
+      priority: "critical",
+    },
+    {
+      id: "RMF-02-R4",
+      name: "Funnel account pattern",
+      logic: "Multiple credits from >= 3 distinct senders followed by single large outbound transfer within same day",
+      threshold: "3+ senders, 1 outbound, same day",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Alert Review & Pattern Confirmation",
+      description: "Confirm pass-through pattern in transaction history. Calculate exact dwell times. Identify all funding sources and onward destinations.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Customer Profile Assessment",
+      description: "Review CDD: does declared business justify rapid fund movement? Check account opening date and initial risk assessment. Compare actual vs declared transaction pattern.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Network Analysis",
+      description: "Map all counterparties (senders and beneficiaries). Check for known mule account indicators. Identify any links between senders and recipients.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Review & Decision",
+      description: "Assess full case. Consider whether pattern is consistent with legitimate business (e.g., payroll processors, marketplace disbursers) or if SAR filing is warranted.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Risk Mitigation",
+      description: "Apply account restrictions if appropriate. Update customer risk rating. Consider exit strategy if pattern confirmed as money laundering.",
+      sla: "5 business days",
+      responsible: "Compliance / Operations",
+    },
+  ],
+  metrics: [
+    { name: "Rapid movement alert volume", target: "Monitor trend", description: "Monthly count of pass-through alerts generated" },
+    { name: "SAR conversion rate", target: ">20%", description: "Proportion of alerts leading to SAR submission" },
+    { name: "Mean dwell time detected", target: "<4 hours", description: "Average holding period in flagged accounts" },
+    { name: "Account restriction rate", target: "Track", description: "Percentage of confirmed cases leading to account restrictions" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Dwell time thresholds calibrated against false positive rate", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Pass-through pattern exclusions reviewed (legitimate use cases)", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-03", item: "Mule account intelligence fed into detection rules", frequency: "Monthly", owner: "Intelligence / Compliance" },
+    { id: "GOV-04", item: "Board reporting on layering detection effectiveness", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-05", item: "Law enforcement information requests cross-referenced", frequency: "Ongoing", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "FATF ML Typologies 2023", title: "Layering Techniques in New Payment Methods" },
+    { org: "FCA", reference: "TR/22/3", title: "Thematic Review: Money Mules" },
+    { org: "Wolfsberg", reference: "Payment Transparency Standards", title: "Data Quality in Payment Chains" },
+    { org: "JMLSG", reference: "Part I, Chapter 5", title: "Customer Due Diligence" },
+  ],
+};

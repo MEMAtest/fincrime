@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology05: Typology = {
+  id: 5,
+  slug: "tax-haven-transfers",
+  title: "Tax Haven Transfers",
+  riskTheme: "tax_evasion",
+  description:
+    "Regular or significant transfers to jurisdictions known for banking secrecy and low tax transparency, particularly where the customer's business model does not justify international financial relationships in those locations.",
+  applicableFirmTypes: ["emi", "pi", "bank", "wealth_manager", "neobank"],
+  applicableProducts: ["cross_border_payments", "fx_transfers", "e_money_accounts", "trade_finance"],
+  applicableCustomerTypes: ["individuals", "smes", "corporates", "high_net_worth"],
+  controlObjective:
+    "Identify transfers to tax haven jurisdictions that are inconsistent with the customer's declared business activity and may indicate tax evasion or proceeds concealment.",
+  dataRequired: [
+    "Transaction destination country and institution",
+    "OECD tax transparency ratings",
+    "EU list of non-cooperative jurisdictions",
+    "Customer declared business geographies",
+    "Beneficial ownership structure",
+    "Source of wealth documentation",
+    "Transaction purpose stated by customer",
+    "Corporate structure and subsidiary locations",
+  ],
+  detectionLogic: [
+    {
+      id: "TH-05-R1",
+      name: "Unexplained tax haven payments",
+      logic: "Payment to OECD-listed non-cooperative jurisdiction where customer has no declared business relationship in that country",
+      threshold: "Any payment to listed jurisdiction without nexus",
+      priority: "medium",
+    },
+    {
+      id: "TH-05-R2",
+      name: "Cumulative tax haven exposure",
+      logic: "Cumulative transfers to tax haven jurisdictions > 20% of total outbound volume in 90-day period",
+      threshold: "20% of outbound to tax havens / 90 days",
+      priority: "high",
+    },
+    {
+      id: "TH-05-R3",
+      name: "Layered structure payments",
+      logic: "Payments routed through 2+ jurisdictions before reaching final destination in tax haven",
+      threshold: "2+ intermediate jurisdictions to tax haven",
+      priority: "high",
+    },
+    {
+      id: "TH-05-R4",
+      name: "Shell entity in tax haven",
+      logic: "Beneficiary entity incorporated in tax haven < 12 months, no web presence, nominee directors identified",
+      threshold: "New entity + tax haven + shell indicators",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Jurisdiction Assessment",
+      description: "Confirm tax haven classification against OECD and EU lists. Document specific risk factors for the destination country. Verify customer has no declared nexus.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Business Justification Review",
+      description: "Check customer's declared business activities, corporate structure, and subsidiaries. Determine if legitimate reason exists for tax haven relationship.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Beneficial Ownership Deep Dive",
+      description: "Trace beneficial ownership of recipient entities. Check for nominee structures, PEP connections, or adverse media on connected parties.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO / Tax Specialist Review",
+      description: "Assess whether pattern indicates criminal tax evasion (vs. legal tax planning). Consider HMRC reporting obligations. Decide on SAR / DAML requirement.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Regulatory Response",
+      description: "File SAR if appropriate. Consider HMRC referral for tax matters. Update customer risk rating and monitoring parameters.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Tax haven alert volume", target: "Monitor trend", description: "Monthly count of tax haven-related alerts" },
+    { name: "Justified vs. unjustified ratio", target: "Track", description: "Proportion of alerts with legitimate business explanation" },
+    { name: "HMRC referral rate", target: "Track", description: "Cases referred to HMRC for tax-related suspicion" },
+    { name: "Jurisdiction coverage", target: "100%", description: "All OECD/EU-listed jurisdictions included in monitoring" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "OECD and EU non-cooperative jurisdiction lists updated", frequency: "Within 30 days of publication", owner: "Compliance" },
+    { id: "GOV-02", item: "Tax haven detection rules calibrated", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Staff training on tax evasion indicators", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-04", item: "CRS/FATCA reporting obligations verified", frequency: "Annual", owner: "Tax / Compliance" },
+    { id: "GOV-05", item: "Tax haven monitoring effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 26", title: "Regulation and Supervision of Financial Institutions" },
+    { org: "FCA", reference: "FG/18/5 Chapter 7", title: "Tax-Related Financial Crime" },
+    { org: "JMLSG", reference: "Part I, Chapter 4.12", title: "Tax Offences" },
+    { org: "Wolfsberg", reference: "Tax Evasion Principles", title: "Wolfsberg Group Tax Evasion Paper" },
+  ],
+};

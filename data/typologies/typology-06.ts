@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology06: Typology = {
+  id: 6,
+  slug: "mule-account-activity",
+  title: "Mule Account Activity",
+  riskTheme: "money_laundering",
+  description:
+    "Accounts used to receive and rapidly disburse funds on behalf of criminal networks. Mule accounts are often opened by individuals who are recruited, coerced, or deceived into facilitating the movement of illicit proceeds.",
+  applicableFirmTypes: ["emi", "pi", "bank", "neobank", "crypto"],
+  applicableProducts: ["domestic_payments", "e_money_accounts", "cross_border_payments", "card_issuing"],
+  applicableCustomerTypes: ["individuals", "agents_intermediaries"],
+  controlObjective:
+    "Detect accounts exhibiting mule behaviour — rapid receipt and disbursement, multiple unrelated funding sources, and activity inconsistent with declared purpose.",
+  dataRequired: [
+    "Inbound transaction sources (unique sender count)",
+    "Outbound transfer timing relative to receipt",
+    "Account holder age, employment status, declared income",
+    "Device and IP login patterns",
+    "Account opening channel and verification method",
+    "Social media or communication indicators",
+    "Law enforcement mule account intelligence lists",
+    "Peer group comparison data",
+  ],
+  detectionLogic: [
+    {
+      id: "MULE-06-R1",
+      name: "Multiple unrelated funders",
+      logic: "Credits from >= 5 distinct unrelated senders within 30 days where account is personal",
+      threshold: "5+ unique senders / 30 days (personal account)",
+      priority: "high",
+    },
+    {
+      id: "MULE-06-R2",
+      name: "Rapid disbursement post-funding",
+      logic: "90%+ of credited funds transferred out within 12 hours across 3+ occasions in 30 days",
+      threshold: "90% out within 12hrs, 3+ times / 30 days",
+      priority: "critical",
+    },
+    {
+      id: "MULE-06-R3",
+      name: "Income inconsistency",
+      logic: "Monthly credits > 3x declared annual income / 12 for personal accounts",
+      threshold: "Credits > 3x monthly declared income",
+      priority: "high",
+    },
+    {
+      id: "MULE-06-R4",
+      name: "Young account holder pattern",
+      logic: "Account holder aged 18-25, account opened < 60 days, cumulative credits > £5,000",
+      threshold: "Age 18-25 + new account + £5k+ credits",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Mule Pattern Confirmation",
+      description: "Verify multiple funding sources are genuinely unrelated. Confirm rapid disbursement pattern. Cross-reference against known mule databases.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Victim Assessment",
+      description: "Assess whether account holder may be a victim of mule recruitment (coercion, social engineering). Check age and vulnerability indicators.",
+      sla: "24 hours",
+      responsible: "L2 Analyst / Vulnerability Team",
+    },
+    {
+      step: 3,
+      title: "Network Mapping",
+      description: "Map all connected accounts and counterparties. Identify potential mule herder or controller. Check for linked accounts showing similar patterns.",
+      sla: "48 hours",
+      responsible: "L2 Analyst / Intelligence",
+    },
+    {
+      step: 4,
+      title: "Enforcement Coordination",
+      description: "MLRO reviews case. File SAR. Coordinate with law enforcement if active mule ring suspected. Consider CIFAS marker.",
+      sla: "24 hours (expedited)",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Account Action",
+      description: "Freeze or close account. Return funds to victims where identifiable. Document vulnerability assessment outcome. Update mule detection rules with new patterns.",
+      sla: "48 hours",
+      responsible: "Operations / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Mule detection rate", target: ">30%", description: "Proportion of mule alerts confirmed as genuine" },
+    { name: "Time to account freeze", target: "<24 hours", description: "From confirmed mule identification to account restriction" },
+    { name: "Victim identification rate", target: "Track", description: "Mule cases where account holder identified as victim" },
+    { name: "Network detection", target: "Track", description: "Mule cases leading to identification of wider network" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Mule intelligence feeds integrated and current", frequency: "Monthly", owner: "Intelligence / Compliance" },
+    { id: "GOV-02", item: "Mule detection thresholds reviewed against case outcomes", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Vulnerability assessment process for suspected mule victims", frequency: "Ongoing", owner: "Compliance" },
+    { id: "GOV-04", item: "CIFAS / law enforcement data sharing in place", frequency: "Annual review", owner: "MLRO" },
+    { id: "GOV-05", item: "Mule typology trends reported to risk committee", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FCA", reference: "TR/22/3", title: "Money Mule Thematic Review" },
+    { org: "FATF", reference: "ML/TF Typologies 2022", title: "Money Mule Networks" },
+    { org: "JMLSG", reference: "Part II, Sector 1", title: "Banking Sector Guidance" },
+    { org: "Wolfsberg", reference: "Payment Fraud Principles", title: "Mule Account Detection" },
+  ],
+};

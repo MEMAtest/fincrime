@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology08: Typology = {
+  id: 8,
+  slug: "sanctions-evasion-via-intermediaries",
+  title: "Sanctions Evasion via Intermediaries",
+  riskTheme: "sanctions_evasion",
+  description:
+    "Use of intermediary entities, agents, or correspondent chains to circumvent sanctions on designated individuals, entities, or jurisdictions. Includes trade diversion, front companies, and complex payment routing.",
+  applicableFirmTypes: ["emi", "pi", "bank", "msb", "neobank"],
+  applicableProducts: ["cross_border_payments", "trade_finance", "fx_transfers", "remittance"],
+  applicableCustomerTypes: ["corporates", "smes", "agents_intermediaries"],
+  controlObjective:
+    "Detect potential sanctions evasion through intermediary structures, complex payment routing, and misuse of correspondent relationships to reach sanctioned parties or jurisdictions.",
+  dataRequired: [
+    "Full payment chain (originator through all intermediaries to beneficiary)",
+    "OFSI, OFAC, EU, and UN consolidated sanctions lists",
+    "Beneficiary institution and country",
+    "Trade documentation (invoices, shipping docs, bills of lading)",
+    "Intermediary entity details and beneficial ownership",
+    "Dual-use goods classifications",
+    "End-user certificates where applicable",
+    "Historical payment routing patterns",
+  ],
+  detectionLogic: [
+    {
+      id: "SANC-08-R1",
+      name: "Payment chain to sanctioned jurisdiction",
+      logic: "Payment routed through 1+ intermediary jurisdictions where final beneficiary is in comprehensively sanctioned country",
+      threshold: "Any indirect route to sanctioned jurisdiction",
+      priority: "critical",
+    },
+    {
+      id: "SANC-08-R2",
+      name: "Sanctions list near-match",
+      logic: "Beneficiary name fuzzy-matches (>85% similarity) sanctioned entity but does not exactly match, suggesting name variation or alias",
+      threshold: "85%+ name similarity to sanctioned entity",
+      priority: "high",
+    },
+    {
+      id: "SANC-08-R3",
+      name: "Trade route diversion",
+      logic: "Goods shipped to non-sanctioned country but trade documents indicate re-export or transhipment to sanctioned destination",
+      threshold: "Transhipment indicators to sanctioned country",
+      priority: "critical",
+    },
+    {
+      id: "SANC-08-R4",
+      name: "Intermediary concentration",
+      logic: "Customer uses same intermediary for > 50% of cross-border payments where intermediary is in jurisdiction adjacent to sanctioned country",
+      threshold: "50%+ payments via single border-adjacent intermediary",
+      priority: "high",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Sanctions Screening Verification",
+      description: "Re-screen all parties in payment chain against current sanctions lists. Verify no matches, near-matches, or alias hits. Check vessel/aircraft names if trade-related.",
+      sla: "2 hours (expedited)",
+      responsible: "Sanctions Analyst",
+    },
+    {
+      step: 2,
+      title: "Payment Chain Reconstruction",
+      description: "Trace full payment path from originator to ultimate beneficiary. Identify all intermediaries, correspondent banks, and routing logic. Flag unusual routing.",
+      sla: "8 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Trade Document Analysis",
+      description: "If trade-related: verify goods description, shipping routes, end-user documentation. Check for dual-use goods. Verify commercial rationale for routing.",
+      sla: "24 hours",
+      responsible: "L2 Analyst / Trade Compliance",
+    },
+    {
+      step: 4,
+      title: "MLRO / Sanctions Officer Decision",
+      description: "Assess whether evasion is confirmed or suspected. Consider OFSI reporting obligation. Freeze assets if match confirmed. File SAR with sanctions flags.",
+      sla: "24 hours (statutory)",
+      responsible: "MLRO / Sanctions Officer",
+    },
+    {
+      step: 5,
+      title: "Regulatory Reporting",
+      description: "Submit OFSI report if sanctions breach suspected. File SAR. Notify correspondent banks in chain. Consider voluntary disclosure to FCA.",
+      sla: "Immediate upon confirmation",
+      responsible: "MLRO / Legal",
+    },
+  ],
+  metrics: [
+    { name: "Sanctions alert volume", target: "Monitor", description: "Monthly sanctions screening alerts generated" },
+    { name: "True match rate", target: ">5%", description: "Proportion of alerts confirming sanctioned party involvement" },
+    { name: "Screening coverage", target: "100%", description: "All payment parties screened against all applicable lists" },
+    { name: "OFSI reporting timeliness", target: "Same day", description: "Time from confirmation to OFSI report submission" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Sanctions lists updated within 24 hours of publication", frequency: "Daily / as published", owner: "Compliance" },
+    { id: "GOV-02", item: "Screening system accuracy and fuzzy-match calibration tested", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Sanctions evasion typology training delivered", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-04", item: "Correspondent bank sanctions policies reviewed", frequency: "Annual", owner: "Correspondent Banking" },
+    { id: "GOV-05", item: "OFSI and FCA sanctions guidance changes assessed", frequency: "Within 30 days of publication", owner: "Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 6", title: "Targeted Financial Sanctions (TF)" },
+    { org: "FCA", reference: "FG/18/5 Chapter 8", title: "Sanctions" },
+    { org: "Wolfsberg", reference: "Sanctions Screening Guidance", title: "Screening Standards" },
+    { org: "JMLSG", reference: "Part I, Chapter 7", title: "Sanctions Compliance" },
+  ],
+};
