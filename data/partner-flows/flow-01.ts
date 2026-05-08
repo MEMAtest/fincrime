@@ -62,9 +62,9 @@ export const flow01: PartnerFlow = {
     { id: "GP06", document: "SAR/STR volumes attributable to partner flow", frequency: "Quarterly", owner: "MLRO" },
   ],
   sources: [
-    { org: "Wolfsberg", reference: "Payment Transparency Standards 2023", title: "Standards for Payment Transparency" },
-    { org: "FATF", reference: "Recommendation 16", title: "Wire Transfers" },
-    { org: "FCA", reference: "FG/18/5 Chapter 12", title: "Reliance and Outsourcing" },
-    { org: "JMLSG", reference: "Part I, Chapter 5.7", title: "Reliance on Third Parties" },
+    { org: "Wolfsberg", reference: "Payment Transparency Standards 2023", title: "Standards for Payment Transparency", url: "https://wolfsberg-group.org/resources/correspondent-banking/136" },
+    { org: "FATF", reference: "Recommendation 16", title: "Wire Transfers", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 12", title: "Reliance and Outsourcing", url: "https://www.handbook.fca.org.uk/handbook/FCG/12/" },
+    { org: "JMLSG", reference: "Part I, Chapter 5.7", title: "Reliance on Third Parties", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
   ],
 };

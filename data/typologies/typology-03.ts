@@ -103,9 +103,9 @@ export const typology03: Typology = {
     { id: "GOV-05", item: "Rule tuning based on SAR feedback and NCA guidance", frequency: "Semi-annual", owner: "Compliance" },
   ],
   sources: [
-    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions" },
-    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring" },
-    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting" },
-    { org: "Wolfsberg", reference: "TM Guidance 2023", title: "Transaction Monitoring Principles" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "Wolfsberg", reference: "TM Guidance 2023", title: "Transaction Monitoring Principles", url: "https://wolfsberg-group.org/resources/transaction-monitoring/144" },
   ],
 };

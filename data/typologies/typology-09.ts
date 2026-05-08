@@ -103,9 +103,9 @@ export const typology09: Typology = {
     { id: "GOV-05", item: "Correspondent banking relationships for corridors reviewed", frequency: "Annual", owner: "Banking / Compliance" },
   ],
   sources: [
-    { org: "FATF", reference: "Recommendation 14", title: "Money or Value Transfer Services" },
-    { org: "FCA", reference: "FG/18/5 Chapter 15", title: "Money Service Businesses" },
-    { org: "JMLSG", reference: "Part II, Sector 15", title: "MSB Sector Guidance" },
-    { org: "Wolfsberg", reference: "Correspondent Banking Principles", title: "Risk Assessment for Corridors" },
+    { org: "FATF", reference: "Recommendation 14", title: "Money or Value Transfer Services", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 15", title: "Money Service Businesses", url: "https://www.handbook.fca.org.uk/handbook/FCG/15/" },
+    { org: "JMLSG", reference: "Part II, Sector 15", title: "MSB Sector Guidance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "Wolfsberg", reference: "Correspondent Banking Principles", title: "Risk Assessment for Corridors", url: "https://wolfsberg-group.org/resources/correspondent-banking/139" },
   ],
 };

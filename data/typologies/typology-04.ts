@@ -103,9 +103,9 @@ export const typology04: Typology = {
     { id: "GOV-05", item: "Behavioural detection effectiveness reported to risk committee", frequency: "Quarterly", owner: "MLRO" },
   ],
   sources: [
-    { org: "FATF", reference: "Guidance on RBA", title: "Risk-Based Approach for the Banking Sector" },
-    { org: "FCA", reference: "FG/18/5 Chapter 3", title: "Risk Assessment" },
-    { org: "Wolfsberg", reference: "TM FAQ 2021", title: "Behavioural Analytics in Transaction Monitoring" },
-    { org: "JMLSG", reference: "Part I, Chapter 5.6", title: "Ongoing Monitoring" },
+    { org: "FATF", reference: "Guidance on RBA", title: "Risk-Based Approach for the Banking Sector", url: "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Risk-based-approach-banking-sector.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 3", title: "Risk Assessment", url: "https://www.handbook.fca.org.uk/handbook/FCG/3/" },
+    { org: "Wolfsberg", reference: "TM FAQ 2021", title: "Behavioural Analytics in Transaction Monitoring", url: "https://wolfsberg-group.org/resources/transaction-monitoring/144" },
+    { org: "JMLSG", reference: "Part I, Chapter 5.6", title: "Ongoing Monitoring", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
   ],
 };

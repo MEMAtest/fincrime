@@ -43,12 +43,13 @@ export interface GovernancePackItem {
   owner: string;
 }
 
-export type SourceOrg = "Wolfsberg" | "FATF" | "FCA" | "JMLSG";
+export type SourceOrg = "Wolfsberg" | "FATF" | "FCA" | "JMLSG" | "OFSI";
 
 export interface Source {
   org: SourceOrg;
   reference: string;
   title: string;
+  url: string;
 }
 
 export interface PartnerFlow {

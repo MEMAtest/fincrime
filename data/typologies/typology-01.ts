@@ -103,9 +103,10 @@ export const typology01: Typology = {
     { id: "GOV-05", item: "Independent assurance review of TF monitoring controls", frequency: "Annual", owner: "Internal Audit / 3LoD" },
   ],
   sources: [
-    { org: "FATF", reference: "FATF Recommendation 16", title: "Wire Transfers" },
-    { org: "FATF", reference: "FATF Typologies Report 2022", title: "Terrorist Financing Risk Indicators" },
-    { org: "FCA", reference: "FG/18/5", title: "Financial Crime Guide" },
-    { org: "JMLSG", reference: "Part II, Sector 15", title: "Money Service Businesses" },
+    { org: "FATF", reference: "FATF Recommendation 16", title: "Wire Transfers", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "FATF Typologies Report 2022", title: "Terrorist Financing Risk Indicators", url: "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Money-laundering-terrorist-financing-trends.html" },
+    { org: "FCA", reference: "FG/18/5", title: "Financial Crime Guide", url: "https://www.fca.org.uk/publication/finalised-guidance/fg18-05.pdf" },
+    { org: "JMLSG", reference: "Part II, Sector 15", title: "Money Service Businesses", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "OFSI", reference: "OFSI General Guidance", title: "Financial Sanctions Guidance", url: "https://www.gov.uk/government/publications/financial-sanctions-general-guidance" },
   ],
 };

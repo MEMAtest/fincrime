@@ -62,9 +62,9 @@ export const flow04: PartnerFlow = {
     { id: "GP06", document: "Customer complaints summary", frequency: "Quarterly", owner: "Compliance" },
   ],
   sources: [
-    { org: "FCA", reference: "CASS 7", title: "Client Money and Safeguarding" },
-    { org: "FCA", reference: "SUP 12", title: "Appointed Representatives and Agents" },
-    { org: "Wolfsberg", reference: "Payment Transparency Standards", title: "Multi-Currency Account Controls" },
-    { org: "JMLSG", reference: "Part II, Sector 18", title: "E-Money Sector Guidance" },
+    { org: "FCA", reference: "CASS 7", title: "Client Money and Safeguarding", url: "https://www.handbook.fca.org.uk/handbook/CASS/7/" },
+    { org: "FCA", reference: "SUP 12", title: "Appointed Representatives and Agents", url: "https://www.handbook.fca.org.uk/handbook/SUP/12/" },
+    { org: "Wolfsberg", reference: "Payment Transparency Standards", title: "Multi-Currency Account Controls", url: "https://wolfsberg-group.org/resources/correspondent-banking/136" },
+    { org: "JMLSG", reference: "Part II, Sector 18", title: "E-Money Sector Guidance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
   ],
 };

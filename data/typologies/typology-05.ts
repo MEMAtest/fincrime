@@ -103,9 +103,10 @@ export const typology05: Typology = {
     { id: "GOV-05", item: "Tax haven monitoring effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
   ],
   sources: [
-    { org: "FATF", reference: "Recommendation 26", title: "Regulation and Supervision of Financial Institutions" },
-    { org: "FCA", reference: "FG/18/5 Chapter 7", title: "Tax-Related Financial Crime" },
-    { org: "JMLSG", reference: "Part I, Chapter 4.12", title: "Tax Offences" },
-    { org: "Wolfsberg", reference: "Tax Evasion Principles", title: "Wolfsberg Group Tax Evasion Paper" },
+    { org: "FATF", reference: "Recommendation 26", title: "Regulation and Supervision of Financial Institutions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 7", title: "Tax-Related Financial Crime", url: "https://www.handbook.fca.org.uk/handbook/FCG/7/" },
+    { org: "JMLSG", reference: "Part I, Chapter 4.12", title: "Tax Offences", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "Wolfsberg", reference: "Tax Evasion Principles", title: "Wolfsberg Group Tax Evasion Paper", url: "https://wolfsberg-group.org/resources/tax-evasion/147" },
+    { org: "OFSI", reference: "OFSI Monetary Penalties", title: "Monetary Penalties for Breaches of Financial Sanctions", url: "https://www.gov.uk/government/publications/monetary-penalties-for-breaches-of-financial-sanctions" },
   ],
 };

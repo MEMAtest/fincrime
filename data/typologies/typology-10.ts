@@ -103,9 +103,9 @@ export const typology10: Typology = {
     { id: "GOV-05", item: "Profile mismatch detection effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
   ],
   sources: [
-    { org: "FATF", reference: "Recommendation 10", title: "Customer Due Diligence" },
-    { org: "FCA", reference: "FG/18/5 Chapter 3", title: "Risk Assessment and CDD" },
-    { org: "Wolfsberg", reference: "KYC Guidance 2023", title: "Ongoing Due Diligence" },
-    { org: "JMLSG", reference: "Part I, Chapter 5.6", title: "Ongoing Monitoring" },
+    { org: "FATF", reference: "Recommendation 10", title: "Customer Due Diligence", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 3", title: "Risk Assessment and CDD", url: "https://www.handbook.fca.org.uk/handbook/FCG/3/" },
+    { org: "Wolfsberg", reference: "KYC Guidance 2023", title: "Ongoing Due Diligence", url: "https://wolfsberg-group.org/resources/know-your-customer/125" },
+    { org: "JMLSG", reference: "Part I, Chapter 5.6", title: "Ongoing Monitoring", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
   ],
 };

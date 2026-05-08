@@ -103,9 +103,9 @@ export const typology02: Typology = {
     { id: "GOV-05", item: "Law enforcement information requests cross-referenced", frequency: "Ongoing", owner: "MLRO" },
   ],
   sources: [
-    { org: "FATF", reference: "FATF ML Typologies 2023", title: "Layering Techniques in New Payment Methods" },
-    { org: "FCA", reference: "TR/22/3", title: "Thematic Review: Money Mules" },
-    { org: "Wolfsberg", reference: "Payment Transparency Standards", title: "Data Quality in Payment Chains" },
-    { org: "JMLSG", reference: "Part I, Chapter 5", title: "Customer Due Diligence" },
+    { org: "FATF", reference: "FATF ML Typologies 2023", title: "Layering Techniques in New Payment Methods", url: "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Money-laundering-terrorist-financing-trends.html" },
+    { org: "FCA", reference: "TR/22/3", title: "Thematic Review: Money Mules", url: "https://www.fca.org.uk/publications/multi-firm-reviews/proceeds-fraud-detecting-preventing-money-mules" },
+    { org: "Wolfsberg", reference: "Payment Transparency Standards", title: "Data Quality in Payment Chains", url: "https://wolfsberg-group.org/resources/correspondent-banking/136" },
+    { org: "JMLSG", reference: "Part I, Chapter 5", title: "Customer Due Diligence", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
   ],
 };

@@ -62,9 +62,9 @@ export const flow05: PartnerFlow = {
     { id: "GP06", document: "Platform business model change review", frequency: "Semi-annual", owner: "Compliance" },
   ],
   sources: [
-    { org: "FCA", reference: "PS/19/3", title: "Payment Services and E-Money: Approach Document" },
-    { org: "Wolfsberg", reference: "Payment Transparency Standards", title: "Platform Payment Controls" },
-    { org: "FATF", reference: "Recommendation 15", title: "New Technologies" },
-    { org: "JMLSG", reference: "Part II, Sector 22", title: "Fintech and Payment Platforms" },
+    { org: "FCA", reference: "PS/19/3", title: "Payment Services and E-Money: Approach Document", url: "https://www.fca.org.uk/publication/policy/ps19-03.pdf" },
+    { org: "Wolfsberg", reference: "Payment Transparency Standards", title: "Platform Payment Controls", url: "https://wolfsberg-group.org/resources/correspondent-banking/136" },
+    { org: "FATF", reference: "Recommendation 15", title: "New Technologies", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "JMLSG", reference: "Part II, Sector 22", title: "Fintech and Payment Platforms", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
   ],
 };

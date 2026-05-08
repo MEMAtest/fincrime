@@ -103,9 +103,9 @@ export const typology06: Typology = {
     { id: "GOV-05", item: "Mule typology trends reported to risk committee", frequency: "Quarterly", owner: "MLRO" },
   ],
   sources: [
-    { org: "FCA", reference: "TR/22/3", title: "Money Mule Thematic Review" },
-    { org: "FATF", reference: "ML/TF Typologies 2022", title: "Money Mule Networks" },
-    { org: "JMLSG", reference: "Part II, Sector 1", title: "Banking Sector Guidance" },
-    { org: "Wolfsberg", reference: "Payment Fraud Principles", title: "Mule Account Detection" },
+    { org: "FCA", reference: "TR/22/3", title: "Money Mule Thematic Review", url: "https://www.fca.org.uk/publications/multi-firm-reviews/proceeds-fraud-detecting-preventing-money-mules" },
+    { org: "FATF", reference: "ML/TF Typologies 2022", title: "Money Mule Networks", url: "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Money-laundering-terrorist-financing-trends.html" },
+    { org: "JMLSG", reference: "Part II, Sector 1", title: "Banking Sector Guidance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "Wolfsberg", reference: "Payment Fraud Principles", title: "Mule Account Detection", url: "https://wolfsberg-group.org/resources/payment-fraud/148" },
   ],
 };

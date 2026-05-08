@@ -62,9 +62,9 @@ export const flow02: PartnerFlow = {
     { id: "GP06", document: "Correspondent relationship board reporting", frequency: "Semi-annual", owner: "MLRO" },
   ],
   sources: [
-    { org: "Wolfsberg", reference: "CBDDQ v1.3", title: "Correspondent Banking Due Diligence Questionnaire" },
-    { org: "FATF", reference: "Recommendation 13", title: "Correspondent Banking" },
-    { org: "FCA", reference: "FG/18/5 Chapter 12", title: "Correspondent Banking Relationships" },
-    { org: "Wolfsberg", reference: "Payment Transparency Standards", title: "Payment Message Standards" },
+    { org: "Wolfsberg", reference: "CBDDQ v1.3", title: "Correspondent Banking Due Diligence Questionnaire", url: "https://wolfsberg-group.org/resources/wolfsberg-group-cbddq/130" },
+    { org: "FATF", reference: "Recommendation 13", title: "Correspondent Banking", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 12", title: "Correspondent Banking Relationships", url: "https://www.handbook.fca.org.uk/handbook/FCG/12/" },
+    { org: "Wolfsberg", reference: "Payment Transparency Standards", title: "Payment Message Standards", url: "https://wolfsberg-group.org/resources/correspondent-banking/136" },
   ],
 };

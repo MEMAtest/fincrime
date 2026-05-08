@@ -57,9 +57,9 @@ export const flow03: PartnerFlow = {
     { id: "GP06", document: "Board correspondent banking report", frequency: "Semi-annual", owner: "MLRO" },
   ],
   sources: [
-    { org: "Wolfsberg", reference: "Correspondent Banking Principles 2022", title: "Correspondent Banking Due Diligence" },
-    { org: "FATF", reference: "Recommendation 13", title: "Correspondent Banking" },
-    { org: "FCA", reference: "FG/18/5 Chapter 12", title: "Correspondent Relationships" },
-    { org: "Wolfsberg", reference: "CBDDQ v1.3", title: "Due Diligence Questionnaire" },
+    { org: "Wolfsberg", reference: "Correspondent Banking Principles 2022", title: "Correspondent Banking Due Diligence", url: "https://wolfsberg-group.org/resources/correspondent-banking/139" },
+    { org: "FATF", reference: "Recommendation 13", title: "Correspondent Banking", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 12", title: "Correspondent Relationships", url: "https://www.handbook.fca.org.uk/handbook/FCG/12/" },
+    { org: "Wolfsberg", reference: "CBDDQ v1.3", title: "Due Diligence Questionnaire", url: "https://wolfsberg-group.org/resources/wolfsberg-group-cbddq/130" },
   ],
 };

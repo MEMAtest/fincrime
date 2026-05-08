@@ -103,9 +103,9 @@ export const typology07: Typology = {
     { id: "GOV-05", item: "Shell company detection effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
   ],
   sources: [
-    { org: "FATF", reference: "Recommendation 24", title: "Transparency of Legal Persons" },
-    { org: "FCA", reference: "FG/18/5 Chapter 4", title: "Customer Due Diligence" },
-    { org: "Wolfsberg", reference: "CBDDQ 2023", title: "Correspondent Banking Due Diligence" },
-    { org: "JMLSG", reference: "Part I, Chapter 5.3", title: "Corporate Customer CDD" },
+    { org: "FATF", reference: "Recommendation 24", title: "Transparency of Legal Persons", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 4", title: "Customer Due Diligence", url: "https://www.handbook.fca.org.uk/handbook/FCG/4/" },
+    { org: "Wolfsberg", reference: "CBDDQ 2023", title: "Correspondent Banking Due Diligence", url: "https://wolfsberg-group.org/resources/wolfsberg-group-cbddq/130" },
+    { org: "JMLSG", reference: "Part I, Chapter 5.3", title: "Corporate Customer CDD", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
   ],
 };

@@ -103,9 +103,10 @@ export const typology08: Typology = {
     { id: "GOV-05", item: "OFSI and FCA sanctions guidance changes assessed", frequency: "Within 30 days of publication", owner: "Compliance" },
   ],
   sources: [
-    { org: "FATF", reference: "Recommendation 6", title: "Targeted Financial Sanctions (TF)" },
-    { org: "FCA", reference: "FG/18/5 Chapter 8", title: "Sanctions" },
-    { org: "Wolfsberg", reference: "Sanctions Screening Guidance", title: "Screening Standards" },
-    { org: "JMLSG", reference: "Part I, Chapter 7", title: "Sanctions Compliance" },
+    { org: "FATF", reference: "Recommendation 6", title: "Targeted Financial Sanctions (TF)", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 8", title: "Sanctions", url: "https://www.handbook.fca.org.uk/handbook/FCG/8/" },
+    { org: "Wolfsberg", reference: "Sanctions Screening Guidance", title: "Screening Standards", url: "https://wolfsberg-group.org/resources/sanctions-screening/142" },
+    { org: "JMLSG", reference: "Part I, Chapter 7", title: "Sanctions Compliance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "OFSI", reference: "OFSI General Guidance", title: "Financial Sanctions General Guidance", url: "https://www.gov.uk/government/publications/financial-sanctions-general-guidance" },
   ],
 };
