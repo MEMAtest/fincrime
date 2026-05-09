@@ -158,7 +158,7 @@ export default function TypologyListPage() {
                 transition={{ delay: i * 0.05, duration: 0.35, ease: "easeOut" }}
               >
                 <Link
-                  href={`/typology-iq?riskTheme=${t.riskTheme}`}
+                  href={`/typology-iq?riskThemes=${t.riskTheme}`}
                   className="block glass-card rounded-xl p-5 card-hover h-full"
                 >
                   {/* header row */}

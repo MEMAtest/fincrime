@@ -1,10 +1,14 @@
 @import "tailwindcss";
 
-:root {
+:root,
+:root[data-theme="dark"] {
   --background: #0a1628;
   --foreground: #f8fafc;
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --surface-hover: rgba(255, 255, 255, 0.06);
   --card-bg: #ffffff;
-  --card-border: #e2e8f0;
+  --card-border: rgba(255, 255, 255, 0.10);
   --accent: #14b8a6;
   --accent-hover: #0d9488;
   --navy-light: #1e293b;
@@ -15,6 +19,28 @@
   --risk-critical: #dc2626;
   --text-muted: #94a3b8;
   --text-dark: #1e293b;
+  --header-bg: rgba(10, 22, 40, 0.8);
+}
+
+:root[data-theme="light"] {
+  --background: #f7f9fc;
+  --foreground: #0f172a;
+  --surface: rgba(15, 23, 42, 0.03);
+  --surface-border: rgba(15, 23, 42, 0.10);
+  --surface-hover: rgba(15, 23, 42, 0.05);
+  --card-bg: #ffffff;
+  --card-border: rgba(15, 23, 42, 0.10);
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --navy-light: #e2e8f0;
+  --navy-mid: #f1f5f9;
+  --risk-high: #dc2626;
+  --risk-medium: #d97706;
+  --risk-low: #16a34a;
+  --risk-critical: #b91c1c;
+  --text-muted: #64748b;
+  --text-dark: #0f172a;
+  --header-bg: rgba(247, 249, 252, 0.85);
 }
 
 @theme inline {
@@ -39,6 +65,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 /* Custom scrollbar */
@@ -73,9 +100,33 @@ body {
   background-clip: text;
 }
 
-/* Glass card */
+/* Glass card — uses theme-aware surface tokens */
 .glass-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--surface);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--surface-border);
+}
+
+/* Header backdrop — theme-aware */
+.app-header {
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+/* Light-mode rewrites for hardcoded white tints used across components.
+   The dark theme keeps the original white-on-navy aesthetic; in light mode
+   we swap to faint slate tints so borders and surfaces remain visible. */
+:root[data-theme="light"] .border-white\/5  { border-color: rgba(15, 23, 42, 0.06); }
+:root[data-theme="light"] .border-white\/10 { border-color: rgba(15, 23, 42, 0.10); }
+:root[data-theme="light"] .border-white\/20 { border-color: rgba(15, 23, 42, 0.18); }
+:root[data-theme="light"] .bg-white\/5      { background-color: rgba(15, 23, 42, 0.04); }
+:root[data-theme="light"] .bg-white\/\[0\.02\]  { background-color: rgba(15, 23, 42, 0.03); }
+:root[data-theme="light"] .bg-white\/\[0\.04\]  { background-color: rgba(15, 23, 42, 0.05); }
+:root[data-theme="light"] .text-white\/20   { color: rgba(15, 23, 42, 0.30); }
+:root[data-theme="light"] .hover\:border-white\/20:hover { border-color: rgba(15, 23, 42, 0.18); }
+:root[data-theme="light"] .hover\:bg-white\/\[0\.04\]:hover { background-color: rgba(15, 23, 42, 0.05); }
+
+/* In light mode, the hero gradient mask reads better with a darker accent stop */
+:root[data-theme="light"] .from-accent\/5 {
+  --tw-gradient-from: rgba(13, 148, 136, 0.08);
 }
