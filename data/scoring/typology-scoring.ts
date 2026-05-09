@@ -42,8 +42,8 @@ export function scoreTypologies(answers: TypologyAnswers): TypologyScore[] {
         ? WEIGHTS.customerType
         : 0;
 
-      const riskThemeScore = themes.includes(typology.riskTheme)
-        ? WEIGHTS.riskTheme
+      const riskThemeScore = themes.length > 0 && themes.includes(typology.riskTheme)
+        ? Math.round(WEIGHTS.riskTheme / themes.length)
         : 0;
 
       const score = firmTypeScore + productScore + customerTypeScore + riskThemeScore;
