@@ -19,21 +19,28 @@ export async function POST(request: NextRequest) {
     let filename: string;
 
     if (module === "typology_iq") {
-      const { firmType, product, customerType, riskTheme, narrative } = assessmentData as {
+      const { firmType, product, customerType, riskThemes, riskTheme, narrative } = assessmentData as {
         firmType: FirmType;
         product: ProductType;
         customerType: CustomerType;
-        riskTheme: RiskTheme;
+        riskThemes?: RiskTheme[];
+        riskTheme?: RiskTheme;
         narrative?: string;
       };
 
-      const result = getBestMatch({ firmType, product, customerType, riskTheme });
+      const themes: RiskTheme[] = riskThemes && riskThemes.length > 0
+        ? riskThemes
+        : riskTheme
+        ? [riskTheme]
+        : [];
+
+      const result = getBestMatch({ firmType, product, customerType, riskThemes: themes });
 
       pdfBuffer = generateTypologyPDF({
         typology: result.typology,
         score: result.score,
         breakdown: result.breakdown,
-        answers: { firmType, product, customerType, riskTheme },
+        answers: { firmType, product, customerType, riskThemes: themes },
         narrative,
       });
       filename = `MEMA-TypologyIQ-${result.typology.slug}-${new Date().toISOString().split("T")[0]}.pdf`;

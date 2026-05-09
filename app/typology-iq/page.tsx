@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Building2, CreditCard, Users, AlertTriangle, FileText,
   Landmark, Wallet, Globe, Banknote, ShieldAlert, Scale,
   UserCheck, Briefcase, Crown, Heart, HandshakeIcon,
   Bomb, DollarSign, ShieldOff, Search as SearchIcon, Megaphone,
-  BarChart3, Coins,
+  BarChart3, Coins, Check,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -18,7 +18,7 @@ import OptionCard from "@/components/wizard/OptionCard";
 import LivePreview from "@/components/wizard/LivePreview";
 import type { FirmType, ProductType, CustomerType, RiskTheme } from "@/data/typologies/types";
 
-const STEPS = ["Firm Type", "Product", "Customer", "Risk Theme", "Confirm"];
+const STEPS = ["Firm Type", "Product", "Customer", "Risk Themes", "Confirm"];
 
 const FIRM_OPTIONS: { value: FirmType; label: string; description: string; icon: typeof Building2 }[] = [
   { value: "emi", label: "E-Money Institution (EMI)", description: "Authorised to issue electronic money and provide payment services", icon: Wallet },
@@ -64,34 +64,66 @@ const RISK_THEME_OPTIONS: { value: RiskTheme; label: string; description: string
   { value: "proliferation_financing", label: "Proliferation Financing", description: "Financing of weapons of mass destruction programmes", icon: SearchIcon },
 ];
 
+const RISK_THEME_LABEL: Record<RiskTheme, string> = Object.fromEntries(
+  RISK_THEME_OPTIONS.map((o) => [o.value, o.label])
+) as Record<RiskTheme, string>;
+
 const labels: Record<string, Record<string, string>> = {
   firmType: Object.fromEntries(FIRM_OPTIONS.map((o) => [o.value, o.label])),
   product: Object.fromEntries(PRODUCT_OPTIONS.map((o) => [o.value, o.label])),
   customerType: Object.fromEntries(CUSTOMER_OPTIONS.map((o) => [o.value, o.label])),
-  riskTheme: Object.fromEntries(RISK_THEME_OPTIONS.map((o) => [o.value, o.label])),
 };
 
-export default function TypologyIQPage() {
+function TypologyIQWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<{
     firmType: FirmType | null;
     product: ProductType | null;
     customerType: CustomerType | null;
-    riskTheme: RiskTheme | null;
+    riskThemes: RiskTheme[];
   }>({
     firmType: null,
     product: null,
     customerType: null,
-    riskTheme: null,
+    riskThemes: [],
   });
+
+  // Allow firm-research and list pages to deep-link prefilled selections.
+  useEffect(() => {
+    const firmType = searchParams.get("firmType") as FirmType | null;
+    const product = searchParams.get("product") as ProductType | null;
+    const customerType = searchParams.get("customerType") as CustomerType | null;
+    const themesParam = searchParams.get("riskThemes") ?? searchParams.get("riskTheme");
+    const riskThemes = themesParam
+      ? (themesParam.split(",").filter(Boolean) as RiskTheme[])
+      : [];
+    if (firmType || product || customerType || riskThemes.length > 0) {
+      setAnswers((a) => ({
+        firmType: firmType ?? a.firmType,
+        product: product ?? a.product,
+        customerType: customerType ?? a.customerType,
+        riskThemes: riskThemes.length > 0 ? riskThemes : a.riskThemes,
+      }));
+    }
+  }, [searchParams]);
+
+  const toggleTheme = useCallback((theme: RiskTheme) => {
+    setAnswers((a) => ({
+      ...a,
+      riskThemes: a.riskThemes.includes(theme)
+        ? a.riskThemes.filter((t) => t !== theme)
+        : [...a.riskThemes, theme],
+    }));
+  }, []);
 
   const canGoNext = useCallback(() => {
     switch (step) {
       case 0: return !!answers.firmType;
       case 1: return !!answers.product;
       case 2: return !!answers.customerType;
-      case 3: return !!answers.riskTheme;
+      case 3: return answers.riskThemes.length > 0;
       case 4: return true;
       default: return false;
     }
@@ -103,7 +135,7 @@ export default function TypologyIQPage() {
         firmType: answers.firmType!,
         product: answers.product!,
         customerType: answers.customerType!,
-        riskTheme: answers.riskTheme!,
+        riskThemes: answers.riskThemes.join(","),
       });
       router.push(`/typology-iq/results?${params.toString()}`);
     } else {
@@ -115,152 +147,178 @@ export default function TypologyIQPage() {
     setStep((s) => Math.max(0, s - 1));
   }, []);
 
+  const themesLabel = answers.riskThemes.length > 0
+    ? answers.riskThemes.map((t) => RISK_THEME_LABEL[t]).join(", ")
+    : null;
+
   const previewItems = [
     { label: "Firm Type", value: answers.firmType ? labels.firmType[answers.firmType] : null },
     { label: "Product", value: answers.product ? labels.product[answers.product] : null },
     { label: "Customer Type", value: answers.customerType ? labels.customerType[answers.customerType] : null },
-    { label: "Risk Theme", value: answers.riskTheme ? labels.riskTheme[answers.riskTheme] : null },
+    { label: "Risk Themes", value: themesLabel },
   ];
 
+  return (
+    <WizardShell
+      steps={STEPS}
+      currentStep={step}
+      canGoNext={canGoNext()}
+      onBack={handleBack}
+      onNext={handleNext}
+      isLastStep={step === STEPS.length - 1}
+      sidebar={<LivePreview title="Your Selection" items={previewItems} />}
+    >
+      {step === 0 && (
+        <WizardStep
+          title="What type of firm are you?"
+          subtitle="This determines which typologies are most applicable to your regulated activities."
+        >
+          {FIRM_OPTIONS.map((opt) => (
+            <OptionCard
+              key={opt.value}
+              value={opt.value}
+              label={opt.label}
+              description={opt.description}
+              icon={opt.icon}
+              selected={answers.firmType === opt.value}
+              onSelect={(v) => setAnswers((a) => ({ ...a, firmType: v as FirmType }))}
+            />
+          ))}
+        </WizardStep>
+      )}
+
+      {step === 1 && (
+        <WizardStep
+          title="Which product or service?"
+          subtitle="Select the primary product or service you want to assess for financial crime risk."
+        >
+          {PRODUCT_OPTIONS.map((opt) => (
+            <OptionCard
+              key={opt.value}
+              value={opt.value}
+              label={opt.label}
+              description={opt.description}
+              icon={opt.icon}
+              selected={answers.product === opt.value}
+              onSelect={(v) => setAnswers((a) => ({ ...a, product: v as ProductType }))}
+            />
+          ))}
+        </WizardStep>
+      )}
+
+      {step === 2 && (
+        <WizardStep
+          title="Who are your primary customers?"
+          subtitle="Select the main customer segment for this product."
+        >
+          {CUSTOMER_OPTIONS.map((opt) => (
+            <OptionCard
+              key={opt.value}
+              value={opt.value}
+              label={opt.label}
+              description={opt.description}
+              icon={opt.icon}
+              selected={answers.customerType === opt.value}
+              onSelect={(v) => setAnswers((a) => ({ ...a, customerType: v as CustomerType }))}
+            />
+          ))}
+        </WizardStep>
+      )}
+
+      {step === 3 && (
+        <WizardStep
+          title="Which risk themes concern you?"
+          subtitle="Select one or more financial crime risk categories. Multiple selections broaden the matched typologies."
+        >
+          <div className="mb-3 flex items-center justify-between text-xs text-text-muted">
+            <span>{answers.riskThemes.length} selected</span>
+            {answers.riskThemes.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAnswers((a) => ({ ...a, riskThemes: [] }))}
+                className="text-accent hover:underline cursor-pointer"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+          {RISK_THEME_OPTIONS.map((opt) => {
+            const selected = answers.riskThemes.includes(opt.value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => toggleTheme(opt.value)}
+                className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
+                  selected
+                    ? "border-accent bg-accent/5 shadow-md shadow-accent/10"
+                    : "border-card-border bg-white/[0.02] hover:border-accent/40 hover:bg-white/[0.04]"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0">
+                    <RiskThemeIcon
+                      riskTheme={opt.value}
+                      size="md"
+                      animated={selected}
+                    />
+                  </div>
+                  <div className="min-w-0 pt-1">
+                    <p
+                      className={`text-sm font-medium ${
+                        selected ? "text-accent" : "text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </p>
+                    {opt.description && (
+                      <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+                        {opt.description}
+                      </p>
+                    )}
+                  </div>
+                  <div
+                    className={`ml-auto w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-3 ${
+                      selected ? "border-accent bg-accent" : "border-card-border"
+                    }`}
+                  >
+                    {selected && <Check className="h-3 w-3 text-white" />}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </WizardStep>
+      )}
+
+      {step === 4 && (
+        <WizardStep
+          title="Confirm your selections"
+          subtitle="Review your choices before generating the control framework."
+        >
+          <div className="glass-card rounded-xl p-6 space-y-4">
+            {previewItems.map((item) => (
+              <div key={item.label} className="flex items-start justify-between gap-4 py-2 border-b border-white/5 last:border-0">
+                <span className="text-sm text-text-muted shrink-0">{item.label}</span>
+                <span className="text-sm font-medium text-foreground text-right">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </WizardStep>
+      )}
+    </WizardShell>
+  );
+}
+
+export default function TypologyIQPage() {
   return (
     <>
       <Header />
       <main className="flex-1">
-        <WizardShell
-          steps={STEPS}
-          currentStep={step}
-          canGoNext={canGoNext()}
-          onBack={handleBack}
-          onNext={handleNext}
-          isLastStep={step === STEPS.length - 1}
-          sidebar={<LivePreview title="Your Selection" items={previewItems} />}
-        >
-          {step === 0 && (
-            <WizardStep
-              title="What type of firm are you?"
-              subtitle="This determines which typologies are most applicable to your regulated activities."
-            >
-              {FIRM_OPTIONS.map((opt) => (
-                <OptionCard
-                  key={opt.value}
-                  value={opt.value}
-                  label={opt.label}
-                  description={opt.description}
-                  icon={opt.icon}
-                  selected={answers.firmType === opt.value}
-                  onSelect={(v) => setAnswers((a) => ({ ...a, firmType: v as FirmType }))}
-                />
-              ))}
-            </WizardStep>
-          )}
-
-          {step === 1 && (
-            <WizardStep
-              title="Which product or service?"
-              subtitle="Select the primary product or service you want to assess for financial crime risk."
-            >
-              {PRODUCT_OPTIONS.map((opt) => (
-                <OptionCard
-                  key={opt.value}
-                  value={opt.value}
-                  label={opt.label}
-                  description={opt.description}
-                  icon={opt.icon}
-                  selected={answers.product === opt.value}
-                  onSelect={(v) => setAnswers((a) => ({ ...a, product: v as ProductType }))}
-                />
-              ))}
-            </WizardStep>
-          )}
-
-          {step === 2 && (
-            <WizardStep
-              title="Who are your primary customers?"
-              subtitle="Select the main customer segment for this product."
-            >
-              {CUSTOMER_OPTIONS.map((opt) => (
-                <OptionCard
-                  key={opt.value}
-                  value={opt.value}
-                  label={opt.label}
-                  description={opt.description}
-                  icon={opt.icon}
-                  selected={answers.customerType === opt.value}
-                  onSelect={(v) => setAnswers((a) => ({ ...a, customerType: v as CustomerType }))}
-                />
-              ))}
-            </WizardStep>
-          )}
-
-          {step === 3 && (
-            <WizardStep
-              title="Which risk theme concerns you most?"
-              subtitle="This focuses the assessment on a specific financial crime risk category."
-            >
-              {RISK_THEME_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setAnswers((a) => ({ ...a, riskTheme: opt.value as RiskTheme }))}
-                  className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
-                    answers.riskTheme === opt.value
-                      ? "border-accent bg-accent/5 shadow-md shadow-accent/10"
-                      : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0">
-                      <RiskThemeIcon
-                        riskTheme={opt.value}
-                        size="md"
-                        animated={answers.riskTheme === opt.value}
-                      />
-                    </div>
-                    <div className="min-w-0 pt-1">
-                      <p
-                        className={`text-sm font-medium ${
-                          answers.riskTheme === opt.value ? "text-accent" : "text-foreground"
-                        }`}
-                      >
-                        {opt.label}
-                      </p>
-                      {opt.description && (
-                        <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
-                          {opt.description}
-                        </p>
-                      )}
-                    </div>
-                    <div
-                      className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-3 ${
-                        answers.riskTheme === opt.value ? "border-accent bg-accent" : "border-white/20"
-                      }`}
-                    >
-                      {answers.riskTheme === opt.value && (
-                        <div className="w-2 h-2 rounded-full bg-white" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </WizardStep>
-          )}
-
-          {step === 4 && (
-            <WizardStep
-              title="Confirm your selections"
-              subtitle="Review your choices before generating the control framework."
-            >
-              <div className="glass-card rounded-xl p-6 space-y-4">
-                {previewItems.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                    <span className="text-sm text-text-muted">{item.label}</span>
-                    <span className="text-sm font-medium text-foreground">{item.value}</span>
-                  </div>
-                ))}
-              </div>
-            </WizardStep>
-          )}
-        </WizardShell>
+        <Suspense fallback={<div className="text-center py-20 text-text-muted">Loading wizard...</div>}>
+          <TypologyIQWizard />
+        </Suspense>
       </main>
       <Footer />
     </>

@@ -7,13 +7,13 @@ interface TypologyPDFData {
   typology: Typology;
   score: number;
   breakdown: { firmTypeScore: number; productScore: number; customerTypeScore: number; riskThemeScore: number };
-  answers: { firmType: string; product: string; customerType: string; riskTheme: string };
+  answers: { firmType: string; product: string; customerType: string; riskThemes: string[] };
   narrative?: string;
 }
 
 export function generateTypologyPDF(data: TypologyPDFData): Buffer {
   const doc = new jsPDF();
-  const { typology, score, breakdown, answers, narrative } = data;
+  const { typology, score, breakdown, narrative } = data;
 
   let y = addHeader(doc, "TypologyIQ Assessment Report");
 
@@ -58,13 +58,13 @@ export function generateTypologyPDF(data: TypologyPDFData): Buffer {
   // @ts-expect-error jspdf-autotable adds lastAutoTable
   y = doc.lastAutoTable.finalY + 10;
 
-  // AI Narrative
+  // Risk Overview
   if (narrative) {
     y = checkPageBreak(doc, y, 50);
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(MEMA_COLORS.text);
-    doc.text("AI Narrative Summary", 20, y);
+    doc.text("Risk Overview", 20, y);
     y += 7;
 
     doc.setFontSize(9);

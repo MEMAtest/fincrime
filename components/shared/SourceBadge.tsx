@@ -1,4 +1,4 @@
-import { BookOpen, Shield, Users, Scale, AlertTriangle } from "lucide-react";
+import { BookOpen, Shield, Users, Scale, AlertTriangle, ExternalLink } from "lucide-react";
 
 type SourceType = "FATF" | "Wolfsberg" | "FCA" | "JMLSG" | "OFSI";
 
@@ -16,11 +16,23 @@ interface SourceBadgeProps {
   url?: string;
 }
 
+function hostFor(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 export default function SourceBadge({ source, reference, url }: SourceBadgeProps) {
   const config = sourceConfig[source];
   const Icon = config.icon;
 
   const className = `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${config.bg} ${config.color}${url ? " hover:shadow-md cursor-pointer transition-shadow" : ""}`;
+
+  const titleText = url
+    ? `${reference ? reference + " — " : ""}Opens ${hostFor(url)} in a new tab`
+    : reference;
 
   if (url) {
     return (
@@ -29,21 +41,22 @@ export default function SourceBadge({ source, reference, url }: SourceBadgeProps
         target="_blank"
         rel="noopener noreferrer"
         className={className}
-        title={reference}
+        title={titleText}
+        aria-label={`${source}${reference ? ` ${reference}` : ""} — opens ${hostFor(url)} in a new tab`}
       >
         <Icon className="h-3 w-3" />
-        {source}
+        <span>{source}</span>
+        {reference && <span className="opacity-70 font-normal">{reference}</span>}
+        <ExternalLink className="h-2.5 w-2.5 opacity-60" />
       </a>
     );
   }
 
   return (
-    <span
-      className={className}
-      title={reference}
-    >
+    <span className={className} title={titleText}>
       <Icon className="h-3 w-3" />
-      {source}
+      <span>{source}</span>
+      {reference && <span className="opacity-70 font-normal">{reference}</span>}
     </span>
   );
 }

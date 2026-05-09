@@ -5,7 +5,7 @@ export interface TypologyAnswers {
   firmType: FirmType;
   product: ProductType;
   customerType: CustomerType;
-  riskTheme: RiskTheme;
+  riskThemes: RiskTheme[];
 }
 
 export interface TypologyScore {
@@ -27,6 +27,7 @@ const WEIGHTS = {
 } as const;
 
 export function scoreTypologies(answers: TypologyAnswers): TypologyScore[] {
+  const themes = answers.riskThemes ?? [];
   return allTypologies
     .map((typology) => {
       const firmTypeScore = typology.applicableFirmTypes.includes(answers.firmType)
@@ -41,7 +42,7 @@ export function scoreTypologies(answers: TypologyAnswers): TypologyScore[] {
         ? WEIGHTS.customerType
         : 0;
 
-      const riskThemeScore = typology.riskTheme === answers.riskTheme
+      const riskThemeScore = themes.includes(typology.riskTheme)
         ? WEIGHTS.riskTheme
         : 0;
 
@@ -68,4 +69,15 @@ export function getBestMatch(answers: TypologyAnswers): TypologyScore {
 
 export function getTopMatches(answers: TypologyAnswers, count = 3): TypologyScore[] {
   return scoreTypologies(answers).slice(0, count);
+}
+
+export function getRelatedTypologies(
+  answers: TypologyAnswers,
+  bestSlug: string,
+  count = 4
+): TypologyScore[] {
+  const themes = answers.riskThemes ?? [];
+  return scoreTypologies(answers)
+    .filter((m) => m.typology.slug !== bestSlug && themes.includes(m.typology.riskTheme))
+    .slice(0, count);
 }

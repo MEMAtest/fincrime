@@ -5,7 +5,7 @@ import { useMemo, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, Cpu, GitBranch, ClipboardCheck, BarChart3,
-  ArrowLeft, Sparkles, BookOpen, ChevronDown, ChevronUp,
+  ArrowLeft, FileText, BookOpen, ChevronDown, ChevronUp, Link2,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -14,7 +14,9 @@ import ResultsGrid from "@/components/results/ResultsGrid";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
-import { getBestMatch, getTopMatches } from "@/data/scoring/typology-scoring";
+import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
+import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
+import { getBestMatch, getTopMatches, getRelatedTypologies } from "@/data/scoring/typology-scoring";
 import type { FirmType, ProductType, CustomerType, RiskTheme, SourceOrg } from "@/data/typologies/types";
 
 function TypologyResults() {
@@ -24,15 +26,22 @@ function TypologyResults() {
   const [showAllDetection, setShowAllDetection] = useState(false);
   const [showAllWorkflow, setShowAllWorkflow] = useState(false);
 
-  const answers = useMemo(() => ({
-    firmType: searchParams.get("firmType") as FirmType,
-    product: searchParams.get("product") as ProductType,
-    customerType: searchParams.get("customerType") as CustomerType,
-    riskTheme: searchParams.get("riskTheme") as RiskTheme,
-  }), [searchParams]);
+  const answers = useMemo(() => {
+    const themesParam = searchParams.get("riskThemes") ?? searchParams.get("riskTheme") ?? "";
+    const riskThemes = themesParam
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean) as RiskTheme[];
+    return {
+      firmType: searchParams.get("firmType") as FirmType,
+      product: searchParams.get("product") as ProductType,
+      customerType: searchParams.get("customerType") as CustomerType,
+      riskThemes,
+    };
+  }, [searchParams]);
 
   const result = useMemo(() => {
-    if (!answers.firmType || !answers.product || !answers.customerType || !answers.riskTheme) {
+    if (!answers.firmType || !answers.product || !answers.customerType || answers.riskThemes.length === 0) {
       return null;
     }
     return getBestMatch(answers);
@@ -42,6 +51,11 @@ function TypologyResults() {
     if (!answers.firmType) return [];
     return getTopMatches(answers, 3);
   }, [answers]);
+
+  const relatedTypologies = useMemo(() => {
+    if (!result) return [];
+    return getRelatedTypologies(answers, result.typology.slug, 4);
+  }, [answers, result]);
 
   useEffect(() => {
     if (!result) return;
@@ -56,7 +70,7 @@ function TypologyResults() {
         firmType: answers.firmType,
         product: answers.product,
         customerType: answers.customerType,
-        riskTheme: answers.riskTheme,
+        riskThemes: answers.riskThemes,
         score: result.score,
       }),
     })
@@ -107,6 +121,32 @@ function TypologyResults() {
         />
       </div>
 
+      {/* Selected Risk Themes */}
+      {answers.riskThemes.length > 0 && (
+        <div className="mb-6">
+          <p className="text-xs text-text-muted uppercase tracking-wider mb-2">Risk Themes Assessed</p>
+          <div className="flex flex-wrap gap-2">
+            {answers.riskThemes.map((theme) => {
+              const cfg = THEME_CONFIG[theme];
+              return (
+                <span
+                  key={theme}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium"
+                  style={{
+                    backgroundColor: `${cfg.glow}18`,
+                    borderColor: `${cfg.primary}40`,
+                    color: cfg.primary,
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.primary }} />
+                  {cfg.label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Match Summary */}
       <div className="glass-card rounded-2xl p-8 mb-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
@@ -150,17 +190,17 @@ function TypologyResults() {
         </div>
       </div>
 
-      {/* AI Narrative */}
+      {/* Risk Overview (formerly AI Narrative) */}
       {(narrativeLoading || narrative) && (
         <div className="glass-card rounded-2xl p-6 mb-8">
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <h3 className="text-sm font-semibold text-foreground">AI Narrative Summary</h3>
+            <FileText className="h-4 w-4 text-accent" />
+            <h3 className="text-sm font-semibold text-foreground">Risk Overview</h3>
           </div>
           {narrativeLoading ? (
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-text-muted">Generating narrative...</span>
+              <span className="text-sm text-text-muted">Generating risk overview...</span>
             </div>
           ) : (
             <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
@@ -282,6 +322,50 @@ function TypologyResults() {
           </div>
         </ResultCard>
       </ResultsGrid>
+
+      {/* Tied / Related Typologies (sharing same risk themes) */}
+      {relatedTypologies.length > 0 && (
+        <div className="mt-10">
+          <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-accent" />
+            Related Typologies
+          </h3>
+          <p className="text-xs text-text-muted mb-4">
+            Other typologies in the risk themes you selected — commonly investigated together.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {relatedTypologies.map((match) => {
+              const cfg = THEME_CONFIG[match.typology.riskTheme];
+              return (
+                <div key={match.typology.slug} className="glass-card rounded-xl p-4 flex items-start gap-3">
+                  <div className="shrink-0">
+                    <RiskThemeIcon riskTheme={match.typology.riskTheme} size="sm" animated={false} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <h4 className="text-sm font-medium text-foreground truncate">
+                        {match.typology.title}
+                      </h4>
+                      <span className="text-xs font-mono text-text-muted shrink-0">
+                        {match.score}/100
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-muted line-clamp-2 mb-2">
+                      {match.typology.description}
+                    </p>
+                    <span
+                      className="inline-block text-[10px] uppercase tracking-wider font-medium"
+                      style={{ color: cfg.primary }}
+                    >
+                      {cfg.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Other Matches */}
       {topMatches.length > 1 && (

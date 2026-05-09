@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Shield, Search, GitBranch, ArrowRight, BookOpen, Users } from "lucide-react";
+import { Shield, Search, GitBranch, ArrowRight, BookOpen, Users, Sparkles } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
@@ -36,8 +36,40 @@ export default function HomePage() {
 
         {/* Module Cards */}
         <section className="pb-20 sm:pb-28">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 gap-6">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Firm Research */}
+              <Link href="/firm-research" className="group">
+                <div className="glass-card rounded-2xl p-8 h-full transition-all duration-300 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                      <Sparkles className="h-5 w-5 text-accent" />
+                    </div>
+                    <h2 className="text-xl font-semibold text-foreground">
+                      Firm Research
+                    </h2>
+                  </div>
+                  <p className="text-text-muted text-sm leading-relaxed mb-6">
+                    Enter a firm name or a few details about the business model
+                    and we&apos;ll suggest the most likely financial crime risk
+                    themes — then route you into the TypologyIQ wizard with
+                    answers pre-filled.
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    <span className="text-xs px-2 py-1 rounded bg-white/5 text-text-muted">
+                      AI-assisted
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded bg-white/5 text-text-muted">
+                      Quick start
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-accent text-sm font-medium group-hover:gap-3 transition-all">
+                    <span>Profile a firm</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </div>
+                </div>
+              </Link>
+
               {/* TypologyIQ */}
               <Link href="/typology-iq" className="group">
                 <div className="glass-card rounded-2xl p-8 h-full transition-all duration-300 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5">

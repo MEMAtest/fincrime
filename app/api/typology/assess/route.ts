@@ -5,22 +5,30 @@ import type { FirmType, ProductType, CustomerType, RiskTheme } from "@/data/typo
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firmType, product, customerType, riskTheme } = body as {
+    const { firmType, product, customerType, riskThemes, riskTheme } = body as {
       firmType: FirmType;
       product: ProductType;
       customerType: CustomerType;
-      riskTheme: RiskTheme;
+      riskThemes?: RiskTheme[];
+      riskTheme?: RiskTheme;
     };
 
-    if (!firmType || !product || !customerType || !riskTheme) {
+    const themes: RiskTheme[] = riskThemes && riskThemes.length > 0
+      ? riskThemes
+      : riskTheme
+      ? [riskTheme]
+      : [];
+
+    if (!firmType || !product || !customerType || themes.length === 0) {
       return NextResponse.json(
-        { error: "Missing required fields: firmType, product, customerType, riskTheme" },
+        { error: "Missing required fields: firmType, product, customerType, riskThemes" },
         { status: 400 }
       );
     }
 
-    const bestMatch = getBestMatch({ firmType, product, customerType, riskTheme });
-    const topMatches = getTopMatches({ firmType, product, customerType, riskTheme }, 3);
+    const answers = { firmType, product, customerType, riskThemes: themes };
+    const bestMatch = getBestMatch(answers);
+    const topMatches = getTopMatches(answers, 3);
 
     // Optionally persist to DB (non-blocking)
     try {
@@ -30,7 +38,7 @@ export async function POST(request: NextRequest) {
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [
           "typology_iq",
-          JSON.stringify({ firmType, product, customerType, riskTheme }),
+          JSON.stringify(answers),
           JSON.stringify({ bestMatch: bestMatch.typology.slug, score: bestMatch.score }),
           bestMatch.score,
           bestMatch.typology.id,
