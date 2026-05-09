@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology11: Typology = {
+  id: 11,
+  slug: "app-fraud-push-payments",
+  title: "Authorised Push Payment (APP) Fraud",
+  riskTheme: "fraud",
+  description:
+    "Social engineering schemes where victims are manipulated into authorising real-time payments to accounts controlled by fraudsters. Includes impersonation of banks, HMRC, solicitors, and romance scams — with losses often irrecoverable once funds are moved through mule networks.",
+  applicableFirmTypes: ["emi", "pi", "bank", "neobank"],
+  applicableProducts: ["domestic_payments", "cross_border_payments", "e_money_accounts", "card_issuing"],
+  applicableCustomerTypes: ["individuals", "smes", "high_net_worth"],
+  controlObjective:
+    "Detect and prevent authorised push payment fraud by identifying behavioural anomalies in payment initiation, payee risk signals, and receiving-account velocity patterns, while minimising friction for legitimate payments.",
+  dataRequired: [
+    "Payment amount, currency, and channel (app, online banking, branch)",
+    "Payee account details and Confirmation of Payee (CoP) response",
+    "Customer device fingerprint and session behaviour",
+    "Historical payee relationship (new vs. established)",
+    "Time-of-day and day-of-week payment patterns",
+    "Customer age, vulnerability indicators, and account tenure",
+    "Receiving account velocity and age",
+    "Prior fraud reports or warnings linked to payee account",
+  ],
+  detectionLogic: [
+    {
+      id: "APP-11-R1",
+      name: "New payee high-value payment",
+      logic: "Payment to a payee never previously paid by the customer AND amount > £1,000 AND payment initiated within 30 minutes of payee being added",
+      threshold: "£1,000 to new payee within 30 min of setup",
+      priority: "high",
+    },
+    {
+      id: "APP-11-R2",
+      name: "Confirmation of Payee mismatch override",
+      logic: "CoP response returns 'no match' or 'partial match' AND customer proceeds with payment anyway",
+      threshold: "Any CoP mismatch override",
+      priority: "critical",
+    },
+    {
+      id: "APP-11-R3",
+      name: "Victim-pattern behavioural indicators",
+      logic: "Customer makes multiple payments to same new payee within 24 hours AND total exceeds £5,000 AND customer has no prior pattern of multiple same-day payments",
+      threshold: "£5,000 cumulative to new payee / 24 hours",
+      priority: "high",
+    },
+    {
+      id: "APP-11-R4",
+      name: "Receiving account velocity spike",
+      logic: "Payee account receives payments from >= 5 distinct senders within 48 hours AND account age < 30 days",
+      threshold: "5+ unique senders / 48 hours on account < 30 days old",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Real-Time Intervention",
+      description: "Payment flagged pre-execution. Present scam warning to customer. If high-risk: enforce cooling-off period or require additional authentication before release.",
+      sla: "Real-time",
+      responsible: "Automated / L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Customer Contact",
+      description: "For held payments, contact customer to discuss payment purpose. Use scripted questions to identify social engineering indicators (urgency, secrecy, unusual request source).",
+      sla: "4 hours",
+      responsible: "L1 Analyst / Fraud Ops",
+    },
+    {
+      step: 3,
+      title: "Payee Risk Assessment",
+      description: "Check payee account against known mule databases, industry fraud registers (e.g., CIFAS), and internal receiving-account intelligence. Assess CoP results and account age.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "Fraud Determination",
+      description: "Assess all evidence. If fraud confirmed: initiate recovery process, report to Action Fraud, update mule database. If legitimate: release payment with documented rationale.",
+      sla: "48 hours",
+      responsible: "Fraud Manager",
+    },
+    {
+      step: 5,
+      title: "Victim Support & Reporting",
+      description: "If APP fraud confirmed: support victim through reimbursement process (PSR requirements), file SAR, share mule intelligence with industry bodies, update detection rules.",
+      sla: "5 business days",
+      responsible: "Fraud Manager / MLRO",
+    },
+  ],
+  metrics: [
+    { name: "APP fraud prevention rate", target: ">50%", description: "Proportion of APP fraud attempts detected and prevented before funds leave" },
+    { name: "False positive rate on payment holds", target: "<30%", description: "Legitimate payments incorrectly held for fraud review" },
+    { name: "Average intervention time", target: "<5 minutes", description: "Time from flag to customer warning or payment hold" },
+    { name: "Victim reimbursement compliance", target: "100%", description: "Eligible victims reimbursed within PSR mandatory timescales" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "APP fraud detection rules tuned against confirmed fraud cases", frequency: "Monthly", owner: "Fraud Systems" },
+    { id: "GOV-02", item: "Confirmation of Payee response handling reviewed", frequency: "Quarterly", owner: "Payments / Compliance" },
+    { id: "GOV-03", item: "Mule account intelligence shared with industry bodies", frequency: "Ongoing", owner: "Fraud Ops" },
+    { id: "GOV-04", item: "Customer-facing scam warnings and friction reviewed for effectiveness", frequency: "Semi-annual", owner: "Product / Fraud" },
+    { id: "GOV-05", item: "PSR reimbursement policy compliance audited", frequency: "Annual", owner: "Internal Audit / 3LoD" },
+  ],
+  sources: [
+    { org: "FCA", reference: "PS/19/3", title: "Confirmation of Payee", url: "https://www.fca.org.uk/publications/policy-statements/ps19-3-confirmation-payee-responses-cp18-42" },
+    { org: "FATF", reference: "Recommendation 16", title: "Wire Transfers", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "JMLSG", reference: "Part II, Sector 18", title: "Payment Services", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "Wolfsberg", reference: "Payment Fraud Principles 2023", title: "Payment Fraud Prevention Principles", url: "https://wolfsberg-group.org/resources/wolfsberg-payment-fraud-prevention-principles/153" },
+  ],
+};

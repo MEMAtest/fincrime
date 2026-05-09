@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
 import WizardShell from "@/components/wizard/WizardShell";
 import WizardStep from "@/components/wizard/WizardStep";
 import OptionCard from "@/components/wizard/OptionCard";
@@ -197,15 +198,49 @@ export default function TypologyIQPage() {
               subtitle="This focuses the assessment on a specific financial crime risk category."
             >
               {RISK_THEME_OPTIONS.map((opt) => (
-                <OptionCard
+                <button
                   key={opt.value}
-                  value={opt.value}
-                  label={opt.label}
-                  description={opt.description}
-                  icon={opt.icon}
-                  selected={answers.riskTheme === opt.value}
-                  onSelect={(v) => setAnswers((a) => ({ ...a, riskTheme: v as RiskTheme }))}
-                />
+                  type="button"
+                  onClick={() => setAnswers((a) => ({ ...a, riskTheme: opt.value as RiskTheme }))}
+                  className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
+                    answers.riskTheme === opt.value
+                      ? "border-accent bg-accent/5 shadow-md shadow-accent/10"
+                      : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="shrink-0">
+                      <RiskThemeIcon
+                        riskTheme={opt.value}
+                        size="md"
+                        animated={answers.riskTheme === opt.value}
+                      />
+                    </div>
+                    <div className="min-w-0 pt-1">
+                      <p
+                        className={`text-sm font-medium ${
+                          answers.riskTheme === opt.value ? "text-accent" : "text-foreground"
+                        }`}
+                      >
+                        {opt.label}
+                      </p>
+                      {opt.description && (
+                        <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+                          {opt.description}
+                        </p>
+                      )}
+                    </div>
+                    <div
+                      className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-3 ${
+                        answers.riskTheme === opt.value ? "border-accent bg-accent" : "border-white/20"
+                      }`}
+                    >
+                      {answers.riskTheme === opt.value && (
+                        <div className="w-2 h-2 rounded-full bg-white" />
+                      )}
+                    </div>
+                  </div>
+                </button>
               ))}
             </WizardStep>
           )}

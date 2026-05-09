@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology15: Typology = {
+  id: 15,
+  slug: "nested-msb-agent-risk",
+  title: "Nested MSB / Agent Risk",
+  riskTheme: "money_laundering",
+  description:
+    "Risk arising when a licensed money service business (MSB) or payment institution allows unlicensed or poorly supervised sub-agents to operate through its accounts and regulatory permissions. Creates opaque transaction chains where end-customer identity and source of funds are obscured behind pooled settlement accounts.",
+  applicableFirmTypes: ["bank", "emi", "pi", "msb"],
+  applicableProducts: ["remittance", "cross_border_payments", "domestic_payments", "fx_transfers"],
+  applicableCustomerTypes: ["agents_intermediaries", "smes", "corporates"],
+  controlObjective:
+    "Detect and manage the risk of nested or unauthorised sub-agent activity by monitoring pooled account behaviour, transaction volumes versus declared business models, and end-user transparency to prevent ML exploitation through agent networks.",
+  dataRequired: [
+    "MSB/PI agent register and licensing status",
+    "Pooled account transaction volumes and patterns",
+    "Declared business model and expected throughput",
+    "End-user (underlying customer) identification data",
+    "Geographic spread of end-user transactions",
+    "Agent onboarding due diligence records",
+    "Sanctions screening results for agents and end-users",
+    "Regulatory status checks (FCA register, HMRC MSB register)",
+  ],
+  detectionLogic: [
+    {
+      id: "MSB-15-R1",
+      name: "Pooled account activity anomaly",
+      logic: "Pooled settlement account shows transaction patterns inconsistent with single-MSB operation: > 50 distinct remittance corridors OR > 200 unique beneficiaries per day",
+      threshold: "50+ corridors or 200+ unique beneficiaries / day",
+      priority: "high",
+    },
+    {
+      id: "MSB-15-R2",
+      name: "Volume exceeds declared model",
+      logic: "Monthly throughput exceeds 300% of declared expected volumes for 2+ consecutive months AND no corresponding business change notification received",
+      threshold: "300% of declared volume for 2+ months",
+      priority: "high",
+    },
+    {
+      id: "MSB-15-R3",
+      name: "Opaque end-user information",
+      logic: "More than 30% of transactions through agent's account lack complete originator or beneficiary information required under the Travel Rule / Wire Transfer Regulations",
+      threshold: "30% incomplete end-user data",
+      priority: "critical",
+    },
+    {
+      id: "MSB-15-R4",
+      name: "Sanctions exposure through agent network",
+      logic: "End-user transactions routed to sanctioned jurisdictions or matching sanctioned individuals, where agent's own screening cannot be independently verified",
+      threshold: "Any unverified sanctions screening on end-users",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Agent Activity Review",
+      description: "Pull agent's pooled account activity. Analyse corridor spread, beneficiary count, transaction sizing, and volume trends. Compare against declared business model and onboarding documentation.",
+      sla: "8 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Agent Due Diligence Refresh",
+      description: "Verify agent's current regulatory status (FCA/HMRC register). Review agent's own AML framework, policies, and sub-agent register. Request evidence of end-user CDD processes.",
+      sla: "24 hours",
+      responsible: "L2 Analyst / Compliance",
+    },
+    {
+      step: 3,
+      title: "End-User Transparency Assessment",
+      description: "Sample test end-user transactions for completeness of originator/beneficiary data. Assess whether agent is providing genuine end-user information or aggregated/generic data.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "Nesting Risk Determination",
+      description: "Assess whether activity is consistent with a single MSB or indicates undisclosed sub-agents operating through the account. Review for signs of licence arbitrage or regulatory circumvention.",
+      sla: "72 hours",
+      responsible: "L2 Analyst / Financial Intelligence",
+    },
+    {
+      step: 5,
+      title: "MLRO Decision & Remediation",
+      description: "MLRO reviews findings. Options: require agent remediation plan, restrict corridors/volumes, file SAR, terminate agent relationship, or report to FCA/HMRC. Document decision rationale.",
+      sla: "5 business days",
+      responsible: "MLRO",
+    },
+  ],
+  metrics: [
+    { name: "Agent oversight review completion rate", target: "100%", description: "All active agents reviewed within scheduled cycle" },
+    { name: "End-user data completeness", target: ">95%", description: "Transactions with full originator and beneficiary data from agents" },
+    { name: "Nesting detection rate", target: "Track", description: "Number of nesting cases identified through monitoring" },
+    { name: "Agent termination rate", target: "Track", description: "Agents exited due to AML control failures or nesting activity" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Agent register reconciled with FCA/HMRC registers", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-02", item: "Pooled account monitoring thresholds calibrated against agent activity", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Agent AML framework assessments completed", frequency: "Annual per agent", owner: "Compliance" },
+    { id: "GOV-04", item: "End-user data quality sampling conducted", frequency: "Monthly", owner: "Operations / Compliance" },
+    { id: "GOV-05", item: "Nesting risk reported to Board/Committee", frequency: "Semi-annual", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "Wolfsberg", reference: "Correspondent Banking Principles 2022", title: "Wolfsberg Correspondent Banking Due Diligence Principles", url: "https://wolfsberg-group.org/resources/wolfsberg-correspondent-banking-due-diligence-principles/148" },
+    { org: "FATF", reference: "Recommendation 13", title: "Correspondent Banking", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 12", title: "Financial Crime Guide: Correspondent Banking and Agency", url: "https://www.fca.org.uk/publication/finalised-guidance/fg18-05.pdf" },
+    { org: "JMLSG", reference: "Part II, Sector 15", title: "Money Service Businesses", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+  ],
+};

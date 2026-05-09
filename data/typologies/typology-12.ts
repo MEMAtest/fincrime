@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology12: Typology = {
+  id: 12,
+  slug: "trade-based-money-laundering",
+  title: "Trade-Based Money Laundering (TBML)",
+  riskTheme: "money_laundering",
+  description:
+    "Exploitation of international trade transactions to transfer value across borders and obscure the origins of criminal proceeds. Methods include over/under-invoicing, multiple invoicing for the same goods, phantom shipments, and misrepresentation of goods or services.",
+  applicableFirmTypes: ["bank", "emi", "pi", "msb"],
+  applicableProducts: ["trade_finance", "cross_border_payments", "fx_transfers"],
+  applicableCustomerTypes: ["corporates", "smes", "agents_intermediaries"],
+  controlObjective:
+    "Detect trade-based money laundering through analysis of pricing anomalies, shipment discrepancies, and payment patterns that deviate from legitimate trade norms, ensuring timely escalation and SAR submission.",
+  dataRequired: [
+    "Invoice amounts, quantities, and unit prices",
+    "Goods description and HS/tariff codes",
+    "Shipping documents (bill of lading, packing lists)",
+    "Counterparty details and jurisdictions",
+    "Market reference prices for declared goods",
+    "Payment terms and settlement patterns",
+    "Historical trade volumes between counterparties",
+    "Sanctions and PEP screening results for trade parties",
+  ],
+  detectionLogic: [
+    {
+      id: "TBML-12-R1",
+      name: "Invoice price anomaly",
+      logic: "Unit price on invoice deviates > 30% from market reference price for declared HS code AND transaction value > £50,000",
+      threshold: "30% price deviation on transactions > £50,000",
+      priority: "high",
+    },
+    {
+      id: "TBML-12-R2",
+      name: "Phantom shipment indicators",
+      logic: "Payment made for goods but no corresponding shipping documents provided within 30 days OR shipping documents reference non-existent ports/routes",
+      threshold: "No shipping docs within 30 days of payment",
+      priority: "critical",
+    },
+    {
+      id: "TBML-12-R3",
+      name: "Circular trading pattern",
+      logic: "Same goods (by description/HS code) shipped between same counterparties in both directions within 90 days with no apparent commercial rationale",
+      threshold: "Bidirectional shipments of same goods / 90 days",
+      priority: "high",
+    },
+    {
+      id: "TBML-12-R4",
+      name: "Third-party payment mismatch",
+      logic: "Payment for trade transaction originates from or is directed to a party not named on the invoice or shipping documents",
+      threshold: "Any unrelated third-party payment",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Trade Document Review",
+      description: "Collect and review all trade documents: invoices, bills of lading, packing lists, certificates of origin. Verify consistency across document set.",
+      sla: "8 hours",
+      responsible: "L1 Analyst / Trade Ops",
+    },
+    {
+      step: 2,
+      title: "Price Verification",
+      description: "Compare invoice unit prices against market reference databases (e.g., GTA, UN Comtrade). Assess whether pricing is commercially reasonable for declared goods and route.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Counterparty Due Diligence",
+      description: "Investigate counterparties: verify corporate registration, assess beneficial ownership, check for links to shell companies or sanctioned entities. Review prior transaction history.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "Pattern Analysis",
+      description: "Map full transaction network between parties. Identify circular flows, duplicate invoicing, or structured payments. Cross-reference with known TBML typology indicators.",
+      sla: "72 hours",
+      responsible: "L2 Analyst / Financial Intelligence",
+    },
+    {
+      step: 5,
+      title: "MLRO Escalation & Decision",
+      description: "Present findings to MLRO with supporting evidence. Decide: clear with rationale, file SAR, restrict trade facility, or exit relationship. Update customer risk rating accordingly.",
+      sla: "5 business days",
+      responsible: "MLRO",
+    },
+  ],
+  metrics: [
+    { name: "TBML alert-to-SAR rate", target: ">20%", description: "Proportion of TBML alerts resulting in SAR submission" },
+    { name: "Price anomaly detection accuracy", target: ">70%", description: "True positive rate for price deviation alerts against confirmed TBML cases" },
+    { name: "Average investigation closure time", target: "<5 business days", description: "Time from alert to final decision" },
+    { name: "Trade facility restriction rate", target: "Track", description: "Proportion of TBML cases resulting in facility restriction or exit" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Market reference price databases updated for key commodity categories", frequency: "Monthly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "TBML detection scenarios reviewed against FATF typologies", frequency: "Semi-annual", owner: "MLRO" },
+    { id: "GOV-03", item: "Trade finance staff trained on TBML red flags", frequency: "Annual", owner: "Compliance / Training" },
+    { id: "GOV-04", item: "Dual-use goods lists and sanctions updated in screening tools", frequency: "Within 48 hours of publication", owner: "Compliance" },
+    { id: "GOV-05", item: "TBML case outcomes fed back into detection model tuning", frequency: "Quarterly", owner: "Financial Crime Systems" },
+  ],
+  sources: [
+    { org: "FATF", reference: "TBML Typologies Report", title: "Trade-Based Money Laundering: Trends and Developments", url: "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Trade-basedmoneylaundering.html" },
+    { org: "FCA", reference: "FG/18/5", title: "Financial Crime Guide: Trade Finance", url: "https://www.fca.org.uk/publication/finalised-guidance/fg18-05.pdf" },
+    { org: "Wolfsberg", reference: "Trade Finance Principles 2019", title: "Wolfsberg Trade Finance Principles", url: "https://wolfsberg-group.org/resources/wolfsberg-trade-finance-principles/118" },
+    { org: "JMLSG", reference: "Part II, Sector 6", title: "Trade Finance Providers", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+  ],
+};

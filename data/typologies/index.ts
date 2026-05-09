@@ -8,6 +8,11 @@ import { typology07 } from "./typology-07";
 import { typology08 } from "./typology-08";
 import { typology09 } from "./typology-09";
 import { typology10 } from "./typology-10";
+import { typology11 } from "./typology-11";
+import { typology12 } from "./typology-12";
+import { typology13 } from "./typology-13";
+import { typology14 } from "./typology-14";
+import { typology15 } from "./typology-15";
 import type { Typology } from "./types";
 
 export const allTypologies: Typology[] = [
@@ -21,6 +26,11 @@ export const allTypologies: Typology[] = [
   typology08,
   typology09,
   typology10,
+  typology11,
+  typology12,
+  typology13,
+  typology14,
+  typology15,
 ];
 
 export function getTypologyBySlug(slug: string): Typology | undefined {

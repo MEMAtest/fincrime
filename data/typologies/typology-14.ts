@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology14: Typology = {
+  id: 14,
+  slug: "cryptocurrency-laundering",
+  title: "Cryptocurrency / Virtual Asset Laundering",
+  riskTheme: "money_laundering",
+  description:
+    "Use of cryptocurrency and virtual asset services to layer and integrate illicit funds. Techniques include mixing/tumbling services, chain-hopping between blockchains, privacy coin conversion, and use of unhosted wallets to obscure transaction trails before converting to fiat currency.",
+  applicableFirmTypes: ["crypto", "bank", "emi", "neobank"],
+  applicableProducts: ["crypto_exchange", "cross_border_payments", "e_money_accounts", "fx_transfers"],
+  applicableCustomerTypes: ["individuals", "smes", "corporates"],
+  controlObjective:
+    "Detect and disrupt money laundering through cryptocurrency channels by monitoring on-chain risk indicators, fiat-crypto conversion patterns, and wallet risk scores, while complying with the Travel Rule and UK MLR requirements for virtual asset service providers.",
+  dataRequired: [
+    "Wallet addresses (deposit and withdrawal)",
+    "On-chain transaction history and risk scoring (e.g., Chainalysis, Elliptic)",
+    "Mixer/tumbler exposure percentage on incoming funds",
+    "Fiat-to-crypto and crypto-to-fiat conversion amounts",
+    "Customer KYC tier and verification status",
+    "Cross-blockchain (chain-hop) transaction traces",
+    "Privacy coin usage (Monero, Zcash shielded transactions)",
+    "Sanctions and darknet marketplace wallet matches",
+  ],
+  detectionLogic: [
+    {
+      id: "CL-14-R1",
+      name: "Mixer/tumbler exposure",
+      logic: "Incoming funds have > 20% exposure to known mixing/tumbling services as reported by blockchain analytics provider",
+      threshold: "20% mixer exposure on incoming funds",
+      priority: "high",
+    },
+    {
+      id: "CL-14-R2",
+      name: "Chain-hopping pattern",
+      logic: "Customer converts between 3+ different blockchains within 24 hours AND total value > £10,000 equivalent, with no apparent trading or investment rationale",
+      threshold: "3+ chain hops / 24 hours > £10,000",
+      priority: "high",
+    },
+    {
+      id: "CL-14-R3",
+      name: "Privacy coin conversion",
+      logic: "Customer converts > £5,000 equivalent from privacy coins (Monero, Zcash shielded) to Bitcoin or stablecoins, then immediately initiates fiat withdrawal",
+      threshold: "£5,000+ privacy coin to fiat conversion",
+      priority: "critical",
+    },
+    {
+      id: "CL-14-R4",
+      name: "Sanctioned wallet interaction",
+      logic: "Deposit or withdrawal address matches OFAC SDN wallet list, or has direct transactional link (within 2 hops) to a sanctioned wallet address",
+      threshold: "Any sanctioned wallet match or 2-hop link",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "On-Chain Risk Assessment",
+      description: "Run blockchain analytics on flagged wallet addresses. Review risk scores, exposure to illicit sources (mixers, darknet, sanctions), and transaction flow visualisation.",
+      sla: "4 hours",
+      responsible: "L1 Analyst / Crypto Compliance",
+    },
+    {
+      step: 2,
+      title: "Customer Profile Review",
+      description: "Review customer KYC status, declared source of crypto assets, trading history, and stated purpose. Assess whether on-chain activity is consistent with customer profile.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Transaction Tracing",
+      description: "Trace full transaction path: originating wallet, intermediate hops, mixing exposure, and destination. Map fiat on/off-ramp activity across exchanges. Identify counterparties where possible.",
+      sla: "48 hours",
+      responsible: "L2 Analyst / Blockchain Intelligence",
+    },
+    {
+      step: 4,
+      title: "Travel Rule Compliance Check",
+      description: "Verify Travel Rule information has been received/sent for qualifying transactions. Assess completeness of originator and beneficiary information. Flag gaps.",
+      sla: "72 hours",
+      responsible: "L2 Analyst / Compliance",
+    },
+    {
+      step: 5,
+      title: "MLRO Decision & Action",
+      description: "MLRO reviews case. If suspicious: file SAR, freeze account, report sanctions match to OFSI if applicable. If cleared: document rationale, adjust risk score. Update wallet blocklists.",
+      sla: "5 business days",
+      responsible: "MLRO",
+    },
+  ],
+  metrics: [
+    { name: "Illicit exposure detection rate", target: ">90%", description: "Proportion of high-risk wallet interactions detected by blockchain analytics" },
+    { name: "SAR conversion rate (crypto)", target: ">25%", description: "Crypto-related alerts resulting in SAR submission" },
+    { name: "Travel Rule compliance rate", target: ">95%", description: "Qualifying transactions with complete Travel Rule information" },
+    { name: "Average on-chain investigation time", target: "<48 hours", description: "Time from alert to completion of blockchain analysis" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Blockchain analytics provider risk models reviewed and validated", frequency: "Semi-annual", owner: "Crypto Compliance / Financial Crime Systems" },
+    { id: "GOV-02", item: "Sanctioned wallet address lists updated in screening tools", frequency: "Within 24 hours of OFAC/OFSI update", owner: "Compliance / Sanctions Ops" },
+    { id: "GOV-03", item: "Privacy coin and mixer detection thresholds calibrated", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-04", item: "Travel Rule implementation compliance assessed", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-05", item: "Crypto ML typology training delivered to investigation staff", frequency: "Annual", owner: "Compliance / Training" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 15", title: "New Technologies – Virtual Assets and VASPs", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5", title: "Financial Crime Guide: Cryptoasset Businesses", url: "https://www.fca.org.uk/publication/finalised-guidance/fg18-05.pdf" },
+    { org: "JMLSG", reference: "Part II, Sector 22", title: "Cryptoasset Exchange Providers", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "Wolfsberg", reference: "Payment Transparency Standards 2023", title: "Wolfsberg Payment Transparency Standards", url: "https://wolfsberg-group.org/resources/wolfsberg-payment-transparency-standards/150" },
+  ],
+};

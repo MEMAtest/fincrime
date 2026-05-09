@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology13: Typology = {
+  id: 13,
+  slug: "proliferation-financing",
+  title: "Proliferation Financing",
+  riskTheme: "proliferation_financing",
+  description:
+    "The provision of funds, financial services, or economic resources to individuals or entities involved in the proliferation of weapons of mass destruction (WMD), including nuclear, chemical, and biological weapons programmes. Often concealed through front companies, dual-use goods trade, and complex multi-jurisdictional payment chains.",
+  applicableFirmTypes: ["bank", "emi", "pi", "msb"],
+  applicableProducts: ["trade_finance", "cross_border_payments", "fx_transfers", "remittance"],
+  applicableCustomerTypes: ["corporates", "smes", "agents_intermediaries"],
+  controlObjective:
+    "Detect and prevent the flow of funds or economic resources to proliferation networks by identifying transactions involving dual-use goods, sanctioned jurisdictions, front companies, and deceptive trade practices linked to WMD programmes.",
+  dataRequired: [
+    "Goods description, end-use statements, and dual-use classification",
+    "Counterparty jurisdictions and beneficial ownership structures",
+    "Sanctions screening results (OFSI, UN, EU, OFAC)",
+    "Shipping routes and transhipment points",
+    "End-user certificates and their verifying authorities",
+    "Payment chain participants and intermediary banks",
+    "Customer sector and declared business activities",
+    "Adverse media and intelligence reports on counterparties",
+  ],
+  detectionLogic: [
+    {
+      id: "PF-13-R1",
+      name: "Dual-use goods transaction",
+      logic: "Transaction involves goods matching dual-use control lists (EU Annex I / UK Strategic Export Control List) AND destination or transhipment point is a proliferation-sensitive jurisdiction",
+      threshold: "Any dual-use goods to sensitive jurisdiction",
+      priority: "critical",
+    },
+    {
+      id: "PF-13-R2",
+      name: "Sanctioned jurisdiction routing",
+      logic: "Payment chain involves intermediary or beneficiary in DPRK, Iran, or Syria — directly or via known transhipment hubs (e.g., certain free trade zones)",
+      threshold: "Any link to DPRK / Iran / Syria payment chain",
+      priority: "critical",
+    },
+    {
+      id: "PF-13-R3",
+      name: "Front company indicators",
+      logic: "Counterparty registered < 12 months, minimal web presence, registered agent address, AND transacting in goods/services inconsistent with stated business purpose",
+      threshold: "3+ front company indicators on single counterparty",
+      priority: "high",
+    },
+    {
+      id: "PF-13-R4",
+      name: "False end-user certificate signals",
+      logic: "End-user certificate issued by unrecognised authority OR end-user entity cannot be verified through independent sources OR certificate details inconsistent with order",
+      threshold: "Any unverifiable or inconsistent end-user cert",
+      priority: "high",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Sanctions & Dual-Use Screening",
+      description: "Run enhanced screening on all transaction parties against OFSI, UN, EU, and OFAC lists. Check goods against dual-use control lists. Flag any matches or near-matches for immediate review.",
+      sla: "4 hours",
+      responsible: "L1 Analyst / Sanctions Ops",
+    },
+    {
+      step: 2,
+      title: "Trade & Shipping Verification",
+      description: "Verify shipping documents, routes, and end-user certificates. Cross-check declared goods against order documentation. Identify unusual transhipment points or routing through free trade zones.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Counterparty Intelligence",
+      description: "Conduct enhanced due diligence on all counterparties: beneficial ownership, corporate registry checks, adverse media, links to sanctioned entities or jurisdictions. Assess front company risk indicators.",
+      sla: "48 hours",
+      responsible: "L2 Analyst / Financial Intelligence",
+    },
+    {
+      step: 4,
+      title: "MLRO Review & OFSI Reporting",
+      description: "MLRO reviews complete case file. If proliferation financing suspected: file SAR, report to OFSI, freeze assets if required under sanctions obligations. Coordinate with legal on disclosure obligations.",
+      sla: "72 hours",
+      responsible: "MLRO / Legal",
+    },
+    {
+      step: 5,
+      title: "Regulatory Notification & Remediation",
+      description: "Notify relevant authorities (OFSI, HMRC, NCA) as required. Update sanctions screening lists. Review and strengthen controls. Document lessons learned and update typology detection rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Proliferation screening hit rate", target: "Track", description: "Volume of sanctions/dual-use screening hits requiring manual review" },
+    { name: "False positive rate on PF alerts", target: "<50%", description: "Screening hits dismissed as false positives after review" },
+    { name: "OFSI reporting timeliness", target: "100% within 24 hours", description: "Confirmed sanctions breaches reported to OFSI within required timeframe" },
+    { name: "End-user certificate verification rate", target: ">95%", description: "Proportion of trade transactions with independently verified end-user certificates" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Sanctions lists updated in screening systems (OFSI, UN, EU, OFAC)", frequency: "Within 24 hours of publication", owner: "Compliance / Sanctions Ops" },
+    { id: "GOV-02", item: "Dual-use goods control lists reviewed and screening updated", frequency: "Within 30 days of list update", owner: "Compliance" },
+    { id: "GOV-03", item: "Proliferation financing risk assessment updated", frequency: "Annual", owner: "MLRO" },
+    { id: "GOV-04", item: "Staff training on PF red flags and sanctions obligations", frequency: "Annual", owner: "Compliance / Training" },
+    { id: "GOV-05", item: "Independent review of PF controls and screening effectiveness", frequency: "Annual", owner: "Internal Audit / 3LoD" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 6", title: "Targeted Financial Sanctions – Proliferation", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "OFSI", reference: "OFSI General Guidance", title: "Financial Sanctions Guidance for Proliferation", url: "https://www.gov.uk/government/publications/financial-sanctions-general-guidance" },
+    { org: "FCA", reference: "FG/18/5", title: "Financial Crime Guide: Sanctions and Proliferation", url: "https://www.fca.org.uk/publication/finalised-guidance/fg18-05.pdf" },
+    { org: "Wolfsberg", reference: "Sanctions Screening Guidance 2019", title: "Wolfsberg Sanctions Screening Guidance", url: "https://wolfsberg-group.org/resources/wolfsberg-sanctions-screening-guidance/112" },
+  ],
+};
