@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Shield, Search, GitBranch, ArrowRight, BookOpen, Users, Sparkles } from "lucide-react";
+import { Shield, Search, GitBranch, ArrowRight, BookOpen, Users, Sparkles, Library } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import FinCrimeLogo from "@/components/brand/FinCrimeLogo";
 
 export default function HomePage() {
   return (
@@ -16,7 +17,7 @@ export default function HomePage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="text-center max-w-3xl mx-auto">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20 mb-6">
-                <Shield className="h-3.5 w-3.5 text-accent" />
+                <FinCrimeLogo variant="icon" size="sm" animated={false} />
                 <span className="text-xs font-medium text-accent">
                   Free FinCrime Design Tools
                 </span>
@@ -135,6 +136,32 @@ export default function HomePage() {
                   <div className="flex items-center gap-2 text-accent text-sm font-medium group-hover:gap-3 transition-all">
                     <span>Start assessment</span>
                     <ArrowRight className="h-4 w-4" />
+                  </div>
+                </div>
+              </Link>
+            </div>
+
+            {/* Controls CTA */}
+            <div className="mt-10">
+              <Link href="/controls" className="group block">
+                <div className="glass-card rounded-2xl p-8 transition-all duration-300 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5">
+                  <div className="flex flex-col sm:flex-row items-center gap-6">
+                    <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                      <Library className="h-6 w-6 text-accent" />
+                    </div>
+                    <div className="flex-1 text-center sm:text-left">
+                      <h3 className="text-lg font-semibold text-foreground mb-1">
+                        Controls Reference Library
+                      </h3>
+                      <p className="text-text-muted text-sm leading-relaxed">
+                        Browse the FinCrime controls your firm needs — grouped by risk theme,
+                        filtered by firm type, and mapped to real enforcement actions.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-accent text-sm font-medium group-hover:gap-3 transition-all shrink-0">
+                      <span>Explore controls</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
                   </div>
                 </div>
               </Link>

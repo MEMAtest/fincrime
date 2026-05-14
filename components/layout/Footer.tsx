@@ -1,4 +1,4 @@
-import { Shield } from "lucide-react";
+import FinCrimeLogo from "@/components/brand/FinCrimeLogo";
 
 export default function Footer() {
   return (
@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-accent" />
+            <FinCrimeLogo variant="icon" size="sm" animated={false} />
             <span className="text-sm text-text-muted">
               MEMA Consultants Ltd &copy; {new Date().getFullYear()}
             </span>
