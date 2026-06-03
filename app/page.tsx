@@ -32,9 +32,10 @@ const ControlEcosystem3D = dynamic(
   () => import("@/components/visuals/ControlEcosystem3D"),
   { ssr: false }
 );
-const RiskGauge3D = dynamic(() => import("@/components/visuals/RiskGauge3D"), {
-  ssr: false,
-});
+const TypologyWeb3D = dynamic(
+  () => import("@/components/visuals/TypologyWeb3D"),
+  { ssr: false }
+);
 const PartnerFlow3D = dynamic(
   () => import("@/components/visuals/PartnerFlow3D"),
   { ssr: false }
@@ -162,7 +163,7 @@ export default function HomePage() {
               ]}
               ctaHref="/typology-iq"
               ctaLabel="Start assessment"
-              visual={<RiskGauge3D />}
+              visual={<TypologyWeb3D />}
             />
 
             {/* PartnerControlMap → PartnerFlow */}
