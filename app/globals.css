@@ -2,24 +2,26 @@
 
 :root,
 :root[data-theme="dark"] {
-  --background: #0a1628;
+  --background: #0f2742;
   --foreground: #f8fafc;
-  --surface: rgba(255, 255, 255, 0.03);
-  --surface-border: rgba(255, 255, 255, 0.08);
-  --surface-hover: rgba(255, 255, 255, 0.06);
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-border: rgba(255, 255, 255, 0.09);
+  --surface-hover: rgba(255, 255, 255, 0.07);
   --card-bg: #ffffff;
   --card-border: rgba(255, 255, 255, 0.10);
   --accent: #14b8a6;
   --accent-hover: #0d9488;
-  --navy-light: #1e293b;
-  --navy-mid: #0f1d32;
+  --brand-from: #34d399;
+  --brand-to: #14b8a6;
+  --navy-light: #1e3550;
+  --navy-mid: #13314f;
   --risk-high: #ef4444;
   --risk-medium: #f59e0b;
   --risk-low: #22c55e;
   --risk-critical: #dc2626;
   --text-muted: #94a3b8;
   --text-dark: #1e293b;
-  --header-bg: rgba(10, 22, 40, 0.8);
+  --header-bg: rgba(15, 39, 66, 0.8);
 }
 
 :root[data-theme="light"] {
@@ -32,6 +34,8 @@
   --card-border: rgba(15, 23, 42, 0.10);
   --accent: #0d9488;
   --accent-hover: #0f766e;
+  --brand-from: #10b981;
+  --brand-to: #0d9488;
   --navy-light: #e2e8f0;
   --navy-mid: #f1f5f9;
   --risk-high: #dc2626;
@@ -50,6 +54,8 @@
   --color-card-border: var(--card-border);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-brand-from: var(--brand-from);
+  --color-brand-to: var(--brand-to);
   --color-navy-light: var(--navy-light);
   --color-navy-mid: var(--navy-mid);
   --color-risk-high: var(--risk-high);
@@ -93,15 +99,45 @@ body {
 
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(20, 184, 166, 0.15);
+  box-shadow: 0 12px 40px rgba(16, 185, 129, 0.18);
 }
 
-/* Gradient text */
+/* Gradient text — emerald → teal brand */
 .gradient-text {
-  background: linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, var(--brand-from) 0%, var(--brand-to) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* Brand gradient button — emerald → teal with glow */
+.btn-brand {
+  background-image: linear-gradient(to right, #10b981, #0d9488);
+  color: #ffffff;
+  box-shadow: 0 10px 30px -8px rgba(16, 185, 129, 0.55);
+  transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.btn-brand:hover {
+  background-image: linear-gradient(to right, #059669, #0f766e);
+  box-shadow: 0 14px 36px -8px rgba(16, 185, 129, 0.65);
+}
+
+/* Stage panel — dark backdrop that lets emissive 3D pop on a lighter page */
+.stage-panel {
+  position: relative;
+  background: radial-gradient(120% 120% at 50% 0%, #16395c 0%, #0c2138 70%, #081826 100%);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  box-shadow: inset 0 0 60px rgba(16, 185, 129, 0.08), 0 20px 60px -20px rgba(8, 24, 38, 0.6);
+  overflow: hidden;
+}
+
+/* Ambient glow orb for hero/section backgrounds */
+.glow-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* Glass card — uses theme-aware surface tokens */

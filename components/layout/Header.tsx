@@ -17,29 +17,35 @@ export default function Header() {
             <nav className="hidden sm:flex items-center gap-5">
               <Link
                 href="/firm-research"
-                className="text-sm text-text-muted hover:text-accent transition-colors"
+                className="text-sm text-text-muted hover:text-emerald-400 transition-colors"
               >
                 Firm Research
               </Link>
               <Link
                 href="/typology-iq"
-                className="text-sm text-text-muted hover:text-accent transition-colors"
+                className="text-sm text-text-muted hover:text-emerald-400 transition-colors"
               >
                 TypologyIQ
               </Link>
               <Link
                 href="/partner-control-map"
-                className="text-sm text-text-muted hover:text-accent transition-colors"
+                className="text-sm text-text-muted hover:text-emerald-400 transition-colors"
               >
                 PartnerControlMap
               </Link>
               <Link
                 href="/controls"
-                className="text-sm text-text-muted hover:text-accent transition-colors"
+                className="text-sm text-text-muted hover:text-emerald-400 transition-colors"
               >
                 Controls
               </Link>
             </nav>
+            <Link
+              href="/firm-research"
+              className="btn-brand hidden sm:inline-flex items-center px-4 py-1.5 rounded-lg text-sm font-semibold"
+            >
+              Start free
+            </Link>
             <ThemeToggle />
           </div>
         </div>

@@ -18,7 +18,7 @@ export default function Footer() {
             href="https://memaconsultants.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-accent hover:text-accent-hover transition-colors"
+            className="text-sm text-emerald-500 hover:text-emerald-400 transition-colors"
           >
             memaconsultants.com
           </a>

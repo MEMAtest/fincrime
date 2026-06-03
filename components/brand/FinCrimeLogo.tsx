@@ -41,10 +41,10 @@ function ShieldIcon({ s, animated, uid }: { s: number; animated: boolean; uid: s
       role="img"
     >
       <defs>
-        {/* Shield gradient */}
+        {/* Shield gradient — emerald → deep teal-navy */}
         <linearGradient id={`shield-fill-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0E8E7E" />
-          <stop offset="100%" stopColor="#081D2A" />
+          <stop offset="0%" stopColor="#10b981" />
+          <stop offset="100%" stopColor="#0a2a3a" />
         </linearGradient>
         {/* Metallic bevel stroke */}
         <linearGradient id={`shield-stroke-${uid}`} x1="0%" y1="0%" x2="100%" y2="100%">
