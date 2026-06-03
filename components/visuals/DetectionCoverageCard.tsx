@@ -8,20 +8,27 @@ import { TrendingUp, TrendingDown } from "lucide-react";
  * Floating glass metric card overlaid on the hero 3D scene.
  * Mirrors Nasara's AnimatedComplianceScore, retargeted to FinCrime.
  */
+type Metric = { score: number; trend: string; isIncreasing: boolean };
+
 export default function DetectionCoverageCard() {
-  const [score, setScore] = useState(98);
-  const [trend, setTrend] = useState("+5%");
-  const [isIncreasing, setIsIncreasing] = useState(true);
+  const [{ score, trend, isIncreasing }, setMetric] = useState<Metric>({
+    score: 98,
+    trend: "+5%",
+    isIncreasing: true,
+  });
 
   useEffect(() => {
-    // Single stable 5s timer; compute against the latest score via the updater.
+    // Single stable 5s timer; derive the whole metric from the previous score
+    // in one atomic update (no nested setters).
     const interval = setInterval(() => {
-      setScore((prev) => {
+      setMetric((prev) => {
         const next = Math.floor(Math.random() * 5) + 95; // 95–99%
-        const diff = next - prev;
-        setIsIncreasing(diff >= 0);
-        setTrend(`${diff >= 0 ? "+" : ""}${Math.abs(diff)}%`);
-        return next;
+        const diff = next - prev.score;
+        return {
+          score: next,
+          isIncreasing: diff >= 0,
+          trend: `${diff >= 0 ? "+" : ""}${Math.abs(diff)}%`,
+        };
       });
     }, 5000);
 

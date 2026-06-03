@@ -1,9 +1,28 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, Html } from "@react-three/drei";
 import * as THREE from "three";
+
+// Install a one-time, permanent filter for a noisy THREE geometry warning
+// emitted during degenerate hover scaling. Done once at module scope so we
+// never patch/restore the global console on every mount (no restore-chain leak).
+let threeWarningFilterInstalled = false;
+function installThreeWarningFilter() {
+  if (threeWarningFilterInstalled || typeof console === "undefined") return;
+  threeWarningFilterInstalled = true;
+  const originalError = console.error.bind(console);
+  console.error = (...args: unknown[]) => {
+    if (
+      typeof args[0] === "string" &&
+      args[0].includes("THREE.BufferGeometry.computeBoundingSphere")
+    ) {
+      return;
+    }
+    originalError(...args);
+  };
+}
 
 // Static connecting node with gentle pulse
 function ConnectionNode({
@@ -379,19 +398,7 @@ function EcosystemScene() {
 }
 
 export default function ControlEcosystem3D() {
-  useEffect(() => {
-    // Suppress noisy THREE geometry warning from degenerate hover scaling
-    const originalError = console.error;
-    console.error = (...args) => {
-      if (args[0]?.includes?.("THREE.BufferGeometry.computeBoundingSphere")) {
-        return;
-      }
-      originalError.call(console, ...args);
-    };
-    return () => {
-      console.error = originalError;
-    };
-  }, []);
+  installThreeWarningFilter();
 
   return (
     <div className="w-full h-full">
