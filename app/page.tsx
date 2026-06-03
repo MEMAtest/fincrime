@@ -15,6 +15,15 @@ import {
   ShieldCheck,
   ScanSearch,
   CheckCircle2,
+  Workflow,
+  Database,
+  FileWarning,
+  ClipboardCheck,
+  Boxes,
+  BadgeCheck,
+  Lock,
+  Scale,
+  MessageSquare,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -49,6 +58,56 @@ const HERO_BULLETS = [
   { icon: ScanSearch, text: "AML typology → detection control mapping" },
   { icon: ShieldCheck, text: "Partner payment-flow control ownership" },
   { icon: Network, text: "FATF, Wolfsberg & FCA-aligned frameworks" },
+];
+
+const FEATURE_TILES = [
+  {
+    icon: ScanSearch,
+    title: "Typology mapping",
+    text: "Match 10 FATF & Wolfsberg-sourced typologies to your firm, product and risk profile.",
+  },
+  {
+    icon: Workflow,
+    title: "Detection logic",
+    text: "Rules, thresholds and scenarios — with the data each one needs to actually fire.",
+  },
+  {
+    icon: Database,
+    title: "Data requirements",
+    text: "Know exactly which data each control depends on before you start building.",
+  },
+  {
+    icon: Boxes,
+    title: "Control ownership",
+    text: "A RACI across you and your partners, with control gaps flagged automatically.",
+  },
+  {
+    icon: FileWarning,
+    title: "Enforcement-mapped",
+    text: "Every control linked to the real FCA cases it would have prevented.",
+  },
+  {
+    icon: ClipboardCheck,
+    title: "Governance packs",
+    text: "Pre-launch conditions, checklists and committee-ready output you can export.",
+  },
+];
+
+const USE_CASES = [
+  "EMIs",
+  "Payment Institutions",
+  "Banks",
+  "MSBs",
+  "Crypto / VASPs",
+  "Neobanks",
+  "Wealth Managers",
+  "Insurance",
+];
+
+const TRUST_POINTS = [
+  { icon: Scale, text: "Deterministic scoring" },
+  { icon: Lock, text: "No black-box AI decisions" },
+  { icon: BadgeCheck, text: "Source-cited: FATF · Wolfsberg · FCA · JMLSG" },
 ];
 
 const StagePanelFallback = () => (
@@ -111,18 +170,29 @@ export default function HomePage() {
                 <div className="mt-9 flex flex-col sm:flex-row gap-4">
                   <Link
                     href="/firm-research"
-                    className="btn-brand inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-lg text-base font-semibold"
+                    className="btn-brand inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold"
                   >
                     Start free <ArrowRight className="h-5 w-5" />
                   </Link>
                   <Link
                     href="/controls"
-                    className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-lg text-base font-semibold border border-surface-border bg-surface hover:bg-surface-hover text-foreground transition-colors"
+                    className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full text-base font-semibold border border-surface-border bg-surface hover:bg-surface-hover text-foreground transition-colors"
                   >
                     <Library className="h-5 w-5" />
                     Explore controls
                   </Link>
                 </div>
+
+                <a
+                  href="https://memaconsultants.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-5 inline-flex items-center gap-2 text-sm text-text-muted hover:text-emerald-400 transition-colors"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Designing a complex programme? Talk to a MEMA expert
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </a>
               </div>
 
               {/* Right: 3D ecosystem */}
@@ -146,8 +216,61 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Feature sections with prominent 3D */}
+        {/* Problem-first */}
+        <section className="py-16 sm:py-20">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium mb-5 bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              The problem
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
+              Generic AML tooling wasn&apos;t built for{" "}
+              <span className="gradient-text">how financial crime moves</span>
+            </h2>
+            <p className="mt-6 text-lg text-text-muted">
+              Off-the-shelf control libraries hand you a flat checklist. They
+              don&apos;t map to your firm type, they ignore how money actually
+              flows through your partners, and they can&apos;t show you which
+              controls would have stopped a real enforcement case. So teams
+              over-build in some places, leave gaps in others, and can&apos;t
+              evidence why. FinCrime Control Lab starts from the typology and
+              works back to the exact controls you need — and no more.
+            </p>
+          </div>
+        </section>
+
+        {/* Capability tiles */}
         <section className="pb-8">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+                Everything you need to{" "}
+                <span className="gradient-text">design controls</span>
+              </h2>
+              <p className="mt-4 text-text-muted">
+                From the first typology match to a committee-ready governance
+                pack — in one place, deterministically scored.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {FEATURE_TILES.map((t) => (
+                <div key={t.title} className="tile p-6">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mb-4">
+                    <t.icon className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <h3 className="text-base font-semibold text-foreground mb-2">
+                    {t.title}
+                  </h3>
+                  <p className="text-sm text-text-muted leading-relaxed">
+                    {t.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Feature sections with prominent 3D */}
+        <section className="pt-16 pb-8">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24 sm:space-y-32">
             {/* TypologyIQ → RiskGauge */}
             <FeatureRow
@@ -203,8 +326,32 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Firm Research quick-start card */}
+        {/* Use-case self-identify */}
         <section className="py-20 sm:py-24">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+              Built for your firm type
+            </h2>
+            <p className="mt-4 text-text-muted">
+              Controls are filtered and weighted to how each business model is
+              actually exposed. Find yours:
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              {USE_CASES.map((u) => (
+                <Link
+                  key={u}
+                  href="/controls"
+                  className="tile px-5 py-2.5 text-sm font-medium text-foreground hover:text-emerald-400"
+                >
+                  {u}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Firm Research quick-start card */}
+        <section className="pb-20 sm:pb-24">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <Link href="/firm-research" className="group block">
               <div className="glass-card rounded-2xl p-8 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10">
@@ -231,7 +378,7 @@ export default function HomePage() {
               </div>
             </Link>
 
-            {/* Framework attribution */}
+            {/* Trust block */}
             <div className="mt-16 text-center">
               <p className="text-xs text-text-muted mb-4 uppercase tracking-wider">
                 Built on authoritative frameworks
@@ -249,6 +396,18 @@ export default function HomePage() {
                   <Shield className="h-4 w-4" />
                   <span className="text-sm">FCA Guidance</span>
                 </div>
+              </div>
+
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+                {TRUST_POINTS.map((t) => (
+                  <div
+                    key={t.text}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface border border-surface-border text-sm text-foreground"
+                  >
+                    <t.icon className="h-4 w-4 text-emerald-400" />
+                    {t.text}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
