@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS partner_flows (
 -- Assessment records
 CREATE TABLE IF NOT EXISTS assessments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  module VARCHAR(30) NOT NULL CHECK (module IN ('typology_iq', 'partner_control_map')),
+  module VARCHAR(30) NOT NULL CHECK (module IN ('typology_iq', 'partner_control_map', 'screening_controls', 'controls_maturity')),
   answers JSONB NOT NULL DEFAULT '{}',
   results JSONB NOT NULL DEFAULT '{}',
   ai_narrative TEXT,

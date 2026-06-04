@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateTypologyPDF } from "@/lib/pdf/typology-pdf";
 import { generatePartnerPDF } from "@/lib/pdf/partner-pdf";
+import { generateScreeningPDF } from "@/lib/pdf/screening-pdf";
 import { getBestMatch } from "@/data/scoring/typology-scoring";
 import { scorePartnerRisk } from "@/data/scoring/partner-scoring";
+import { getBestScreeningMatch } from "@/data/scoring/screening-scoring";
 import type { FirmType, ProductType, CustomerType, RiskTheme } from "@/data/typologies/types";
 import type { ModelType, FlowType, Actor, ControlOwnership } from "@/data/partner-flows/types";
+import type { ScreeningCategory, ScreeningTrigger } from "@/data/screening/types";
+
+const MODULE_TITLE: Record<string, string> = {
+  typology_iq: "TypologyIQ",
+  partner_control_map: "PartnerControlMap",
+  screening_controls: "Screening Control Designer",
+  controls_maturity: "Controls Maturity Assessment",
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -77,6 +87,22 @@ export async function POST(request: NextRequest) {
         narrative,
       });
       filename = `MEMA-PartnerControlMap-${result.flow.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "screening_controls") {
+      const { firmType, category, trigger, narrative } = assessmentData as {
+        firmType: FirmType;
+        category: ScreeningCategory;
+        trigger: ScreeningTrigger;
+        narrative?: string;
+      };
+
+      const result = getBestScreeningMatch({ firmType, category, trigger });
+      pdfBuffer = generateScreeningPDF({
+        control: result.control,
+        score: result.score,
+        breakdown: result.breakdown,
+        narrative,
+      });
+      filename = `MEMA-ScreeningControlDesigner-${result.control.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }
@@ -87,7 +113,7 @@ export async function POST(request: NextRequest) {
         const { sendEmailWithAttachment } = await import("@/lib/email");
         sendEmailWithAttachment({
           to: email,
-          subject: `Your FinCrime Control Lab Report — ${module === "typology_iq" ? "TypologyIQ" : "PartnerControlMap"}`,
+          subject: `Your FinCrime Control Lab Report — ${MODULE_TITLE[module] || "FinCrime Control Lab"}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background: #14b8a6; padding: 16px 24px; border-radius: 8px 8px 0 0;">

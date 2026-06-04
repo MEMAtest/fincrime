@@ -5,11 +5,19 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { Download, Loader2 } from "lucide-react";
+import type { PDFModule } from "./PDFExportButton";
+
+const MODULE_LABEL: Record<PDFModule, string> = {
+  typology_iq: "TypologyIQ",
+  partner_control_map: "PartnerControlMap",
+  screening_controls: "ScreeningControlDesigner",
+  controls_maturity: "ControlsMaturity",
+};
 
 interface LeadCaptureModalProps {
   open: boolean;
   onClose: () => void;
-  module: "typology_iq" | "partner_control_map";
+  module: PDFModule;
   assessmentData: Record<string, unknown>;
   onSuccess?: () => void;
 }
@@ -72,7 +80,7 @@ export default function LeadCaptureModal({
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `MEMA-FinCrime-${module === "typology_iq" ? "TypologyIQ" : "PartnerControlMap"}-${new Date().toISOString().split("T")[0]}.pdf`;
+        a.download = `MEMA-FinCrime-${MODULE_LABEL[module]}-${new Date().toISOString().split("T")[0]}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

@@ -5,8 +5,14 @@ import { Download } from "lucide-react";
 import Button from "@/components/ui/Button";
 import LeadCaptureModal from "./LeadCaptureModal";
 
+export type PDFModule =
+  | "typology_iq"
+  | "partner_control_map"
+  | "screening_controls"
+  | "controls_maturity";
+
 interface PDFExportButtonProps {
-  module: "typology_iq" | "partner_control_map";
+  module: PDFModule;
   assessmentData: Record<string, unknown>;
 }
 
