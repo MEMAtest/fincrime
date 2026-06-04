@@ -5,18 +5,25 @@ import { useMemo, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, Users, Database, ClipboardCheck, FileText,
-  ArrowLeft, Sparkles, ShieldAlert, CheckCircle, XCircle,
+  ArrowLeft, Sparkles, ShieldAlert, CheckCircle, XCircle, Layers, Scale, BarChart3,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ResultCard from "@/components/results/ResultCard";
 import ResultsGrid from "@/components/results/ResultsGrid";
+import ResultTabs from "@/components/results/ResultTabs";
+import EvidencePanel from "@/components/results/EvidencePanel";
+import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import RiskRatingBadge from "@/components/shared/RiskRatingBadge";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
 import { scorePartnerRisk } from "@/data/scoring/partner-scoring";
 import type { Actor, ControlOwnership, SourceOrg } from "@/data/partner-flows/types";
+import type { RiskTheme } from "@/data/typologies/types";
+
+// Partner payment flows carry these core financial-crime exposures
+const PARTNER_THEMES: RiskTheme[] = ["money_laundering", "sanctions_evasion", "fraud"];
 
 const actorLabels: Record<Actor, string> = {
   your_firm: "Your Firm",
@@ -171,7 +178,15 @@ function PartnerResults() {
         </div>
       )}
 
-      {/* 5-Card Results */}
+      {/* Tabbed results: Controls · Evidence · Benchmarks */}
+      <ResultTabs
+        tabs={[
+          {
+            id: "controls",
+            label: "Controls",
+            icon: Layers,
+            content: (
+              <>
       <ResultsGrid>
         {/* Card 1: Risk Rating Breakdown */}
         <ResultCard title="Risk Rating Breakdown" icon={ShieldAlert} iconColor="text-red-500" className="md:col-span-2" index={0}>
@@ -326,6 +341,23 @@ function PartnerResults() {
           </div>
         </ResultCard>
       </ResultsGrid>
+              </>
+            ),
+          },
+          {
+            id: "evidence",
+            label: "Evidence",
+            icon: Scale,
+            content: <EvidencePanel themes={PARTNER_THEMES} />,
+          },
+          {
+            id: "benchmarks",
+            label: "Benchmarks",
+            icon: BarChart3,
+            content: <BenchmarksPanel />,
+          },
+        ]}
+      />
     </div>
   );
 }

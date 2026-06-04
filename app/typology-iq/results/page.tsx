@@ -5,12 +5,15 @@ import { useMemo, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, Cpu, GitBranch, ClipboardCheck, BarChart3,
-  ArrowLeft, FileText, BookOpen, ChevronDown, ChevronUp, Link2,
+  ArrowLeft, FileText, BookOpen, ChevronDown, ChevronUp, Link2, Layers, Scale,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ResultCard from "@/components/results/ResultCard";
 import ResultsGrid from "@/components/results/ResultsGrid";
+import ResultTabs from "@/components/results/ResultTabs";
+import EvidencePanel from "@/components/results/EvidencePanel";
+import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
@@ -208,7 +211,15 @@ function TypologyResults() {
         </div>
       )}
 
-      {/* 6-Card Results Grid */}
+      {/* Tabbed results: Controls · Evidence · Benchmarks */}
+      <ResultTabs
+        tabs={[
+          {
+            id: "controls",
+            label: "Controls",
+            icon: Layers,
+            content: (
+              <>
       <ResultsGrid>
         {/* Card 1: Control Objective */}
         <ResultCard title="Control Objective" icon={Target} className="md:col-span-2" index={0}>
@@ -393,6 +404,23 @@ function TypologyResults() {
           </div>
         </div>
       )}
+              </>
+            ),
+          },
+          {
+            id: "evidence",
+            label: "Evidence",
+            icon: Scale,
+            content: <EvidencePanel themes={answers.riskThemes} />,
+          },
+          {
+            id: "benchmarks",
+            label: "Benchmarks",
+            icon: BarChart3,
+            content: <BenchmarksPanel />,
+          },
+        ]}
+      />
     </div>
   );
 }

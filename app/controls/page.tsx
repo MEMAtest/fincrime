@@ -7,6 +7,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
+import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import { allTypologies } from "@/data/typologies";
 import type { RiskTheme, FirmType } from "@/data/typologies/types";
 
@@ -434,6 +435,18 @@ export default function ControlsPage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Enforcement benchmarks */}
+            <div className="mt-16">
+              <h2 className="text-xl font-bold text-foreground mb-1">
+                Enforcement benchmarks
+              </h2>
+              <p className="text-sm text-text-muted mb-6">
+                Where real financial-crime penalties have landed — grounded in the
+                FCA fines dataset, so you can prioritise the controls that matter.
+              </p>
+              <BenchmarksPanel />
             </div>
 
             {/* CTA */}
