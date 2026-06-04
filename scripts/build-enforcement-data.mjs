@@ -36,13 +36,36 @@ function themesFor(text) {
   const t = (text || "").toLowerCase();
   const themes = new Set();
   if (/money launder|anti-money|money laundering regulations|\baml\b/.test(t)) themes.add("money_laundering");
-  if (/sanction/.test(t)) themes.add("sanctions_evasion");
-  if (/terrorist|terrorism financing/.test(t)) themes.add("terrorist_financing");
+  if (/sanction|ofsi|asset freeze|designated person/.test(t)) themes.add("sanctions_evasion");
+  if (/terrorist|terrorism financing|proscribed|counter-terror/.test(t)) themes.add("terrorist_financing");
   if (/proliferation/.test(t)) themes.add("proliferation_financing");
   if (/fraud/.test(t)) themes.add("fraud");
   if (/bribery|corruption/.test(t)) themes.add("bribery_corruption");
   if (/tax evasion|tax-evasion/.test(t)) themes.add("tax_evasion");
   return [...themes];
+}
+
+/**
+ * Verified theme corrections applied on top of keyword tagging — the DB
+ * summaries are often too terse to surface the underlying theme. Each entry is
+ * checked against the firm's public FCA final notice. `set` replaces the auto
+ * themes; `add` augments them.
+ */
+const CURATED_THEMES = [
+  // Starling Bank, Oct 2024 (£28.96m) — financial sanctions screening framework
+  // failings (automated screener covered only a fraction of the sanctions list).
+  { firm: /^starling bank/i, year: 2024, add: ["sanctions_evasion"] },
+];
+
+function applyCurated(firm, year, themes) {
+  const out = new Set(themes);
+  for (const c of CURATED_THEMES) {
+    if (c.firm.test(firm || "") && (!c.year || c.year === year)) {
+      if (c.set) return [...new Set(c.set)];
+      (c.add || []).forEach((t) => out.add(t));
+    }
+  }
+  return [...out];
 }
 
 function fmtFine(amount, currency) {
@@ -103,7 +126,8 @@ try {
   const cases = [];
   for (const r of rows) {
     const cats = Array.isArray(r.cats) ? r.cats.map(String) : [];
-    const themes = themesFor(`${r.breach_type} ${r.summary} ${cats.join(" ")}`);
+    const autoThemes = themesFor(`${r.breach_type} ${r.summary} ${cats.join(" ")}`);
+    const themes = applyCurated(r.firm_individual, r.year_issued, autoThemes);
     if (!themes.length) continue; // keep only clearly financial-crime cases
     cases.push({
       firm: r.firm_individual,
