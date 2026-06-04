@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateTypologyPDF } from "@/lib/pdf/typology-pdf";
 import { generatePartnerPDF } from "@/lib/pdf/partner-pdf";
 import { generateScreeningPDF } from "@/lib/pdf/screening-pdf";
+import { generateMaturityPDF } from "@/lib/pdf/maturity-pdf";
 import { getBestMatch } from "@/data/scoring/typology-scoring";
 import { scorePartnerRisk } from "@/data/scoring/partner-scoring";
 import { getBestScreeningMatch } from "@/data/scoring/screening-scoring";
+import { scoreMaturity } from "@/data/scoring/maturity-scoring";
 import type { FirmType, ProductType, CustomerType, RiskTheme } from "@/data/typologies/types";
 import type { ModelType, FlowType, Actor, ControlOwnership } from "@/data/partner-flows/types";
 import type { ScreeningCategory, ScreeningTrigger } from "@/data/screening/types";
+import type { ControlArea, MaturityLevel } from "@/data/maturity/types";
 
 const MODULE_TITLE: Record<string, string> = {
   typology_iq: "TypologyIQ",
@@ -103,6 +106,20 @@ export async function POST(request: NextRequest) {
         narrative,
       });
       filename = `MEMA-ScreeningControlDesigner-${result.control.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "controls_maturity") {
+      const { area, currentLevel, targetLevel, narrative } = assessmentData as {
+        area: ControlArea;
+        currentLevel: MaturityLevel;
+        targetLevel: MaturityLevel;
+        narrative?: string;
+      };
+
+      const result = scoreMaturity({ area, currentLevel, targetLevel });
+      if (!result) {
+        return NextResponse.json({ error: "No matching framework" }, { status: 404 });
+      }
+      pdfBuffer = generateMaturityPDF({ ...result, narrative });
+      filename = `MEMA-ControlsMaturity-${result.framework.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }
