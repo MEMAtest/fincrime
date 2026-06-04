@@ -25,19 +25,19 @@
 }
 
 :root[data-theme="light"] {
-  --background: #e7edf3;
+  --background: #eef2f8;
   --foreground: #16243a;
-  --surface: rgba(255, 255, 255, 0.78);
-  --surface-border: rgba(15, 23, 42, 0.12);
-  --surface-hover: rgba(255, 255, 255, 0.9);
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-border: rgba(15, 23, 42, 0.10);
+  --surface-hover: rgba(255, 255, 255, 0.95);
   --card-bg: #ffffff;
-  --card-border: rgba(15, 23, 42, 0.10);
+  --card-border: rgba(15, 23, 42, 0.09);
   --accent: #0d9488;
   --accent-hover: #0f766e;
   --brand-from: #10b981;
   --brand-to: #0d9488;
-  --navy-light: #dbe3ec;
-  --navy-mid: #e7edf3;
+  --navy-light: #e4eaf2;
+  --navy-mid: #eef2f8;
   --risk-high: #dc2626;
   --risk-medium: #d97706;
   --risk-low: #16a34a;

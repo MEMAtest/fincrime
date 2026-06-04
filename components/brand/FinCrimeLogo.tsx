@@ -150,8 +150,8 @@ export default function FinCrimeLogo({
         <span className="text-sm font-bold tracking-tight text-foreground leading-tight">
           FinCrime Control Lab
         </span>
-        <span className="text-[10px] text-text-muted tracking-wide uppercase leading-tight">
-          by MEMA Consultants
+        <span className="text-[10px] text-text-muted tracking-wide leading-tight">
+          Financial crime, controlled.
         </span>
       </span>
     </span>

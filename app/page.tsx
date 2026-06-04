@@ -29,12 +29,14 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import FinCrimeLogo from "@/components/brand/FinCrimeLogo";
 import { DeferredRender } from "@/components/performance/DeferredRender";
+import { StageMetric, StageList } from "@/components/visuals/StageOverlay";
+import { allTypologies } from "@/data/typologies";
+import { allPartnerFlows } from "@/data/partner-flows";
 
-// Client-only overlay (framer-motion); avoids SSR/hydration of animated state
-const DetectionCoverageCard = dynamic(
-  () => import("@/components/visuals/DetectionCoverageCard"),
-  { ssr: false }
-);
+const TYPOLOGY_COUNT = allTypologies.length;
+const FLOW_COUNT = allPartnerFlows.length;
+const RISK_THEME_COUNT = 7; // RiskTheme union
+const FRAMEWORK_COUNT = 4; // FATF · Wolfsberg · FCA · JMLSG
 
 // Heavy WebGL scenes — client-only, lazily mounted
 const ControlEcosystem3D = dynamic(
@@ -64,7 +66,7 @@ const FEATURE_TILES = [
   {
     icon: ScanSearch,
     title: "Typology mapping",
-    text: "Match 10 FATF & Wolfsberg-sourced typologies to your firm, product and risk profile.",
+    text: `Match ${TYPOLOGY_COUNT} FATF & Wolfsberg-sourced typologies to your firm, product and risk profile.`,
   },
   {
     icon: Workflow,
@@ -195,7 +197,7 @@ export default function HomePage() {
                 </a>
               </div>
 
-              {/* Right: 3D ecosystem */}
+              {/* Right: 3D ecosystem with honest metric overlays */}
               <div className="relative h-[420px] sm:h-[520px]">
                 <DeferredRender
                   mode="idle"
@@ -210,7 +212,68 @@ export default function HomePage() {
                     <ControlEcosystem3D />
                   </div>
                 </DeferredRender>
-                <DetectionCoverageCard />
+                <StageMetric
+                  className="top-4 left-4"
+                  label="AML typologies"
+                  value={String(TYPOLOGY_COUNT)}
+                />
+                <StageMetric
+                  className="top-4 right-4"
+                  label="Frameworks"
+                  value={String(FRAMEWORK_COUNT)}
+                  sub="FATF · Wolfsberg · FCA · JMLSG"
+                />
+                <StageMetric
+                  className="bottom-4 left-4"
+                  label="Partner flows"
+                  value={String(FLOW_COUNT)}
+                />
+                <StageMetric
+                  className="bottom-4 right-4"
+                  label="Risk themes"
+                  value={String(RISK_THEME_COUNT)}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Control Cockpit — connective KPI strip (real counts) */}
+        <section className="pb-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="stage-panel rounded-2xl px-6 py-6 sm:px-8">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-6 lg:gap-10">
+                <div className="lg:border-r lg:border-white/10 lg:pr-10">
+                  <p className="text-xs uppercase tracking-wider text-emerald-400/80">
+                    Control Cockpit
+                  </p>
+                  <p className="text-lg font-semibold text-white leading-tight mt-1">
+                    Everything aligned.
+                    <br className="hidden sm:block" /> Always in control.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 flex-1">
+                  {[
+                    { icon: ScanSearch, value: TYPOLOGY_COUNT, label: "AML typologies" },
+                    { icon: GitBranch, value: FLOW_COUNT, label: "Partner flow types" },
+                    { icon: Network, value: RISK_THEME_COUNT, label: "Risk themes" },
+                    { icon: BookOpen, value: FRAMEWORK_COUNT, label: "Frameworks" },
+                  ].map((k) => (
+                    <div key={k.label} className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0">
+                        <k.icon className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-white leading-none">
+                          {k.value}
+                        </div>
+                        <div className="text-[11px] text-slate-400 mt-1">
+                          {k.label}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -280,13 +343,36 @@ export default function HomePage() {
               title="TypologyIQ"
               description="Select your firm type, product, and risk profile to receive a tailored control framework — detection logic, data requirements, investigation workflows, and governance checklists, scored deterministically."
               bullets={[
-                "10 AML typologies, FATF-sourced",
+                `${TYPOLOGY_COUNT} AML typologies, FATF-sourced`,
                 "Weighted risk-theme scoring",
                 "6-card control output",
               ]}
               ctaHref="/typology-iq"
               ctaLabel="Start assessment"
               visual={<TypologyWeb3D />}
+              overlay={
+                <>
+                  <StageList
+                    className="top-4 left-4"
+                    title="Top typologies"
+                    items={[
+                      { label: "Trade-based ML" },
+                      { label: "Shell-company abuse", dotClass: "bg-teal-400" },
+                      { label: "Structuring / smurfing", dotClass: "bg-blue-400" },
+                    ]}
+                  />
+                  <StageList
+                    className="bottom-4 right-4"
+                    title="Frameworks"
+                    items={[
+                      { label: "FATF" },
+                      { label: "Wolfsberg", dotClass: "bg-teal-400" },
+                      { label: "FCA", dotClass: "bg-blue-400" },
+                      { label: "JMLSG", dotClass: "bg-amber-400" },
+                    ]}
+                  />
+                </>
+              }
             />
 
             {/* PartnerControlMap → PartnerFlow */}
@@ -298,13 +384,33 @@ export default function HomePage() {
               title="PartnerControlMap"
               description="Define partner payment flows to generate a RACI matrix, identify control gaps, map data dependencies, and produce pre-launch conditions and governance packs aligned to Wolfsberg standards."
               bullets={[
-                "5 partner flow types",
+                `${FLOW_COUNT} partner flow types`,
                 "RACI + control-gap analysis",
                 "Pre-launch governance pack",
               ]}
               ctaHref="/partner-control-map"
               ctaLabel="Map a partner flow"
               visual={<PartnerFlow3D />}
+              overlay={
+                <>
+                  <StageMetric
+                    className="top-4 left-4"
+                    label="Flow types"
+                    value={String(FLOW_COUNT)}
+                  />
+                  <StageMetric
+                    className="top-4 right-4"
+                    label="Output"
+                    value="RACI"
+                    sub="+ control gaps"
+                  />
+                  <StageMetric
+                    className="bottom-4 left-4"
+                    label="Aligned to"
+                    value="Wolfsberg"
+                  />
+                </>
+              }
             />
 
             {/* Controls Library → ControlsPack */}
@@ -429,6 +535,7 @@ function FeatureRow({
   ctaHref,
   ctaLabel,
   visual,
+  overlay,
 }: {
   reverse?: boolean;
   pill: string;
@@ -440,6 +547,7 @@ function FeatureRow({
   ctaHref: string;
   ctaLabel: string;
   visual: React.ReactNode;
+  overlay?: React.ReactNode;
 }) {
   return (
     <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
@@ -475,8 +583,8 @@ function FeatureRow({
         </Link>
       </div>
 
-      {/* 3D visual */}
-      <div className={reverse ? "lg:order-1" : ""}>
+      {/* 3D visual + labelled overlays */}
+      <div className={`relative ${reverse ? "lg:order-1" : ""}`}>
         <DeferredRender
           mode="visible"
           rootMargin="300px"
@@ -490,6 +598,7 @@ function FeatureRow({
             {visual}
           </div>
         </DeferredRender>
+        {overlay}
       </div>
     </div>
   );

@@ -76,7 +76,7 @@ function PulsingConnection({
       lineRef.current.material instanceof THREE.MeshStandardMaterial
     ) {
       lineRef.current.material.emissiveIntensity =
-        0.3 + Math.sin(state.clock.elapsedTime * 2) * 0.2;
+        0.9 + Math.sin(state.clock.elapsedTime * 2) * 0.35;
     }
   });
 
@@ -94,13 +94,13 @@ function PulsingConnection({
 
   return (
     <mesh ref={lineRef} position={midPoint}>
-      <cylinderGeometry args={[0.02, 0.02, distance, 8]} />
+      <cylinderGeometry args={[0.045, 0.045, distance, 8]} />
       <meshStandardMaterial
         color={color}
         emissive={color}
-        emissiveIntensity={0.3}
+        emissiveIntensity={0.9}
         transparent
-        opacity={0.4}
+        opacity={0.75}
       />
     </mesh>
   );
@@ -323,20 +323,38 @@ function EcosystemScene() {
 
   return (
     <group ref={groupRef}>
-      {/* Central hub torus */}
+      {/* Central hub — torus ring + solid glowing core */}
       <Float speed={2} rotationIntensity={0.3} floatIntensity={0.5}>
-        <mesh position={centerPos}>
-          <torusGeometry args={[1.2, 0.15, 16, 100]} />
-          <meshStandardMaterial
-            color="#10b981"
-            emissive="#059669"
-            emissiveIntensity={0.8}
-            metalness={0.9}
-            roughness={0.1}
-            transparent
-            opacity={0.95}
-          />
-        </mesh>
+        <group position={centerPos}>
+          <mesh>
+            <torusGeometry args={[1.2, 0.15, 16, 100]} />
+            <meshStandardMaterial
+              color="#10b981"
+              emissive="#059669"
+              emissiveIntensity={0.8}
+              metalness={0.9}
+              roughness={0.1}
+              transparent
+              opacity={0.95}
+            />
+          </mesh>
+          {/* Solid core sphere — the hub everything connects to */}
+          <mesh>
+            <sphereGeometry args={[0.55, 32, 32]} />
+            <meshStandardMaterial
+              color="#34d399"
+              emissive="#10b981"
+              emissiveIntensity={1.4}
+              metalness={0.4}
+              roughness={0.25}
+            />
+          </mesh>
+          {/* Soft glow halo */}
+          <mesh>
+            <sphereGeometry args={[0.8, 24, 24]} />
+            <meshBasicMaterial color="#10b981" transparent opacity={0.12} />
+          </mesh>
+        </group>
       </Float>
 
       {modules.map((module, i) => (

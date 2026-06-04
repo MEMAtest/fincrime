@@ -36,12 +36,11 @@ const themeInit = `
 (function () {
   try {
     var stored = localStorage.getItem('fincrime-theme');
-    var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
-    var theme = stored || (prefersLight ? 'light' : 'dark');
+    var theme = stored || 'light';
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
   } catch (e) {
-    document.documentElement.dataset.theme = 'dark';
+    document.documentElement.dataset.theme = 'light';
   }
 })();
 `;

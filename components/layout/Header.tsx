@@ -19,7 +19,7 @@ export default function Header() {
                 href="/firm-research"
                 className="text-sm text-text-muted hover:text-emerald-400 transition-colors"
               >
-                Firm Research
+                AI in Research
               </Link>
               <Link
                 href="/typology-iq"
@@ -39,6 +39,14 @@ export default function Header() {
               >
                 Controls
               </Link>
+              <a
+                href="https://memaconsultants.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-text-muted hover:text-emerald-400 transition-colors"
+              >
+                Resources
+              </a>
             </nav>
             <Link
               href="/firm-research"
