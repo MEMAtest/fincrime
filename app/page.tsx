@@ -24,6 +24,8 @@ import {
   Lock,
   Scale,
   MessageSquare,
+  Gauge,
+  ShieldOff,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -110,6 +112,15 @@ const TRUST_POINTS = [
   { icon: Scale, text: "Deterministic scoring" },
   { icon: Lock, text: "No black-box AI decisions" },
   { icon: BadgeCheck, text: "Source-cited: FATF · Wolfsberg · FCA · JMLSG" },
+];
+
+const SOLUTIONS = [
+  { icon: Sparkles, title: "AI in Research", text: "Profile a firm and get its likely financial-crime risk themes — then jump into TypologyIQ pre-filled.", href: "/firm-research" },
+  { icon: Search, title: "TypologyIQ", text: "Map AML typologies to a tailored control framework, scored deterministically.", href: "/typology-iq" },
+  { icon: GitBranch, title: "PartnerControlMap", text: "Define partner payment flows → RACI, control gaps and a governance pack.", href: "/partner-control-map" },
+  { icon: ShieldOff, title: "Screening Control Designer", text: "Design sanctions, PEP, adverse-media and payment screening controls.", href: "/screening-control-designer" },
+  { icon: Gauge, title: "Controls Maturity", text: "Assess a control area against a 5-level model and get a remediation roadmap.", href: "/controls-maturity" },
+  { icon: Library, title: "Controls Library", text: "Browse controls by risk theme and firm type, mapped to real enforcement.", href: "/controls" },
 ];
 
 const StagePanelFallback = () => (
@@ -429,6 +440,37 @@ export default function HomePage() {
               ctaLabel="Explore controls"
               visual={<ControlsPack3D />}
             />
+          </div>
+        </section>
+
+        {/* Solutions — all tools */}
+        <section className="pt-20 sm:pt-28">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium mb-4 bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                The toolkit
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+                Five tools, <span className="gradient-text">one control lab</span>
+              </h2>
+              <p className="mt-4 text-text-muted">
+                Free, deterministic, and grounded in real enforcement and authoritative frameworks.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {SOLUTIONS.map((s) => (
+                <Link key={s.href} href={s.href} className="group tile p-6 flex flex-col">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mb-4">
+                    <s.icon className="h-5 w-5 text-emerald-400" />
+                  </div>
+                  <h3 className="text-base font-semibold text-foreground mb-2">{s.title}</h3>
+                  <p className="text-sm text-text-muted leading-relaxed flex-1">{s.text}</p>
+                  <div className="mt-4 flex items-center gap-1.5 text-sm font-medium text-emerald-500 group-hover:gap-2.5 transition-all">
+                    Open <ArrowRight className="h-4 w-4" />
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 
