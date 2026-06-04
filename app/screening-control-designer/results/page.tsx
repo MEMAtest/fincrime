@@ -98,7 +98,7 @@ function ScreeningResults() {
             <p className="text-text-muted text-sm max-w-2xl leading-relaxed">{control.description}</p>
             <div className="flex flex-wrap gap-2 mt-4">
               {control.sources.map((s) => (
-                <SourceBadge key={s.reference} source={s.org as SourceOrg} reference={s.reference} url={s.url} />
+                <SourceBadge key={`${s.org}-${s.reference}`} source={s.org as SourceOrg} reference={s.reference} url={s.url} />
               ))}
             </div>
           </div>

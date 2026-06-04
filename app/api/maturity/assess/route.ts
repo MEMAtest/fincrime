@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scoreMaturity } from "@/data/scoring/maturity-scoring";
+import { MATURITY_ORDER } from "@/data/maturity/types";
 import type { ControlArea, MaturityLevel } from "@/data/maturity/types";
 
 export async function POST(request: NextRequest) {
@@ -14,6 +15,17 @@ export async function POST(request: NextRequest) {
     if (!area || !currentLevel || !targetLevel) {
       return NextResponse.json(
         { error: "Missing required fields: area, currentLevel, targetLevel" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      MATURITY_ORDER[targetLevel] == null ||
+      MATURITY_ORDER[currentLevel] == null ||
+      MATURITY_ORDER[targetLevel] < MATURITY_ORDER[currentLevel]
+    ) {
+      return NextResponse.json(
+        { error: "targetLevel must be at or above currentLevel" },
         { status: 400 }
       );
     }

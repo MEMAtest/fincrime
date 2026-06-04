@@ -451,7 +451,7 @@ export default function HomePage() {
                 The toolkit
               </span>
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-                Five tools, <span className="gradient-text">one control lab</span>
+                Six tools, <span className="gradient-text">one control lab</span>
               </h2>
               <p className="mt-4 text-text-muted">
                 Free, deterministic, and grounded in real enforcement and authoritative frameworks.

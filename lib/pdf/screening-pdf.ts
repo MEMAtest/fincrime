@@ -12,7 +12,7 @@ interface ScreeningPDFData {
 
 export function generateScreeningPDF(data: ScreeningPDFData): Buffer {
   const doc = new jsPDF();
-  const { control, score, narrative } = data;
+  const { control, score, breakdown, narrative } = data;
 
   let y = addHeader(doc, "Screening Control Designer Report");
 
@@ -36,6 +36,22 @@ export function generateScreeningPDF(data: ScreeningPDFData): Buffer {
   doc.setFont("helvetica", "bold");
   doc.text(`Match Score: ${score}/100`, 105, y + 12, { align: "center" });
   y += 26;
+
+  // Score breakdown
+  autoTable(doc, {
+    startY: y,
+    head: [["Criteria", "Score", "Max"]],
+    body: [
+      ["Screening category", `${breakdown.categoryScore}`, "50"],
+      ["Firm type", `${breakdown.firmTypeScore}`, "25"],
+      ["Trigger", `${breakdown.triggerScore}`, "25"],
+    ],
+    theme: "grid",
+    headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
+    styles: { fontSize: 9 },
+  });
+  // @ts-expect-error jspdf-autotable adds lastAutoTable
+  y = doc.lastAutoTable.finalY + 10;
 
   if (narrative) {
     y = checkPageBreak(doc, y, 40);
