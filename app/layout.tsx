@@ -1,17 +1,29 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Space_Grotesk, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import FieldBackground from "@/components/field/FieldBackground";
 
-const inter = Inter({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-space-grotesk",
+  display: "swap",
+});
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
+  display: "swap",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "FinCrime Control Lab | MEMA Consultants",
+  title: "FinCrime Control Lab — Financial crime, controlled.",
   description:
-    "Free financial crime control design tools. Map typologies to controls and define partner control ownership with AI-powered insights.",
+    "Free financial crime control design tools. Map AML typologies to detection controls, define partner control ownership, and browse a controls library mapped to real enforcement actions.",
   keywords: [
     "financial crime",
     "AML",
@@ -23,7 +35,7 @@ export const metadata: Metadata = {
     "FCA",
   ],
   openGraph: {
-    title: "FinCrime Control Lab | MEMA Consultants",
+    title: "FinCrime Control Lab — Financial crime, controlled.",
     description:
       "Free financial crime control design tools powered by FATF, Wolfsberg, and FCA frameworks.",
     url: "https://fincrime.memaconsultants.com",
@@ -51,12 +63,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${spaceGrotesk.variable} ${manrope.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
-      <body className="min-h-full flex flex-col font-sans">
-        <ThemeProvider>{children}</ThemeProvider>
+      <body className="min-h-full flex flex-col">
+        <ThemeProvider>
+          <FieldBackground />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

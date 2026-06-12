@@ -21,8 +21,8 @@ function applyTheme(theme: Theme) {
 }
 
 function readDomTheme(): Theme {
-  if (typeof document === "undefined") return "dark";
-  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  if (typeof document === "undefined") return "light";
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
 
 function subscribe(callback: () => void): () => void {
@@ -36,7 +36,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useSyncExternalStore(
     subscribe,
     readDomTheme,
-    () => "dark" as Theme,
+    () => "light" as Theme,
   );
 
   // On first client mount, ensure the DOM theme matches the user's stored preference.
@@ -77,7 +77,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useTheme() {
   const ctx = useContext(ThemeContext);
   if (!ctx) {
-    return { theme: "dark" as Theme, toggleTheme: () => {}, setTheme: () => {} };
+    return { theme: "light" as Theme, toggleTheme: () => {}, setTheme: () => {} };
   }
   return ctx;
 }
