@@ -27,7 +27,7 @@ type CellDef = { code: string; icon: typeof ScanSearch; title: string; text: str
 
 const CAPABILITIES: CellDef[] = [
   { code: "F-01", icon: ScanSearch, title: "Typology mapping", text: `Match ${TYPOLOGY_COUNT} FATF & Wolfsberg-sourced typologies to your firm, product and risk profile.`, href: "/typology-iq" },
-  { code: "F-02", icon: Activity, title: "Detection logic", text: "Rules, thresholds and scenarios — with the data each one needs to actually fire.", href: "/typology-iq" },
+  { code: "F-02", icon: Activity, title: "Detection logic", text: "Rules, thresholds and scenarios, with the data each one needs to actually fire.", href: "/typology-iq" },
   { code: "F-03", icon: Database, title: "Data requirements", text: "Know exactly which data each control depends on before you start building.", href: "/typology-iq" },
   { code: "F-04", icon: Network, title: "Control ownership", text: "A RACI across you and your partners, with control gaps flagged automatically.", href: "/partner-control-map" },
   { code: "F-05", icon: FileCheck, title: "Enforcement-mapped", text: "Every control linked to the real FCA cases it would have prevented.", href: "/controls" },
@@ -35,7 +35,7 @@ const CAPABILITIES: CellDef[] = [
 ];
 
 const TOOLKIT: CellDef[] = [
-  { code: "T-01", icon: Sparkles, title: "AI in Research", text: "Profile a firm and get its likely financial-crime risk themes — then jump into TypologyIQ pre-filled.", href: "/firm-research" },
+  { code: "T-01", icon: Sparkles, title: "AI in Research", text: "Profile a firm and get its likely financial-crime risk themes, then jump into TypologyIQ pre-filled.", href: "/firm-research" },
   { code: "T-02", icon: Search, title: "TypologyIQ", text: "Map AML typologies to a tailored control framework, scored deterministically.", href: "/typology-iq" },
   { code: "T-03", icon: GitBranch, title: "PartnerControlMap", text: "Define partner payment flows → RACI, control gaps and a governance pack.", href: "/partner-control-map" },
   { code: "T-04", icon: EyeOff, title: "Screening Control Designer", text: "Design sanctions, PEP, adverse-media and payment screening controls.", href: "/screening-control-designer" },
@@ -71,7 +71,7 @@ export default function HomePage() {
               <p className="lede">
                 Map AML typologies to detection controls, define partner control
                 ownership, and browse a controls library mapped to real enforcement
-                actions — built on authoritative frameworks.
+                actions, built on authoritative frameworks.
               </p>
               <div className="hero-rail">
                 <div className="rail-row"><span className="node" /><span className="rl"><b>AML typology → detection control</b> mapping</span></div>
@@ -128,7 +128,7 @@ export default function HomePage() {
               partners, and they can&apos;t show you which controls would have stopped a
               real enforcement case. So teams over-build in some places, leave gaps in
               others, and can&apos;t evidence why. FinCrime Control Lab starts from the
-              typology and works back to the exact controls you need — and no more.
+              typology and works back to the exact controls you need, and no more.
             </p>
           </div>
         </section>
@@ -138,7 +138,7 @@ export default function HomePage() {
           <div className="marker"><span className="tech"><span className="ix">02</span> CAPABILITIES</span><span className="rule" /></div>
           <div className="section-head">
             <h2>Everything you need to <span className="accent">design controls</span></h2>
-            <p className="sub">From the first typology match to a committee-ready governance pack — in one place, deterministically scored.</p>
+            <p className="sub">From the first typology match to a committee-ready governance pack, in one place, deterministically scored.</p>
           </div>
           <div className="feature-grid">
             {CAPABILITIES.map((c) => <Cell key={c.code} c={c} />)}
@@ -151,7 +151,7 @@ export default function HomePage() {
           <div className="toolrow">
             <div className="tool-copy">
               <div className="tool-title"><span className="tico"><Search /></span><h3>TypologyIQ</h3></div>
-              <p className="desc">Select your firm type, product, and risk profile to receive a tailored control framework — detection logic, data requirements, investigation workflows, and governance checklists, scored deterministically.</p>
+              <p className="desc">Select your firm type, product, and risk profile to receive a tailored control framework: detection logic, data requirements, investigation workflows, and governance checklists, scored deterministically.</p>
               <div className="checks">
                 <div className="check"><span className="ck"><Check /></span>{TYPOLOGY_COUNT} AML typologies, FATF-sourced</div>
                 <div className="check"><span className="ck"><Check /></span>Weighted risk-theme scoring</div>
@@ -174,7 +174,7 @@ export default function HomePage() {
           <div className="toolrow rev">
             <div className="tool-copy">
               <div className="tool-title"><span className="tico"><ArrowUpRight /></span><h3>PartnerControlMap</h3></div>
-              <p className="desc">Map every partner payment flow, assign control ownership across you and your partners, and surface the gaps — delivered as a RACI matrix with a committee-ready governance pack.</p>
+              <p className="desc">Map every partner payment flow, assign control ownership across you and your partners, and surface the gaps, delivered as a RACI matrix with a committee-ready governance pack.</p>
               <div className="checks">
                 <div className="check"><span className="ck"><Check /></span>{FLOW_COUNT} partner payment-flow types</div>
                 <div className="check"><span className="ck"><Check /></span>RACI ownership matrix</div>
@@ -197,7 +197,7 @@ export default function HomePage() {
           <div className="toolrow">
             <div className="tool-copy">
               <div className="tool-title"><span className="tico"><Library /></span><h3>Controls Reference Library</h3></div>
-              <p className="desc">Browse the FinCrime controls your firm needs — grouped by risk theme, filtered by firm type, and mapped to real FCA enforcement actions so you can see exactly which controls would have prevented them.</p>
+              <p className="desc">Browse the FinCrime controls your firm needs, grouped by risk theme, filtered by firm type, and mapped to real FCA enforcement actions so you can see exactly which controls would have prevented them.</p>
               <div className="checks">
                 <div className="check"><span className="ck"><Check /></span>Grouped by risk theme</div>
                 <div className="check"><span className="ck"><Check /></span>Filtered by firm type</div>

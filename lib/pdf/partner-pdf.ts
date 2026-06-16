@@ -51,7 +51,7 @@ export function generatePartnerPDF(data: PartnerPDFData): Buffer {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(`Risk Score: ${riskScore} — ${riskRating.toUpperCase()}`, 105, y + 13, { align: "center" });
+  doc.text(`Risk Score: ${riskScore} - ${riskRating.toUpperCase()}`, 105, y + 13, { align: "center" });
   y += 28;
 
   // Control distribution
@@ -227,7 +227,7 @@ export function generatePartnerPDF(data: PartnerPDFData): Buffer {
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   flow.sources.forEach((s) => {
-    doc.text(`• ${s.org} — ${s.reference}: ${s.title}`, 25, y);
+    doc.text(`• ${s.org} - ${s.reference}: ${s.title}`, 25, y);
     y += 4.5;
   });
 

@@ -2,8 +2,8 @@
 
 ## Project Overview
 Standalone Next.js 16 app for financial crime control design tools. Two modules:
-- **TypologyIQ** — Maps AML typologies to detection controls based on firm type, product, customer, and risk theme
-- **PartnerControlMap** — Defines partner payment flow control ownership with RACI, data gaps, and governance
+- **TypologyIQ** - Maps AML typologies to detection controls based on firm type, product, customer, and risk theme
+- **PartnerControlMap** - Defines partner payment flow control ownership with RACI, data gaps, and governance
 
 ## Tech Stack
 - Next.js 16 (App Router, Turbopack)
@@ -17,7 +17,7 @@ Standalone Next.js 16 app for financial crime control design tools. Two modules:
 - Framer Motion for animations
 
 ## Key Architecture Decisions
-- Scoring is **deterministic** (no AI) — typology scoring uses weighted matching (firm 30pts, product 25pts, customer 20pts, risk theme 25pts)
+- Scoring is **deterministic** (no AI): typology scoring uses weighted matching (firm 30pts, product 25pts, customer 20pts, risk theme 25pts)
 - AI (Groq) is used **only** for generating plain-English narrative summaries, loaded asynchronously after results render
 - All typology and partner flow data is in TypeScript files under `data/` (source of truth)
 - PDF generation happens server-side in API routes
@@ -31,9 +31,9 @@ Standalone Next.js 16 app for financial crime control design tools. Two modules:
 - 4 tables: typologies, partner_flows, assessments, lead_capture
 
 ## Commands
-- `npm run dev` — Start dev server (Turbopack)
-- `npm run build` — Production build
-- `npm run start` — Start production server
+- `npm run dev` - Start dev server (Turbopack)
+- `npm run build` - Production build
+- `npm run start` - Start production server
 
 ## Environment Variables
 See `.env.local.example` for all required variables.

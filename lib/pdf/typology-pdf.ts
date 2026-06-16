@@ -180,7 +180,7 @@ export function generateTypologyPDF(data: TypologyPDFData): Buffer {
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   typology.sources.forEach((s) => {
-    doc.text(`• ${s.org} — ${s.reference}: ${s.title}`, 25, y);
+    doc.text(`• ${s.org} - ${s.reference}: ${s.title}`, 25, y);
     y += 4.5;
   });
 

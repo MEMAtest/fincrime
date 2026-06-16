@@ -19,7 +19,7 @@ export default function Footer() {
           </Link>
           <p className="fdesc">
             Design financial crime controls mapped to authoritative frameworks and
-            real enforcement — free and deterministic.
+            real enforcement, free and deterministic.
           </p>
         </div>
         <div className="fcol">
@@ -31,21 +31,20 @@ export default function Footer() {
         </div>
         <div className="fcol">
           <h4>Frameworks</h4>
-          <Link href="/controls">FATF</Link>
-          <Link href="/controls">Wolfsberg</Link>
-          <Link href="/controls">FCA</Link>
-          <Link href="/controls">JMLSG</Link>
+          <Link href="/controls?framework=fatf">FATF</Link>
+          <Link href="/controls?framework=wolfsberg">Wolfsberg</Link>
+          <Link href="/controls?framework=fca">FCA</Link>
+          <Link href="/controls?framework=jmlsg">JMLSG</Link>
         </div>
         <div className="fcol">
           <h4>Company</h4>
           <a href="https://memaconsultants.com" target="_blank" rel="noopener noreferrer">Talk to MEMA</a>
-          <a href="https://memaconsultants.com" target="_blank" rel="noopener noreferrer">Resources</a>
           <Link href="/controls">Methodology</Link>
           <Link href="/firm-research">Get started</Link>
         </div>
       </div>
       <div className="footer-base">
-        <span className="l">© {new Date().getFullYear()} FINCRIME CONTROL LAB — A MEMA CONSULTANTS INITIATIVE</span>
+        <span className="l">© {new Date().getFullYear()} FINCRIME CONTROL LAB · A MEMA CONSULTANTS INITIATIVE</span>
         <span className="badges">
           <span className="badge">FATF-aligned</span>
           <span className="badge">Wolfsberg</span>

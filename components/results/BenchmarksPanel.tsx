@@ -2,9 +2,9 @@
 
 import { BarChart3, TrendingUp } from "lucide-react";
 import BarChart from "@/components/charts/BarChart";
-import { enforcementBenchmarks } from "@/lib/enforcement/select";
+import { benchmarksForFirmType } from "@/lib/enforcement/select";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
-import type { RiskTheme } from "@/data/typologies/types";
+import type { RiskTheme, FirmType } from "@/data/typologies/types";
 
 function fmtGbp(n: number): string {
   if (n >= 1_000_000_000) return `£${(n / 1_000_000_000).toFixed(1)}bn`;
@@ -13,8 +13,21 @@ function fmtGbp(n: number): string {
   return `£${n}`;
 }
 
-export default function BenchmarksPanel() {
-  const b = enforcementBenchmarks;
+export default function BenchmarksPanel({
+  firmFilter = "all",
+}: {
+  firmFilter?: FirmType | "all";
+}) {
+  const b = benchmarksForFirmType(firmFilter);
+
+  if (b.totalCases === 0) {
+    return (
+      <p className="text-sm text-text-muted glass-card rounded-xl p-6">
+        No FCA enforcement cases in our dataset are tagged to this firm type yet.
+        Switch the firm-type filter to “All” to see the full enforcement picture.
+      </p>
+    );
+  }
 
   const themeBars = b.byRiskTheme.map((t) => ({
     label: THEME_CONFIG[t.theme as RiskTheme]?.label ?? t.theme,

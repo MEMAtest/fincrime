@@ -11,7 +11,7 @@ export const typology06: Typology = {
   applicableProducts: ["domestic_payments", "e_money_accounts", "cross_border_payments", "card_issuing"],
   applicableCustomerTypes: ["individuals", "agents_intermediaries"],
   controlObjective:
-    "Detect accounts exhibiting mule behaviour — rapid receipt and disbursement, multiple unrelated funding sources, and activity inconsistent with declared purpose.",
+    "Detect accounts exhibiting mule behaviour, rapid receipt and disbursement, multiple unrelated funding sources, and activity inconsistent with declared purpose.",
   dataRequired: [
     "Inbound transaction sources (unique sender count)",
     "Outbound transfer timing relative to receipt",

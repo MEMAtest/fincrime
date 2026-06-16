@@ -40,7 +40,7 @@ export const maturityFrameworks: MaturityFramework[] = [
     slug: "cdd-kyc",
     title: "CDD / KYC Maturity",
     area: "cdd_kyc",
-    description: "Customer due diligence across onboarding, risk rating, EDD and periodic review — proportionate and risk-based.",
+    description: "Customer due diligence across onboarding, risk rating, EDD and periodic review, proportionate and risk-based.",
     riskThemes: ["money_laundering"],
     levels: [
       { level: "initial", descriptor: "Inconsistent CDD; identity collected but little risk rating or EDD." },

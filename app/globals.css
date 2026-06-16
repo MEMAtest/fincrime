@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ============================================================
-   FinCrime Control Lab — "DEEP FIELD"
+   FinCrime Control Lab - "DEEP FIELD"
    One continuous engineered environment. The 3D is the page's
    atmosphere; 2D borrows its language: hairlines, corner brackets,
    mono readouts, a shared grid. Dark-canonical, light via toggle.
@@ -174,7 +174,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 .accent { color: var(--accent-bright); }
 :root[data-theme="light"] .accent { color: var(--accent); }
 
-/* technical mono label — connective tissue */
+/* technical mono label - connective tissue */
 .tech {
   font-family: var(--font-mono);
   font-size: 11.5px; font-weight: 500;
@@ -217,7 +217,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 :root[data-theme="light"] .btn-ghost:hover { color: var(--accent); }
 .btn-sm { padding: 9px 15px; font-size: 13.5px; border-radius: 9px; }
 
-/* ---------------- corner brackets — CAD viewport marks ---------------- */
+/* ---------------- corner brackets - CAD viewport marks ---------------- */
 .bracket { position: relative; }
 .bracket > .bk { position: absolute; width: 11px; height: 11px; pointer-events: none; z-index: 3; opacity: .9; }
 .bracket > .bk::before, .bracket > .bk::after { content: ""; position: absolute; background: var(--line-bright); }
@@ -436,7 +436,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 @media (max-width: 560px) { .footer-grid { grid-template-columns: 1fr; } }
 
 /* ============================================================
-   LEGACY component classes — kept for the tool/results pages.
+   LEGACY component classes - kept for the tool/results pages.
    They consume the aliased tokens above, so they now render in
    the Deep Field palette automatically.
    ============================================================ */

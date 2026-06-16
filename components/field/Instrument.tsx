@@ -5,8 +5,8 @@ import { runInstrument, type InstrumentVariant } from "./instruments";
 
 /**
  * Mounts a restrained "precision instrument" three.js scene on a free-floating
- * canvas (no frame). The WebGL context is created lazily — only when the scene
- * scrolls near the viewport — so off-screen tool sections don't hold contexts.
+ * canvas (no frame). The WebGL context is created lazily, only when the scene
+ * scrolls near the viewport, so off-screen tool sections don't hold contexts.
  */
 export default function Instrument({
   variant,

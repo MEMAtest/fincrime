@@ -10,7 +10,7 @@ export const flow04: PartnerFlow = {
   flowType: "multi_currency_account",
   defaultActors: ["your_firm", "partner", "end_customer", "fx_provider", "correspondent_bank"],
   controlOwnershipTemplate: [
-    { id: "C01", control: "Customer identity verification (KYC)", category: "CDD", defaultOwner: "shared", description: "Account opening KYC — may be performed by partner with your firm's oversight or directly by your firm" },
+    { id: "C01", control: "Customer identity verification (KYC)", category: "CDD", defaultOwner: "shared", description: "Account opening KYC, may be performed by partner with your firm's oversight or directly by your firm" },
     { id: "C02", control: "Enhanced due diligence (EDD)", category: "CDD", defaultOwner: "your_firm", description: "Your firm performs EDD for high-risk customers identified through screening" },
     { id: "C03", control: "Sanctions screening (account holder)", category: "Sanctions", defaultOwner: "your_firm", description: "Your firm screens account holders at onboarding and on ongoing basis" },
     { id: "C04", control: "Sanctions screening (transactions)", category: "Sanctions", defaultOwner: "your_firm", description: "Real-time screening of all transactions including FX conversions" },

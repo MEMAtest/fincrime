@@ -79,7 +79,7 @@ export default function FirmResearchPage() {
             <span className="text-xs font-medium text-accent">Firm Risk Profiler</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-3">
-            Research a firm — get likely risks
+            Research a firm: get likely risks
           </h1>
           <p className="text-text-muted max-w-2xl mx-auto">
             Enter a firm name or a few details about the business model and we&apos;ll suggest the

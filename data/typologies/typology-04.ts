@@ -6,7 +6,7 @@ export const typology04: Typology = {
   title: "Behavioural Change Indicators",
   riskTheme: "money_laundering",
   description:
-    "Sudden or unexplained changes in a customer's transaction behaviour relative to their established profile — such as new geographies, increased volumes, or different payment types — potentially indicating account takeover or use for laundering.",
+    "Sudden or unexplained changes in a customer's transaction behaviour relative to their established profile, such as new geographies, increased volumes, or different payment types, potentially indicating account takeover or use for laundering.",
   applicableFirmTypes: ["emi", "pi", "bank", "neobank", "wealth_manager"],
   applicableProducts: ["cross_border_payments", "domestic_payments", "e_money_accounts", "fx_transfers", "card_issuing"],
   applicableCustomerTypes: ["individuals", "smes", "corporates", "high_net_worth"],

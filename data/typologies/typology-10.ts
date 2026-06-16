@@ -6,7 +6,7 @@ export const typology10: Typology = {
   title: "Unusual Business Activity vs Declared Profile",
   riskTheme: "fraud",
   description:
-    "Transaction activity that is materially inconsistent with the customer's declared business profile, sector, or expected turnover — potentially indicating front company activity, invoice fraud, or undisclosed business changes.",
+    "Transaction activity that is materially inconsistent with the customer's declared business profile, sector, or expected turnover, potentially indicating front company activity, invoice fraud, or undisclosed business changes.",
   applicableFirmTypes: ["emi", "pi", "bank", "neobank", "wealth_manager"],
   applicableProducts: ["domestic_payments", "cross_border_payments", "e_money_accounts", "trade_finance", "marketplace_payouts"],
   applicableCustomerTypes: ["smes", "corporates", "individuals"],

@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { ArrowRight, ChevronDown, ChevronRight, AlertTriangle, Scale } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
+import SourceBadge from "@/components/shared/SourceBadge";
 import { allTypologies } from "@/data/typologies";
-import type { RiskTheme, FirmType } from "@/data/typologies/types";
+import type { RiskTheme, FirmType, SourceOrg } from "@/data/typologies/types";
 
 /* ── Enforcement actions ───────────────────────────── */
 
@@ -29,7 +31,7 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     regulator: "FCA",
     year: 2024,
     fine: "£29m",
-    summary: "AML screening failures — inadequate screening of sanctions lists and PEPs, with gaps in automated monitoring systems.",
+    summary: "AML screening failures: inadequate screening of sanctions lists and PEPs, with gaps in automated monitoring systems.",
     controlAreas: ["sanctions_evasion", "money_laundering"],
     preventedBy: [
       "Automated sanctions screening on all transactions",
@@ -43,7 +45,7 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     regulator: "FCA",
     year: 2024,
     fine: "Warning notice",
-    summary: "AML failings — insufficient monitoring of customer transactions and delayed suspicious activity reporting.",
+    summary: "AML failings: insufficient monitoring of customer transactions and delayed suspicious activity reporting.",
     controlAreas: ["money_laundering", "fraud"],
     preventedBy: [
       "Real-time transaction monitoring with tuned thresholds",
@@ -57,7 +59,7 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     regulator: "FCA",
     year: 2021,
     fine: "£265m",
-    summary: "Cash monitoring failures — failed to adequately monitor cash deposits in a commercial customer account, allowing £365m in suspicious cash deposits over 5 years.",
+    summary: "Cash monitoring failures: failed to adequately monitor cash deposits in a commercial customer account, allowing £365m in suspicious cash deposits over 5 years.",
     controlAreas: ["money_laundering"],
     preventedBy: [
       "Cash deposit anomaly detection rules",
@@ -71,7 +73,7 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     regulator: "FCA",
     year: 2021,
     fine: "£64m",
-    summary: "Transaction monitoring failures — deficient automated transaction monitoring across multiple business lines.",
+    summary: "Transaction monitoring failures: deficient automated transaction monitoring across multiple business lines.",
     controlAreas: ["money_laundering", "terrorist_financing"],
     preventedBy: [
       "Comprehensive transaction monitoring coverage",
@@ -85,7 +87,7 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     regulator: "FCA",
     year: 2024,
     fine: "£16.7m",
-    summary: "Transaction monitoring failure — an automated-system gap meant accounts opened from a certain date were not monitored for money-laundering risk, leaving tens of millions of transactions unmonitored.",
+    summary: "Transaction monitoring failure: an automated-system gap meant accounts opened from a certain date were not monitored for money-laundering risk, leaving tens of millions of transactions unmonitored.",
     controlAreas: ["money_laundering"],
     preventedBy: [
       "End-to-end coverage testing of automated transaction monitoring",
@@ -120,9 +122,43 @@ const RISK_THEMES: RiskTheme[] = [
   "proliferation_financing",
 ];
 
+/* ── Framework filter ──────────────────────────────── */
+
+type FrameworkFilter = "all" | "fatf" | "wolfsberg" | "fca" | "jmlsg";
+
+const FRAMEWORK_OPTIONS: { value: FrameworkFilter; label: string; org?: SourceOrg }[] = [
+  { value: "all", label: "All frameworks" },
+  { value: "fatf", label: "FATF", org: "FATF" },
+  { value: "wolfsberg", label: "Wolfsberg", org: "Wolfsberg" },
+  { value: "fca", label: "FCA", org: "FCA" },
+  { value: "jmlsg", label: "JMLSG", org: "JMLSG" },
+];
+
+const orgForFramework = (f: FrameworkFilter): SourceOrg | null =>
+  FRAMEWORK_OPTIONS.find((o) => o.value === f)?.org ?? null;
+
 /* ── Page component ────────────────────────────────── */
 
-export default function ControlsPage() {
+function ControlsContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Framework filter is URL-driven, so footer /controls?framework=fca links
+  // update it even when already on this page.
+  const fwParam = (searchParams.get("framework") ?? "").toLowerCase();
+  const frameworkFilter: FrameworkFilter = FRAMEWORK_OPTIONS.some((o) => o.value === fwParam)
+    ? (fwParam as FrameworkFilter)
+    : "all";
+
+  const setFrameworkFilter = (f: FrameworkFilter) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (f === "all") params.delete("framework");
+    else params.set("framework", f);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
   const [firmFilter, setFirmFilter] = useState<FirmType | "all">("all");
   const [enforcementOpen, setEnforcementOpen] = useState(false);
   const [expandedThemes, setExpandedThemes] = useState<Set<RiskTheme>>(new Set());
@@ -136,12 +172,15 @@ export default function ControlsPage() {
     });
   };
 
-  // Filter typologies by firm type, then group by risk theme
+  const frameworkOrg = orgForFramework(frameworkFilter);
+
+  // Filter typologies by firm type and framework, then group by risk theme
   const grouped = useMemo(() => {
-    const filtered =
-      firmFilter === "all"
-        ? allTypologies
-        : allTypologies.filter((t) => t.applicableFirmTypes.includes(firmFilter));
+    const filtered = allTypologies.filter((t) => {
+      const firmMatch = firmFilter === "all" || t.applicableFirmTypes.includes(firmFilter);
+      const fwMatch = !frameworkOrg || t.sources.some((s) => s.org === frameworkOrg);
+      return firmMatch && fwMatch;
+    });
 
     const map = new Map<
       RiskTheme,
@@ -151,6 +190,7 @@ export default function ControlsPage() {
         governanceItems: { item: string; source: string }[];
         workflowSteps: { step: string; source: string }[];
         metrics: { metric: string; source: string }[];
+        frameworkSources: { reference: string; title: string; url: string; source: string }[];
       }
     >();
 
@@ -168,14 +208,23 @@ export default function ControlsPage() {
         t.workflowSteps.map((w) => ({ step: `${w.title}: ${w.description}`, source: t.title }))
       );
       const metrics = themeTypologies.flatMap((t) =>
-        t.metrics.map((m) => ({ metric: `${m.name} — target: ${m.target}`, source: t.title }))
+        t.metrics.map((m) => ({ metric: `${m.name} (target: ${m.target})`, source: t.title }))
       );
 
-      map.set(theme, { typologies: themeTypologies, detectionRules, governanceItems, workflowSteps, metrics });
+      // When a framework is selected, surface that standard's specific citations.
+      const frameworkSources = frameworkOrg
+        ? themeTypologies.flatMap((t) =>
+            t.sources
+              .filter((s) => s.org === frameworkOrg)
+              .map((s) => ({ reference: s.reference, title: s.title, url: s.url, source: t.title }))
+          )
+        : [];
+
+      map.set(theme, { typologies: themeTypologies, detectionRules, governanceItems, workflowSteps, metrics, frameworkSources });
     }
 
     return map;
-  }, [firmFilter]);
+  }, [firmFilter, frameworkOrg]);
 
   return (
     <>
@@ -191,9 +240,9 @@ export default function ControlsPage() {
                 <span className="gradient-text">Library</span>
               </h1>
               <p className="mt-4 text-lg text-text-muted max-w-2xl mx-auto">
-                Browse the financial crime controls your firm needs — grouped by
-                risk theme, filtered by firm type, and mapped to real
-                enforcement actions.
+                Browse the financial crime controls your firm needs, grouped by
+                risk theme, filtered by firm type and framework, and mapped to
+                real enforcement actions.
               </p>
             </div>
           </div>
@@ -202,7 +251,7 @@ export default function ControlsPage() {
         <section className="pb-20 sm:pb-28">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Firm type filter */}
-            <div role="group" aria-label="Filter by firm type" className="flex flex-wrap gap-2 mb-10 justify-center">
+            <div role="group" aria-label="Filter by firm type" className="flex flex-wrap gap-2 mb-4 justify-center">
               {FIRM_TYPES.map((ft) => (
                 <button
                   key={ft.value}
@@ -218,6 +267,37 @@ export default function ControlsPage() {
                 </button>
               ))}
             </div>
+
+            {/* Framework filter */}
+            <div role="group" aria-label="Filter by framework" className="flex flex-wrap gap-2 mb-6 justify-center">
+              {FRAMEWORK_OPTIONS.map((fw) => (
+                <button
+                  key={fw.value}
+                  onClick={() => setFrameworkFilter(fw.value)}
+                  aria-pressed={frameworkFilter === fw.value}
+                  className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    frameworkFilter === fw.value
+                      ? "bg-foreground text-background"
+                      : "bg-white/5 text-text-muted hover:bg-white/10 border border-surface-border"
+                  }`}
+                >
+                  {fw.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Framework banner */}
+            {frameworkOrg && (
+              <div className="glass-card rounded-xl px-5 py-4 mb-10 flex flex-wrap items-center gap-3">
+                <Scale className="h-5 w-5 text-accent shrink-0" />
+                <p className="text-sm text-text-muted">
+                  Showing controls mapped to{" "}
+                  <span className="font-semibold text-foreground">{frameworkOrg}</span>. Most
+                  typologies map to several frameworks, so each view differs mainly by the cited
+                  standard shown under each risk theme.
+                </p>
+              </div>
+            )}
 
             {/* Enforcement Actions */}
             <div className="glass-card rounded-2xl mb-10 overflow-hidden">
@@ -430,6 +510,25 @@ export default function ControlsPage() {
                             </ul>
                           </div>
                         )}
+
+                        {/* Framework references (when a framework filter is active) */}
+                        {frameworkOrg && data.frameworkSources.length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-semibold text-foreground mb-2">
+                              {frameworkOrg} references
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                              {data.frameworkSources.map((s, i) => (
+                                <SourceBadge
+                                  key={`${s.reference}-${i}`}
+                                  source={frameworkOrg}
+                                  reference={s.reference}
+                                  url={s.url}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -443,10 +542,10 @@ export default function ControlsPage() {
                 Enforcement benchmarks
               </h2>
               <p className="text-sm text-text-muted mb-6">
-                Where real financial-crime penalties have landed — grounded in the
+                Where real financial-crime penalties have landed, grounded in the
                 FCA fines dataset, so you can prioritise the controls that matter.
               </p>
-              <BenchmarksPanel />
+              <BenchmarksPanel firmFilter={firmFilter} />
             </div>
 
             {/* CTA */}
@@ -464,5 +563,13 @@ export default function ControlsPage() {
       </main>
       <Footer />
     </>
+  );
+}
+
+export default function ControlsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ControlsContent />
+    </Suspense>
   );
 }

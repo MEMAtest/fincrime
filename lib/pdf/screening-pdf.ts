@@ -176,7 +176,7 @@ export function generateScreeningPDF(data: ScreeningPDFData): Buffer {
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   control.sources.forEach((s) => {
-    doc.text(`• ${s.org} — ${s.reference}: ${s.title}`, 25, y);
+    doc.text(`• ${s.org} - ${s.reference}: ${s.title}`, 25, y);
     y += 4.5;
   });
 

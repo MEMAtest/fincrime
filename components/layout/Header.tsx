@@ -25,9 +25,6 @@ export default function Header() {
           <Link href="/typology-iq">TypologyIQ</Link>
           <Link href="/partner-control-map">PartnerControlMap</Link>
           <Link href="/controls">Controls</Link>
-          <a href="https://memaconsultants.com" target="_blank" rel="noopener noreferrer">
-            Resources
-          </a>
         </div>
 
         <div className="nav-cta">

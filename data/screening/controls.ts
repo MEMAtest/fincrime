@@ -12,7 +12,7 @@ export const screeningControls: ScreeningControl[] = [
     applicableTriggers: ["onboarding", "ongoing", "real_time", "periodic"],
     riskThemes: ["sanctions_evasion", "money_laundering"],
     controlObjective:
-      "Prevent the firm from establishing or maintaining a relationship with, or processing a payment for, a designated person — and rescreen the book whenever a list is updated.",
+      "Prevent the firm from establishing or maintaining a relationship with, or processing a payment for, a designated person, and rescreen the book whenever a list is updated.",
     dataInputs: [
       "Full legal name, aliases and date of birth / incorporation",
       "Nationality, country of residence and registration",
@@ -60,7 +60,7 @@ export const screeningControls: ScreeningControl[] = [
     applicableTriggers: ["onboarding", "ongoing", "periodic"],
     riskThemes: ["money_laundering", "bribery_corruption"],
     controlObjective:
-      "Detect PEP status at onboarding and on an ongoing basis, apply proportionate EDD, and obtain senior-management approval where required — without de-risking lawful customers wholesale.",
+      "Detect PEP status at onboarding and on an ongoing basis, apply proportionate EDD, and obtain senior-management approval where required, without de-risking lawful customers wholesale.",
     dataInputs: [
       "Name, date of birth, nationality and role/office held",
       "Family members and known close associates",

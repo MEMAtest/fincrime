@@ -112,7 +112,7 @@ function MoneyLaunderingIcon({ s, cfg }: { s: number; cfg: (typeof THEME_CONFIG)
     <>
       {/* outer ring */}
       <circle cx={c} cy={c} r={r} fill={`${cfg.primary}10`} stroke={cfg.primary} strokeWidth={s * 0.025} opacity={0.5} />
-      {/* flow arrows — circular path */}
+      {/* flow arrows - circular path */}
       <path
         d={`M${c} ${c - r * 0.7} A${r * 0.7} ${r * 0.7} 0 1 1 ${c - r * 0.05} ${c - r * 0.7}`}
         fill="none"

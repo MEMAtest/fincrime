@@ -155,7 +155,7 @@ function TypologyResults() {
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <p className="text-xs text-text-muted uppercase tracking-wider mb-1">
-              Best Match — Score {score}/100
+              Best Match · Score {score}/100
             </p>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
               {typology.title}
@@ -342,7 +342,7 @@ function TypologyResults() {
             Related Typologies
           </h3>
           <p className="text-xs text-text-muted mb-4">
-            Other typologies in the risk themes you selected — commonly investigated together.
+            Other typologies in the risk themes you selected, commonly investigated together.
           </p>
           <div className="grid sm:grid-cols-2 gap-4">
             {relatedTypologies.map((match) => {

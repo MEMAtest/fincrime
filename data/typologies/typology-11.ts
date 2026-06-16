@@ -6,7 +6,7 @@ export const typology11: Typology = {
   title: "Authorised Push Payment (APP) Fraud",
   riskTheme: "fraud",
   description:
-    "Social engineering schemes where victims are manipulated into authorising real-time payments to accounts controlled by fraudsters. Includes impersonation of banks, HMRC, solicitors, and romance scams — with losses often irrecoverable once funds are moved through mule networks.",
+    "Social engineering schemes where victims are manipulated into authorising real-time payments to accounts controlled by fraudsters. Includes impersonation of banks, HMRC, solicitors, and romance scams, with losses often irrecoverable once funds are moved through mule networks.",
   applicableFirmTypes: ["emi", "pi", "bank", "neobank"],
   applicableProducts: ["domestic_payments", "cross_border_payments", "e_money_accounts", "card_issuing"],
   applicableCustomerTypes: ["individuals", "smes", "high_net_worth"],

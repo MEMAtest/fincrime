@@ -86,7 +86,7 @@ export function generateMaturityPDF(data: MaturityPDFData): Buffer {
     head: [["From", "Action", "Owner"]],
     body: remediation.length
       ? remediation.map((r) => [MATURITY_LABEL[r.fromLevel], r.action, r.owner])
-      : [["—", "Already at or above target maturity.", "—"]],
+      : [["-", "Already at or above target maturity.", "-"]],
     theme: "grid",
     headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
     styles: { fontSize: 8, cellPadding: 3 },
@@ -121,7 +121,7 @@ export function generateMaturityPDF(data: MaturityPDFData): Buffer {
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   framework.sources.forEach((s) => {
-    doc.text(`• ${s.org} — ${s.reference}: ${s.title}`, 25, y);
+    doc.text(`• ${s.org} - ${s.reference}: ${s.title}`, 25, y);
     y += 4.5;
   });
 

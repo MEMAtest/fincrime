@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 /**
- * The unified "Deep Field" — a persistent full-viewport 3D substrate behind
+ * The unified "Deep Field": a persistent full-viewport 3D substrate behind
  * every page: a constellation of nodes + neighbour links + drifting motes that
  * reacts to scroll (drift) and pointer (parallax). Theme-aware: faint dark-teal
  * on light, glowing accent on dark. Ported from the design's ambient-scene.js.

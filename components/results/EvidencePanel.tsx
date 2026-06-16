@@ -22,7 +22,7 @@ export default function EvidencePanel({ themes }: { themes: RiskTheme[] }) {
         <div className="flex items-center gap-2 mb-4">
           <Scale className="h-5 w-5 text-emerald-500" />
           <h3 className="text-lg font-semibold text-foreground">
-            Real enforcement — what failure costs
+            Real enforcement: what failure costs
           </h3>
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -65,7 +65,7 @@ export default function EvidencePanel({ themes }: { themes: RiskTheme[] }) {
           <div className="flex items-center gap-2 mb-4">
             <ListChecks className="h-5 w-5 text-emerald-500" />
             <h3 className="text-lg font-semibold text-foreground">
-              Red-flag indicators — cited
+              Red-flag indicators, cited
             </h3>
           </div>
           <ul className="space-y-2.5">

@@ -33,7 +33,7 @@ export const typology13: Typology = {
     {
       id: "PF-13-R2",
       name: "Sanctioned jurisdiction routing",
-      logic: "Payment chain involves intermediary or beneficiary in DPRK, Iran, or Syria — directly or via known transhipment hubs (e.g., certain free trade zones)",
+      logic: "Payment chain involves intermediary or beneficiary in DPRK, Iran, or Syria, directly or via known transhipment hubs (e.g., certain free trade zones)",
       threshold: "Any link to DPRK / Iran / Syria payment chain",
       priority: "critical",
     },

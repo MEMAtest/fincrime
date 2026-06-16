@@ -31,7 +31,7 @@ export default function SourceBadge({ source, reference, url }: SourceBadgeProps
   const className = `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${config.bg} ${config.color}${url ? " hover:shadow-md cursor-pointer transition-shadow" : ""}`;
 
   const titleText = url
-    ? `${reference ? reference + " — " : ""}Opens ${hostFor(url)} in a new tab`
+    ? `${reference ? reference + " · " : ""}Opens ${hostFor(url)} in a new tab`
     : reference;
 
   if (url) {
@@ -42,7 +42,7 @@ export default function SourceBadge({ source, reference, url }: SourceBadgeProps
         rel="noopener noreferrer"
         className={className}
         title={titleText}
-        aria-label={`${source}${reference ? ` ${reference}` : ""} — opens ${hostFor(url)} in a new tab`}
+        aria-label={`${source}${reference ? ` ${reference}` : ""} · opens ${hostFor(url)} in a new tab`}
       >
         <Icon className="h-3 w-3" />
         <span>{source}</span>

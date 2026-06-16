@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
         const { sendEmailWithAttachment } = await import("@/lib/email");
         sendEmailWithAttachment({
           to: email,
-          subject: `Your FinCrime Control Lab Report — ${MODULE_TITLE[module] || "FinCrime Control Lab"}`,
+          subject: `Your FinCrime Control Lab Report: ${MODULE_TITLE[module] || "FinCrime Control Lab"}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background: #14b8a6; padding: 16px 24px; border-radius: 8px 8px 0 0;">

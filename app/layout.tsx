@@ -21,7 +21,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FinCrime Control Lab — Financial crime, controlled.",
+  title: "FinCrime Control Lab: Financial crime, controlled.",
   description:
     "Free financial crime control design tools. Map AML typologies to detection controls, define partner control ownership, and browse a controls library mapped to real enforcement actions.",
   keywords: [
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     "FCA",
   ],
   openGraph: {
-    title: "FinCrime Control Lab — Financial crime, controlled.",
+    title: "FinCrime Control Lab: Financial crime, controlled.",
     description:
       "Free financial crime control design tools powered by FATF, Wolfsberg, and FCA frameworks.",
     url: "https://fincrime.memaconsultants.com",

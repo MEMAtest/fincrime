@@ -93,7 +93,7 @@ function ScreeningResults() {
       <div className="glass-card rounded-2xl p-8 mb-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
-            <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Recommended control — Score {score}/100</p>
+            <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Recommended control · Score {score}/100</p>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">{control.title}</h1>
             <p className="text-text-muted text-sm max-w-2xl leading-relaxed">{control.description}</p>
             <div className="flex flex-wrap gap-2 mt-4">
