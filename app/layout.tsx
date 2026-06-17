@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import FieldBackground from "@/components/field/FieldBackground";
 
@@ -76,6 +77,7 @@ export default function RootLayout({
           <FieldBackground />
           {children}
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );

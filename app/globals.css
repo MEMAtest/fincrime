@@ -384,7 +384,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 }
 
 /* ---------------- nav (sticky floating pill, site-wide) ---------------- */
-.nav-shell { position: sticky; top: 16px; z-index: 100; display: flex; justify-content: center; padding: 16px 16px 0; pointer-events: none; }
+.nav-shell { position: relative; z-index: 100; display: flex; justify-content: center; padding: 16px 16px 0; pointer-events: none; }
 .nav {
   pointer-events: auto; width: 100%; max-width: 1100px;
   display: flex; align-items: center; gap: 18px;

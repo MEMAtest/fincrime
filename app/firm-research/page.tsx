@@ -204,7 +204,7 @@ export default function FirmResearchPage() {
                 <h2 className="text-sm font-semibold text-foreground">Risk Summary</h2>
                 {result.source === "fallback" && (
                   <span className="ml-auto text-[10px] uppercase tracking-wider text-text-muted">
-                    Heuristic
+                    Rules-based
                   </span>
                 )}
               </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GROQ_API_URL, GROQ_API_KEY, GROQ_MODEL } from "@/lib/groq";
 import { allTypologies } from "@/data/typologies";
+import { RISK_THEME_LABEL } from "@/data/typologies/labels";
 import type { RiskTheme, FirmType, ProductType, CustomerType } from "@/data/typologies/types";
 
 const RISK_THEMES: RiskTheme[] = [
@@ -61,6 +62,52 @@ interface FirmResearchResponse {
   source: "ai" | "fallback";
 }
 
+// Ordered keyword tables: the first match wins (most specific / highest-risk first),
+// so the rules-based path can pre-fill the whole TypologyIQ wizard without an AI key.
+const FIRM_TYPE_HINTS: [FirmType, RegExp][] = [
+  ["crypto", /(crypto|virtual asset|\bvasp\b|digital asset|blockchain|\btoken\b)/],
+  ["neobank", /(neobank|challenger bank|digital bank)/],
+  ["bank", /(\bbank\b|credit institution|deposit.?taking)/],
+  ["emi", /(\bemi\b|e-?money|electronic money)/],
+  ["pi", /(payment institution|payment services|\bpsp\b)/],
+  ["msb", /(money service|money transmitt|bureau de change|currency exchange|cheque cashing)/],
+  ["wealth_manager", /(wealth|asset management|portfolio|investment advis|private bank)/],
+  ["insurance", /(insurance|insurer|underwrit|life cover|reinsur)/],
+];
+
+const PRODUCT_HINTS: [ProductType, RegExp][] = [
+  ["crypto_exchange", /(crypto exchange|fiat.?to.?crypto|crypto.?to.?crypto|token trading)/],
+  ["cross_border_payments", /(cross.?border|international payment|international transfer|global payment)/],
+  ["remittance", /(remitt|money transfer|send money)/],
+  ["fx_transfers", /(\bfx\b|foreign exchange|currency conversion)/],
+  ["card_issuing", /(card issuing|card programme|card program|prepaid card|debit card|credit card|\bcards?\b)/],
+  ["trade_finance", /(trade finance|letter of credit|invoice financ|supply chain financ)/],
+  ["lending", /(lending|\bloans?\b|\bcredit\b|bnpl|buy now pay later)/],
+  ["marketplace_payouts", /(marketplace|payout|platform disburse|merchant|seller)/],
+  ["e_money_accounts", /(e-?money account|stored value|prepaid|\bwallet\b)/],
+  ["domestic_payments", /(domestic payment|faster payments|\bbacs\b|\bchaps\b|\bsepa\b)/],
+];
+
+const CUSTOMER_HINTS: [CustomerType, RegExp][] = [
+  ["politically_exposed", /(\bpep\b|politically exposed|government official)/],
+  ["non_profit", /(charity|charities|\bngo\b|non.?profit|not.?for.?profit)/],
+  ["high_net_worth", /(\bhnw\b|high net worth|private client|ultra.?high)/],
+  ["agents_intermediaries", /(\bagent|intermediar|\bbroker|introducer|reseller)/],
+  ["corporates", /(corporate|enterprise|large business|institutional)/],
+  ["smes", /(\bsmes?\b|small business|small.?and.?medium|small.?to.?medium)/],
+  ["individuals", /(individual|retail|consumer|personal account)/],
+];
+
+function matchFirst<T extends string>(text: string, table: [T, RegExp][]): T | null {
+  for (const [value, re] of table) if (re.test(text)) return value;
+  return null;
+}
+
+function joinReadable(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
 function fallbackHeuristic(input: FirmResearchRequest): FirmResearchResponse {
   const text = `${input.firmName ?? ""} ${input.description ?? ""} ${input.sector ?? ""} ${input.geographies ?? ""} ${input.products ?? ""} ${input.customers ?? ""}`.toLowerCase();
   const themes = new Set<RiskTheme>();
@@ -80,15 +127,16 @@ function fallbackHeuristic(input: FirmResearchRequest): FirmResearchResponse {
     .slice(0, 4)
     .map((t) => ({ slug: t.slug, title: t.title, riskTheme: t.riskTheme }));
 
+  const who = input.firmName?.trim() ? input.firmName.trim() : "This firm";
+  const themeText = joinReadable(themesArr.map((t) => RISK_THEME_LABEL[t].toLowerCase()));
+
   return {
-    summary: input.firmName
-      ? `Based on the details provided, ${input.firmName} appears exposed to the risks below. Add an API key for a deeper AI-driven analysis.`
-      : "Based on the details provided, the risks below are likely most relevant. Add an API key for a deeper AI-driven analysis.",
+    summary: `${who} looks most exposed to ${themeText}. The risk themes and typologies below are matched from the details you provided; open them in the TypologyIQ wizard to refine the profile and build controls.`,
     riskThemes: themesArr,
-    suggestedFirmType: null,
-    suggestedProduct: null,
-    suggestedCustomerType: null,
-    rationale: "Heuristic match using keywords from your description.",
+    suggestedFirmType: matchFirst(text, FIRM_TYPE_HINTS),
+    suggestedProduct: matchFirst(text, PRODUCT_HINTS),
+    suggestedCustomerType: matchFirst(text, CUSTOMER_HINTS),
+    rationale: "Matched from the sector, products and customer details you entered.",
     topTypologies,
     source: "fallback",
   };
