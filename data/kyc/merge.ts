@@ -59,6 +59,8 @@ export interface MergedResult {
   scenarios: ScenarioTag[];
   /** Union of the contributing profiles' regulatory bases. */
   provisions: Source[];
+  /** Distinct beneficial-ownership thresholds across the selected profiles. */
+  boThresholds: string[];
   anyFallback: boolean;
 }
 
@@ -86,6 +88,7 @@ export function buildMergedRequirements(
   const map = new Map<string, MergedRequirement>();
   const scenarios: ScenarioTag[] = [];
   const provisionSeen = new Map<string, Source>();
+  const boThresholds: string[] = [];
 
   for (const entity of entities) {
     for (const jurisdiction of jurisdictions) {
@@ -93,6 +96,9 @@ export function buildMergedRequirements(
       if (!lookup) continue;
       const tag: ScenarioTag = { entity, jurisdiction, fallback: lookup.fallback };
       scenarios.push(tag);
+      if (lookup.profile.boThreshold && !boThresholds.includes(lookup.profile.boThreshold)) {
+        boThresholds.push(lookup.profile.boThreshold);
+      }
       for (const s of lookup.profile.regulatoryBasis) {
         provisionSeen.set(`${s.org}|${s.reference}`, s);
       }
@@ -156,6 +162,7 @@ export function buildMergedRequirements(
     requirements,
     scenarios,
     provisions: [...provisionSeen.values()],
+    boThresholds,
     anyFallback: scenarios.some((s) => s.fallback),
   };
 }

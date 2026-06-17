@@ -56,6 +56,7 @@ export function generateKycPDF(data: KycPDFData): Buffer {
     ["Conditional", String(nonEdd.filter((r) => mergedStatus(r, risks) === "conditional").length)],
     ["Not applicable", String(nonEdd.filter((r) => mergedStatus(r, risks) === "not_applicable").length)],
     ["EDD triggers", String(requirements.length - nonEdd.length)],
+    ["Beneficial ownership", merged.boThresholds.join(", ") || "-"],
   ];
   autoTable(doc, {
     startY: y,

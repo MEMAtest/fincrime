@@ -20,7 +20,7 @@ import PDFExportButton from "@/components/shared/PDFExportButton";
 import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import { getBestMatch, getTopMatches, getRelatedTypologies } from "@/data/scoring/typology-scoring";
-import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL } from "@/data/typologies/labels";
+import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL, RISK_THEME_LABEL } from "@/data/typologies/labels";
 import type { FirmType, ProductType, CustomerType, RiskTheme, SourceOrg } from "@/data/typologies/types";
 
 function TypologyResults() {
@@ -31,15 +31,21 @@ function TypologyResults() {
   const [showAllWorkflow, setShowAllWorkflow] = useState(false);
 
   const answers = useMemo(() => {
-    const list = <T,>(name: string, alt?: string): T[] => {
+    // Validate against the enum (label-map keys) and de-dup, so a hand-edited or
+    // stale deep link can't inject junk values that render raw or crash THEME_CONFIG.
+    const list = <T extends string>(name: string, allowed: Record<string, unknown>, alt?: string): T[] => {
       const raw = searchParams.get(name) ?? (alt ? searchParams.get(alt) : null) ?? "";
-      return raw.split(",").map((v) => v.trim()).filter(Boolean) as T[];
+      const out: T[] = [];
+      for (const v of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
+        if (v in allowed && !out.includes(v as T)) out.push(v as T);
+      }
+      return out;
     };
     return {
-      firmTypes: list<FirmType>("firmType"),
-      products: list<ProductType>("product"),
-      customerTypes: list<CustomerType>("customerType"),
-      riskThemes: list<RiskTheme>("riskThemes", "riskTheme"),
+      firmTypes: list<FirmType>("firmType", FIRM_TYPE_LABEL),
+      products: list<ProductType>("product", PRODUCT_LABEL),
+      customerTypes: list<CustomerType>("customerType", CUSTOMER_LABEL),
+      riskThemes: list<RiskTheme>("riskThemes", RISK_THEME_LABEL, "riskTheme"),
     };
   }, [searchParams]);
 

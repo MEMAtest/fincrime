@@ -1,9 +1,10 @@
 "use client";
 
-import { ExternalLink, Scale, ListChecks, BookOpen } from "lucide-react";
+import { Scale, ListChecks, BookOpen } from "lucide-react";
 import { casesForThemes } from "@/lib/enforcement/select";
 import { INDICATORS_BY_THEME, FRAMEWORK_SOURCES } from "@/data/sources";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
+import ReferenceLink from "@/components/shared/ReferenceLink";
 import type { RiskTheme } from "@/data/typologies/types";
 
 export default function EvidencePanel({ themes }: { themes: RiskTheme[] }) {
@@ -41,14 +42,13 @@ export default function EvidencePanel({ themes }: { themes: RiskTheme[] }) {
               </div>
               <p className="text-sm text-text-muted leading-relaxed">{c.summary}</p>
               {c.sourceUrl ? (
-                <a
-                  href={c.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <ReferenceLink
+                  url={c.sourceUrl}
+                  label="Final notice"
+                  heading={`${c.firm} (${c.regulator} ${c.year})`}
                   className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-500 hover:text-emerald-400"
-                >
-                  Final notice <ExternalLink className="h-3 w-3" />
-                </a>
+                  showIcon
+                />
               ) : null}
             </div>
           ))}
@@ -73,14 +73,12 @@ export default function EvidencePanel({ themes }: { themes: RiskTheme[] }) {
               <li key={ind.indicator} className="flex items-start gap-3 text-sm">
                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
                 <span className="text-foreground">{ind.indicator}</span>
-                <a
-                  href={ind.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <ReferenceLink
+                  url={ind.url}
+                  label={ind.source}
+                  heading={ind.indicator}
                   className="shrink-0 text-xs font-medium text-emerald-500 hover:text-emerald-400 whitespace-nowrap"
-                >
-                  {ind.source}
-                </a>
+                />
               </li>
             ))}
           </ul>
@@ -95,15 +93,14 @@ export default function EvidencePanel({ themes }: { themes: RiskTheme[] }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {FRAMEWORK_SOURCES.map((f) => (
-            <a
+            <ReferenceLink
               key={f.org}
-              href={f.url}
-              target="_blank"
-              rel="noopener noreferrer"
+              url={f.url}
+              label={f.title}
+              heading={f.title}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-surface-border text-xs font-medium text-foreground hover:border-emerald-500/40"
-            >
-              {f.title} <ExternalLink className="h-3 w-3 text-text-muted" />
-            </a>
+              showIcon
+            />
           ))}
         </div>
       </section>

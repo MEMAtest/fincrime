@@ -82,7 +82,7 @@ const PRODUCT_HINTS: [ProductType, RegExp][] = [
   ["fx_transfers", /(\bfx\b|foreign exchange|currency conversion)/],
   ["card_issuing", /(card issuing|card programme|card program|prepaid card|debit card|credit card|\bcards?\b)/],
   ["trade_finance", /(trade finance|letter of credit|invoice financ|supply chain financ)/],
-  ["lending", /(lending|\bloans?\b|\bcredit\b|bnpl|buy now pay later)/],
+  ["lending", /(lending|\bloans?\b|bnpl|buy now pay later|\bcredit\b(?!\s*(?:institution|card)))/],
   ["marketplace_payouts", /(marketplace|payout|platform disburse|merchant|seller)/],
   ["e_money_accounts", /(e-?money account|stored value|prepaid|\bwallet\b)/],
   ["domestic_payments", /(domestic payment|faster payments|\bbacs\b|\bchaps\b|\bsepa\b)/],

@@ -214,13 +214,6 @@ export const STATUS_LABEL: Record<RequirementStatus, string> = {
   not_applicable: "Not applicable",
 };
 
-/** Derive a requirement's status for a selected risk level. */
-export function statusFor(req: CddRequirement, risk: RiskLevel): RequirementStatus {
-  if (!req.appliesAtRisk.includes(risk)) return "not_applicable";
-  if (req.conditional) return "conditional";
-  return "required";
-}
-
 export const SECTION_TITLE: Record<CddSectionKey, string> = {
   identity: "Identity",
   legal_entity: "Legal Entity",
