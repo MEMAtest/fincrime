@@ -6,6 +6,20 @@ import { corporate } from "./profiles/corporate";
 import { charity } from "./profiles/charity";
 import { regulatedEntity } from "./profiles/regulated_entity";
 import { listedEntity } from "./profiles/listed_entity";
+import { trust } from "./profiles/trust";
+import { partnership } from "./profiles/partnership";
+import { soleTrader } from "./profiles/sole_trader";
+import { fund } from "./profiles/fund";
+import { government } from "./profiles/government";
+import { limitedPartnership } from "./profiles/limited_partnership";
+import { foundation } from "./profiles/foundation";
+import { swf } from "./profiles/swf";
+import { stak } from "./profiles/stak";
+import { spv } from "./profiles/spv";
+import { tcspClient } from "./profiles/tcsp_client";
+import { tcspPartner } from "./profiles/tcsp_partner";
+import { introductoryBroker } from "./profiles/introductory_broker";
+import { programManager } from "./profiles/program_manager";
 
 export const allCddProfiles: CddProfile[] = [
   ...individual,
@@ -13,6 +27,20 @@ export const allCddProfiles: CddProfile[] = [
   ...charity,
   ...regulatedEntity,
   ...listedEntity,
+  ...trust,
+  ...partnership,
+  ...soleTrader,
+  ...fund,
+  ...government,
+  ...limitedPartnership,
+  ...foundation,
+  ...swf,
+  ...stak,
+  ...spv,
+  ...tcspClient,
+  ...tcspPartner,
+  ...introductoryBroker,
+  ...programManager,
 ];
 
 // Citation gate: fail fast at module load if any requirement is missing its
