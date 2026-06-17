@@ -68,19 +68,19 @@ export default function KycMatrixClient({
   const [filters, setFilters] = useState<Set<FilterKey>>(new Set());
   const [copied, setCopied] = useState(false);
   const [openCats, setOpenCats] = useState<Set<CddCategoryKey>>(new Set(CATEGORY_ORDER));
-  const [openReqs, setOpenReqs] = useState<Set<string>>(() => {
-    const first = buildRequirements(profile)[0];
-    return new Set(first ? [first.id] : []);
-  });
+  const [openReqs, setOpenReqs] = useState<Set<string>>(() => new Set(reqs[0] ? [reqs[0].id] : []));
 
-  // Working checklist (collected/done), persisted per scenario in this browser.
-  const checklistKey = `kyc-checklist:${ent}|${jur}|${rk}`;
+  // Working checklist (collected/done), persisted per (entity, jurisdiction) in
+  // this browser. Not keyed by risk: requirement ids are risk-independent, so the
+  // same physical requirement is one checklist item across risk views.
+  const checklistKey = `kyc-checklist:${ent}|${jur}`;
   const [done, setDone] = useState<Set<string>>(new Set());
   useEffect(() => {
     let next = new Set<string>();
     try {
       const raw = localStorage.getItem(checklistKey);
-      if (raw) next = new Set(JSON.parse(raw));
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (Array.isArray(parsed)) next = new Set(parsed.filter((x) => typeof x === "string"));
     } catch { /* ignore */ }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the per-scenario checklist from localStorage
     setDone(next);
@@ -113,7 +113,7 @@ export default function KycMatrixClient({
   const toggleFilter = (k: FilterKey) =>
     setFilters((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
-  const allExpanded = reqs.length > 0 && openReqs.size >= reqs.length;
+  const allExpanded = reqs.length > 0 && reqs.every((r) => openReqs.has(r.id));
   const toggleExpandAll = () => {
     if (allExpanded) { setOpenReqs(new Set()); }
     else { setOpenCats(new Set(CATEGORY_ORDER)); setOpenReqs(new Set(reqs.map((r) => r.id))); }
@@ -132,16 +132,27 @@ export default function KycMatrixClient({
   };
   const pct = (n: number) => (counts.total ? Math.round((n / counts.total) * 100) : 0);
 
+  // Lowercased search haystack per requirement, recomputed only when the scenario changes.
+  const haystacks = useMemo(
+    () =>
+      new Map(
+        reqs.map((r) => [
+          r.id,
+          [
+            r.title, r.whatItMeans, r.ruleSummary ?? "",
+            ...r.whatToCollect, ...r.evidence,
+            ...(r.documentGuidance?.flatMap((d) => [d.label, ...d.accepted]) ?? []),
+            ...r.legalBasis.flatMap((b) => [b.org, b.reference, b.title]),
+            CATEGORY_TITLE[r.category],
+          ].join(" ").toLowerCase(),
+        ])
+      ),
+    [reqs]
+  );
+
   const matches = (r: CddRequirement) => {
     const s = search.trim().toLowerCase();
-    const hay = [
-      r.title, r.whatItMeans, r.ruleSummary ?? "",
-      ...r.whatToCollect, ...r.evidence,
-      ...(r.documentGuidance?.flatMap((d) => [d.label, ...d.accepted]) ?? []),
-      ...r.legalBasis.flatMap((b) => [b.org, b.reference, b.title]),
-      CATEGORY_TITLE[r.category],
-    ].join(" ").toLowerCase();
-    const textOk = !s || hay.includes(s);
+    const textOk = !s || (haystacks.get(r.id) ?? "").includes(s);
     const statusOk = filters.size === 0 || filters.has(bucketOf(r));
     return textOk && statusOk;
   };
@@ -189,7 +200,7 @@ export default function KycMatrixClient({
                 {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
                 {copied ? "Copied" : "Share"}
               </Button>
-              <PDFExportButton module="kyc_requirements" assessmentData={{ entity: ent, jurisdiction: jur, risk: rk, completed: [...done] }} formats={["pdf", "docx"]} />
+              <PDFExportButton module="kyc_requirements" assessmentData={{ entity: ent, jurisdiction: jur, risk: rk, completed: reqs.filter((r) => done.has(r.id)).map((r) => r.id) }} formats={["pdf", "docx"]} />
             </div>
           </div>
 
@@ -357,6 +368,7 @@ export default function KycMatrixClient({
                             <div className="flex items-stretch">
                               <label className="flex items-center px-3 cursor-pointer border-r border-surface-border" title="Mark collected">
                                 <input type="checkbox" checked={isDone} onChange={() => toggleDone(r.id)}
+                                  aria-label={`Mark "${r.title}" collected`}
                                   className="h-4 w-4 rounded border-surface-border text-emerald-500 focus:ring-emerald-500 cursor-pointer" />
                               </label>
                               <button onClick={() => toggleReq(r.id)} aria-expanded={open}

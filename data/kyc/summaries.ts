@@ -38,7 +38,7 @@ export const JURISDICTION_SUMMARY: Record<Jurisdiction, JurisdictionSummary> = {
     covers: ["Customer Identification Program (CIP)", "Beneficial ownership (25% + control prong)", "Customer risk profile & ongoing monitoring", "Correspondent & private-banking EDD", "SAR filing"],
   },
   eu: {
-    regulator: "National competent authorities (AMLA from 2025)",
+    regulator: "National competent authorities (EU AMLA, Frankfurt, supervising from 2028)",
     primaryLaw: "AMLD5 (Dir. 2015/849); AMLR (Reg. 2024/1624) from 2027",
     covers: [...COMMON_COVERS, "Simplified vs enhanced due diligence (Annex II/III)"],
   },
@@ -48,7 +48,7 @@ export const JURISDICTION_SUMMARY: Record<Jurisdiction, JurisdictionSummary> = {
     covers: [...COMMON_COVERS, "Transparenzregister (beneficial-owner register)"],
   },
   fr: {
-    regulator: "ACPR & AMF (Banque de France); Tracfin (FIU)",
+    regulator: "ACPR (Banque de France) & AMF; Tracfin (FIU)",
     primaryLaw: "Code monétaire et financier (LCB-FT, L.561-x / R.561-x)",
     covers: [...COMMON_COVERS, "Registre des bénéficiaires effectifs (RBE)"],
   },
