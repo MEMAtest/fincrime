@@ -38,7 +38,21 @@ export type RiskTheme =
   | "bribery_corruption"
   | "proliferation_financing";
 
-export type SourceOrg = "FATF" | "Wolfsberg" | "FCA" | "JMLSG" | "OFSI";
+export type SourceOrg =
+  | "FATF"
+  | "Wolfsberg"
+  | "FCA"
+  | "JMLSG"
+  | "OFSI"
+  | "MLR"
+  | "FinCEN"
+  | "EU"
+  | "BaFin"
+  | "ACPR"
+  | "AMF"
+  | "MAS"
+  | "HKMA"
+  | "SFC";
 
 export interface Source {
   org: SourceOrg;

@@ -27,6 +27,7 @@ export default function Footer() {
           <Link href="/typology-iq">TypologyIQ</Link>
           <Link href="/partner-control-map">PartnerControlMap</Link>
           <Link href="/controls">Controls Library</Link>
+          <Link href="/kyc-requirements">KYC Matrix</Link>
           <Link href="/firm-research">AI in Research</Link>
         </div>
         <div className="fcol">

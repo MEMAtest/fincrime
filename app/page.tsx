@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   ArrowRight, ScanSearch, Activity, Database, Network, FileCheck,
   ClipboardCheck, Sparkles, Search, GitBranch, EyeOff, Gauge, Library,
-  Check, ArrowUpRight, MessageSquare,
+  Check, ArrowUpRight, MessageSquare, Globe2,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -41,6 +41,7 @@ const TOOLKIT: CellDef[] = [
   { code: "T-04", icon: EyeOff, title: "Screening Control Designer", text: "Design sanctions, PEP, adverse-media and payment screening controls.", href: "/screening-control-designer" },
   { code: "T-05", icon: Gauge, title: "Controls Maturity", text: "Assess a control area against a 5-level model and get a remediation roadmap.", href: "/controls-maturity" },
   { code: "T-06", icon: Library, title: "Controls Library", text: "Browse controls by risk theme and firm type, mapped to real enforcement.", href: "/controls" },
+  { code: "T-07", icon: Globe2, title: "KYC Requirements Matrix", text: "CDD requirements by entity type and jurisdiction, cited to the rules, across UK, US, EU, Singapore and Hong Kong.", href: "/kyc-requirements" },
 ];
 
 function Cell({ c }: { c: CellDef }) {

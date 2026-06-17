@@ -12,6 +12,7 @@ const MODULE_LABEL: Record<PDFModule, string> = {
   partner_control_map: "PartnerControlMap",
   screening_controls: "ScreeningControlDesigner",
   controls_maturity: "ControlsMaturity",
+  kyc_requirements: "KYCRequirements",
 };
 
 interface LeadCaptureModalProps {

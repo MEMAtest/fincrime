@@ -18,6 +18,15 @@ export const FRAMEWORK_SOURCES: { org: string; title: string; url: string }[] = 
   { org: "Wolfsberg", title: "Wolfsberg Principles & Standards", url: "https://www.wolfsberg-principles.com/" },
   { org: "OFSI", title: "Office of Financial Sanctions Implementation", url: "https://www.gov.uk/government/organisations/office-of-financial-sanctions-implementation" },
   { org: "FCA", title: "FCA Financial Crime Guide (FCG)", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+  { org: "MLR", title: "UK Money Laundering Regulations 2017", url: "https://www.legislation.gov.uk/uksi/2017/692/contents" },
+  { org: "FinCEN", title: "FinCEN CDD Rule (31 CFR 1010.230) & CIP (1020.220)", url: "https://www.law.cornell.edu/cfr/text/31/1010.230" },
+  { org: "EU", title: "EU AMLD5 (Dir. 2015/849) & AMLR (Reg. 2024/1624)", url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:02015L0849-20241230" },
+  { org: "BaFin", title: "Germany Geldwäschegesetz (GwG)", url: "https://www.gesetze-im-internet.de/gwg_2017/" },
+  { org: "ACPR", title: "France Code monétaire et financier (LCB-FT)", url: "https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006072026/LEGISCTA000020179278/" },
+  { org: "AMF", title: "AMF guidance on client & beneficial-owner identification", url: "https://www.amf-france.org/" },
+  { org: "MAS", title: "MAS Notice 626 (AML/CFT, Banks)", url: "https://www.mas.gov.sg/regulation/notices/notice-626" },
+  { org: "HKMA", title: "HK AMLO (Cap. 615) & HKMA AML/CFT Guideline", url: "https://www.elegislation.gov.hk/hk/cap615" },
+  { org: "SFC", title: "SFC AML/CFT Guideline for Licensed Corporations", url: "https://www.sfc.hk/en/Rules-and-standards/Anti-money-laundering-and-counter-financing-of-terrorism" },
 ];
 
 export const INDICATORS_BY_THEME: Record<RiskTheme, CitedIndicator[]> = {

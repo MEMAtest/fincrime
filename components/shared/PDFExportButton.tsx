@@ -9,7 +9,8 @@ export type PDFModule =
   | "typology_iq"
   | "partner_control_map"
   | "screening_controls"
-  | "controls_maturity";
+  | "controls_maturity"
+  | "kyc_requirements";
 
 interface PDFExportButtonProps {
   module: PDFModule;

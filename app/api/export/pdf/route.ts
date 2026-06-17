@@ -3,6 +3,9 @@ import { generateTypologyPDF } from "@/lib/pdf/typology-pdf";
 import { generatePartnerPDF } from "@/lib/pdf/partner-pdf";
 import { generateScreeningPDF } from "@/lib/pdf/screening-pdf";
 import { generateMaturityPDF } from "@/lib/pdf/maturity-pdf";
+import { generateKycPDF } from "@/lib/pdf/kyc-pdf";
+import { getCddProfile } from "@/data/kyc";
+import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
 import { getBestMatch } from "@/data/scoring/typology-scoring";
 import { scorePartnerRisk } from "@/data/scoring/partner-scoring";
 import { getBestScreeningMatch } from "@/data/scoring/screening-scoring";
@@ -17,6 +20,7 @@ const MODULE_TITLE: Record<string, string> = {
   partner_control_map: "PartnerControlMap",
   screening_controls: "Screening Control Designer",
   controls_maturity: "Controls Maturity Assessment",
+  kyc_requirements: "KYC / CDD Requirements Matrix",
 };
 
 export async function POST(request: NextRequest) {
@@ -120,6 +124,18 @@ export async function POST(request: NextRequest) {
       }
       pdfBuffer = generateMaturityPDF({ ...result, narrative });
       filename = `MEMA-ControlsMaturity-${result.framework.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "kyc_requirements") {
+      const { entity, jurisdiction, risk } = assessmentData as {
+        entity: EntityType;
+        jurisdiction: Jurisdiction;
+        risk: "all" | RiskLevel;
+      };
+      const lookup = getCddProfile(entity, jurisdiction);
+      if (!lookup) {
+        return NextResponse.json({ error: "No matching CDD profile" }, { status: 404 });
+      }
+      pdfBuffer = generateKycPDF({ profile: lookup.profile, fallback: lookup.fallback, risk: risk ?? "all" });
+      filename = `MEMA-KYC-${entity}-${jurisdiction}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }

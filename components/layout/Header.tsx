@@ -25,6 +25,7 @@ export default function Header() {
           <Link href="/typology-iq">TypologyIQ</Link>
           <Link href="/partner-control-map">PartnerControlMap</Link>
           <Link href="/controls">Controls</Link>
+          <Link href="/kyc-requirements">KYC Matrix</Link>
         </div>
 
         <div className="nav-cta">
