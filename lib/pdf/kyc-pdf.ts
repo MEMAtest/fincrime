@@ -9,10 +9,12 @@ interface KycPDFData {
   profile: CddProfile;
   fallback: boolean;
   risk: "all" | RiskLevel;
+  completed?: string[];
 }
 
 export function generateKycPDF(data: KycPDFData): Buffer {
   const { profile, fallback, risk } = data;
+  const completed = data.completed ?? [];
   const rk: RiskLevel = risk === "all" ? "medium" : risk;
   const doc = new jsPDF();
 
@@ -34,8 +36,10 @@ export function generateKycPDF(data: KycPDFData): Buffer {
 
   // Summary
   const nonEdd = requirements.filter((r) => !r.eddTrigger);
+  const collected = requirements.filter((r) => completed.includes(r.id)).length;
   const summary = [
     ["Total requirements", String(requirements.length)],
+    ["Collected (this session)", `${collected} of ${requirements.length}`],
     ["Required", String(nonEdd.filter((r) => statusFor(r, rk) === "required").length)],
     ["Conditional", String(nonEdd.filter((r) => statusFor(r, rk) === "conditional").length)],
     ["Not applicable", String(nonEdd.filter((r) => statusFor(r, rk) === "not_applicable").length)],
@@ -66,10 +70,10 @@ export function generateKycPDF(data: KycPDFData): Buffer {
       startY: y,
       head: [["Requirement", "What to collect", "Legal basis", "Status"]],
       body: reqs.map((r) => [
-        `${r.title}\n${r.whatItMeans}`,
-        r.whatToCollect.map((w) => `- ${w}`).join("\n"),
+        `${r.title}\n${r.ruleSummary ?? r.whatItMeans}`,
+        [...r.whatToCollect.map((w) => `- ${w}`), ...(r.documentGuidance?.map((d) => `${d.label}: ${d.accepted.join(", ")}`) ?? [])].join("\n"),
         r.legalBasis.map((s) => `${s.org} ${s.reference}`).join("\n"),
-        r.eddTrigger ? "EDD trigger" : STATUS_LABEL[statusFor(r, rk)],
+        completed.includes(r.id) ? "Collected" : r.eddTrigger ? "EDD trigger" : STATUS_LABEL[statusFor(r, rk)],
       ]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff", fontSize: 8 },

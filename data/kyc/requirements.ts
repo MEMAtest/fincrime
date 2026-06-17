@@ -1,6 +1,7 @@
 import type { Source } from "../typologies/types";
 import type { CddProfile, CddRequirement, CddCategoryKey, CddSectionKey, Jurisdiction } from "./types";
 import { cite } from "./sources";
+import { documentGuidanceFor } from "./documents";
 
 /**
  * Derivation layer: turns a profile's authored, cited `sections` (+ eddTriggers)
@@ -98,6 +99,21 @@ const REQUIREMENT_CATALOGUE: Record<CddSectionKey, CatalogueEntry> = {
   },
 };
 
+/** One-line "what the rule requires" per requirement type. */
+const RULE_SUMMARY: Record<CddSectionKey, string> = {
+  identity: "The rules require you to identify the customer and verify their identity from reliable, independent sources before establishing the relationship.",
+  legal_entity: "The rules require you to verify the entity's legal existence and key registration details from an independent source.",
+  authority_signatory: "The rules require you to confirm and verify the authority of those acting for the customer.",
+  directors_controllers: "The rules require you to identify those who direct or control the entity, verified on a risk-sensitive basis.",
+  beneficial_ownership: "The rules require you to identify and verify the beneficial owners above the ownership/control threshold and understand the ownership structure.",
+  nature_purpose: "The rules require you to obtain and record the purpose and intended nature of the business relationship.",
+  authorised_contacts: "The rules require you to identify, and verify on a risk basis, those authorised to instruct on the relationship.",
+  screening: "The rules require you to screen the customer and connected parties against sanctions, PEP and adverse-media sources.",
+  edd: "The rules require enhanced measures where the relationship presents higher money-laundering or terrorist-financing risk.",
+};
+
+const EDD_RULE_SUMMARY = "The rules require enhanced due diligence when this higher-risk factor is present.";
+
 /** Each jurisdiction's ongoing-monitoring legal basis. */
 const ONGOING_BASIS: Record<Jurisdiction, Source[]> = {
   global: cite("fatf_r10"),
@@ -114,6 +130,7 @@ interface OngoingTemplate {
   id: string;
   title: string;
   whatItMeans: string;
+  ruleSummary: string;
   whatToCollect: string[];
   evidence: string[];
 }
@@ -123,6 +140,7 @@ const ONGOING_MONITORING: OngoingTemplate[] = [
     id: "ongoing-tm",
     title: "Ongoing transaction monitoring",
     whatItMeans: "Scrutinise transactions throughout the relationship to ensure they remain consistent with your knowledge of the customer and their risk profile.",
+    ruleSummary: "The rules require ongoing scrutiny of transactions for consistency with the customer's profile.",
     whatToCollect: ["Transaction-monitoring rules and scenarios", "Alerts raised and their disposition", "Expected vs actual activity comparison"],
     evidence: ["Transaction-monitoring system output", "Investigated alert records"],
   },
@@ -130,6 +148,7 @@ const ONGOING_MONITORING: OngoingTemplate[] = [
     id: "ongoing-review",
     title: "Periodic review & data refresh",
     whatItMeans: "Review the customer at a frequency set by risk and keep CDD information and documents current.",
+    ruleSummary: "The rules require you to keep CDD information current through risk-based periodic review.",
     whatToCollect: ["Refreshed CDD information", "Updated identity / ownership documents", "Re-assessed customer risk rating"],
     evidence: ["Completed periodic-review record", "Updated KYC file"],
   },
@@ -137,6 +156,7 @@ const ONGOING_MONITORING: OngoingTemplate[] = [
     id: "ongoing-trigger",
     title: "Trigger-event review",
     whatItMeans: "Re-perform CDD when a material change or trigger event occurs (e.g. change of ownership, adverse news, or unusual activity).",
+    ruleSummary: "The rules require CDD to be refreshed on material changes or trigger events.",
     whatToCollect: ["Trigger-event details", "Updated CDD for the changed elements"],
     evidence: ["Trigger-event review note"],
   },
@@ -144,6 +164,7 @@ const ONGOING_MONITORING: OngoingTemplate[] = [
     id: "ongoing-screening",
     title: "Ongoing screening refresh",
     whatItMeans: "Re-screen the customer and connected parties when sanctions or PEP lists change.",
+    ruleSummary: "The rules require re-screening when sanctions or PEP lists change.",
     whatToCollect: ["Rescreening results", "List-change driven reviews"],
     evidence: ["Rescreening run record"],
   },
@@ -171,12 +192,15 @@ export function buildRequirements(profile: CddProfile): CddRequirement[] {
     const legalBasis = uniqueSources(section.items.flatMap((i) => i.sources));
     const appliesAtRisk = Array.from(new Set(section.items.flatMap((i) => i.appliesAtRisk)));
     const allConditional = section.items.every((i) => !!i.conditional);
+    const dg = documentGuidanceFor(section.key, profile.jurisdiction);
     out.push({
       id: `${profile.entityType}-${profile.jurisdiction}-${section.key}`,
       category: SECTION_TO_CATEGORY[section.key],
       title: c.title,
       whatItMeans: c.whatItMeans,
+      ruleSummary: RULE_SUMMARY[section.key],
       whatToCollect,
+      documentGuidance: dg.length ? dg : undefined,
       evidence: c.evidence(reg),
       legalBasis,
       appliesAtRisk: appliesAtRisk.length ? appliesAtRisk : ["low", "medium", "high"],
@@ -192,6 +216,7 @@ export function buildRequirements(profile: CddProfile): CddRequirement[] {
       category: "additional_other",
       title: t.trigger,
       whatItMeans: t.action,
+      ruleSummary: EDD_RULE_SUMMARY,
       whatToCollect: [t.action],
       evidence: ["EDD form / senior-management sign-off", "Source of wealth evidence", "External EDD / intelligence report"],
       legalBasis: t.sources,
@@ -207,6 +232,7 @@ export function buildRequirements(profile: CddProfile): CddRequirement[] {
       category: "ongoing_monitoring",
       title: o.title,
       whatItMeans: o.whatItMeans,
+      ruleSummary: o.ruleSummary,
       whatToCollect: o.whatToCollect,
       evidence: o.evidence,
       legalBasis: ONGOING_BASIS[profile.jurisdiction],

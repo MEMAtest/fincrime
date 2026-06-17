@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Building2, Globe2, ShieldCheck, ChevronDown, ChevronRight, Search, RotateCcw,
   CheckCircle2, HelpCircle, MinusCircle, AlertTriangle, FileText, ClipboardList, BookOpen, FileCheck2,
-  Share2, Check,
+  Share2, Check, ListChecks, ChevronsDownUp, ChevronsUpDown, Gavel,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -18,6 +18,7 @@ import {
   ENTITY_ORDER, JURISDICTION_ORDER, ENTITY_LABEL, JURISDICTION_LABEL, JURISDICTION_REGULATOR,
   CATEGORY_TITLE, CATEGORY_ORDER, statusFor,
 } from "@/data/kyc/types";
+import { JURISDICTION_SUMMARY } from "@/data/kyc/summaries";
 
 const RISK_OPTIONS: { value: RiskLevel; label: string }[] = [
   { value: "low", label: "Lower risk (SDD)" },
@@ -25,7 +26,7 @@ const RISK_OPTIONS: { value: RiskLevel; label: string }[] = [
   { value: "high", label: "Higher risk (EDD)" },
 ];
 
-type StatusFilter = "all" | "required" | "conditional" | "not_applicable" | "edd";
+type FilterKey = "required" | "conditional" | "not_applicable" | "edd";
 
 const STATUS_PILL: Record<string, string> = {
   required: "bg-emerald-500/12 text-emerald-500",
@@ -61,10 +62,41 @@ export default function KycMatrixClient({
   const lookup = getCddProfile(ent, jur)!;
   const { profile, fallback } = lookup;
   const reqs = useMemo(() => buildRequirements(profile), [profile]);
+  const summary = JURISDICTION_SUMMARY[jur];
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [filters, setFilters] = useState<Set<FilterKey>>(new Set());
   const [copied, setCopied] = useState(false);
+  const [openCats, setOpenCats] = useState<Set<CddCategoryKey>>(new Set(CATEGORY_ORDER));
+  const [openReqs, setOpenReqs] = useState<Set<string>>(() => {
+    const first = buildRequirements(profile)[0];
+    return new Set(first ? [first.id] : []);
+  });
+
+  // Working checklist (collected/done), persisted per scenario in this browser.
+  const checklistKey = `kyc-checklist:${ent}|${jur}|${rk}`;
+  const [done, setDone] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let next = new Set<string>();
+    try {
+      const raw = localStorage.getItem(checklistKey);
+      if (raw) next = new Set(JSON.parse(raw));
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the per-scenario checklist from localStorage
+    setDone(next);
+  }, [checklistKey]);
+  const toggleDone = (id: string) =>
+    setDone((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      try { localStorage.setItem(checklistKey, JSON.stringify([...n])); } catch { /* ignore */ }
+      return n;
+    });
+  const resetChecklist = () => {
+    setDone(new Set());
+    try { localStorage.removeItem(checklistKey); } catch { /* ignore */ }
+  };
+  const collected = reqs.filter((r) => done.has(r.id)).length;
 
   const share = async () => {
     try {
@@ -73,16 +105,21 @@ export default function KycMatrixClient({
       setTimeout(() => setCopied(false), 1800);
     } catch { /* clipboard unavailable */ }
   };
-  const [openCats, setOpenCats] = useState<Set<CddCategoryKey>>(new Set(CATEGORY_ORDER));
-  const [openReqs, setOpenReqs] = useState<Set<string>>(() => {
-    const first = buildRequirements(profile)[0];
-    return new Set(first ? [first.id] : []);
-  });
 
   const toggleCat = (c: CddCategoryKey) =>
     setOpenCats((p) => { const n = new Set(p); if (n.has(c)) n.delete(c); else n.add(c); return n; });
   const toggleReq = (id: string) =>
     setOpenReqs((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleFilter = (k: FilterKey) =>
+    setFilters((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+
+  const allExpanded = reqs.length > 0 && openReqs.size >= reqs.length;
+  const toggleExpandAll = () => {
+    if (allExpanded) { setOpenReqs(new Set()); }
+    else { setOpenCats(new Set(CATEGORY_ORDER)); setOpenReqs(new Set(reqs.map((r) => r.id))); }
+  };
+
+  const bucketOf = (r: CddRequirement): FilterKey => (r.eddTrigger ? "edd" : (statusFor(r, rk) as FilterKey));
 
   // Summary counts: EDD triggers counted separately from required/conditional/not-applicable.
   const nonEdd = reqs.filter((r) => !r.eddTrigger);
@@ -97,27 +134,29 @@ export default function KycMatrixClient({
 
   const matches = (r: CddRequirement) => {
     const s = search.trim().toLowerCase();
-    const textOk = !s || r.title.toLowerCase().includes(s) || r.whatToCollect.some((w) => w.toLowerCase().includes(s));
-    let statusOk = true;
-    if (statusFilter === "edd") statusOk = r.eddTrigger;
-    else if (statusFilter !== "all") statusOk = !r.eddTrigger && statusFor(r, rk) === statusFilter;
+    const hay = [
+      r.title, r.whatItMeans, r.ruleSummary ?? "",
+      ...r.whatToCollect, ...r.evidence,
+      ...(r.documentGuidance?.flatMap((d) => [d.label, ...d.accepted]) ?? []),
+      ...r.legalBasis.flatMap((b) => [b.org, b.reference, b.title]),
+      CATEGORY_TITLE[r.category],
+    ].join(" ").toLowerCase();
+    const textOk = !s || hay.includes(s);
+    const statusOk = filters.size === 0 || filters.has(bucketOf(r));
     return textOk && statusOk;
   };
 
-  const groups = CATEGORY_ORDER.map((cat) => ({
-    cat,
-    all: reqs.filter((r) => r.category === cat),
-  })).filter((g) => g.all.length > 0);
+  const groups = CATEGORY_ORDER.map((cat) => ({ cat, all: reqs.filter((r) => r.category === cat) })).filter((g) => g.all.length > 0);
 
-  const statBar = [
+  const statBar: { key: FilterKey; label: string; value: number; icon: typeof CheckCircle2; color: string }[] = [
     { key: "required", label: "Required", value: counts.required, icon: CheckCircle2, color: "text-emerald-500" },
     { key: "conditional", label: "Conditional", value: counts.conditional, icon: HelpCircle, color: "text-amber-500" },
     { key: "not_applicable", label: "Not applicable", value: counts.not_applicable, icon: MinusCircle, color: "text-text-muted" },
     { key: "edd", label: "EDD triggers", value: counts.edd, icon: AlertTriangle, color: "text-risk-high" },
   ];
 
-  const filterPills: { value: StatusFilter; label: string }[] = [
-    { value: "required", label: "Required only" },
+  const filterPills: { value: FilterKey; label: string }[] = [
+    { value: "required", label: "Required" },
     { value: "conditional", label: "Conditional" },
     { value: "not_applicable", label: "Not applicable" },
     { value: "edd", label: "EDD triggers" },
@@ -141,8 +180,8 @@ export default function KycMatrixClient({
                 KYC / CDD Requirements <span className="gradient-text">Matrix</span>
               </h1>
               <p className="mt-1 text-sm text-text-muted max-w-2xl">
-                Build a tailored view of applicable KYC and CDD requirements based on entity type, jurisdiction and risk context.
-                Every requirement is mapped to its primary-source regulatory reference.
+                A working reference and checklist: pick the entity, jurisdiction and risk to see what to collect, what the
+                rules say, and tick off what you have. Every requirement is mapped to its primary-source regulatory reference.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -150,7 +189,7 @@ export default function KycMatrixClient({
                 {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
                 {copied ? "Copied" : "Share"}
               </Button>
-              <PDFExportButton module="kyc_requirements" assessmentData={{ entity: ent, jurisdiction: jur, risk: rk }} formats={["pdf", "docx"]} />
+              <PDFExportButton module="kyc_requirements" assessmentData={{ entity: ent, jurisdiction: jur, risk: rk, completed: [...done] }} formats={["pdf", "docx"]} />
             </div>
           </div>
 
@@ -164,35 +203,75 @@ export default function KycMatrixClient({
               options={RISK_OPTIONS} />
           </div>
           <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-text-muted">
-              {JURISDICTION_REGULATOR[jur]}{fallback ? " · FATF baseline shown" : ""}
-            </p>
+            <p className="text-xs text-text-muted">{JURISDICTION_REGULATOR[jur]}{fallback ? " · FATF baseline shown" : ""}</p>
             <button onClick={() => navigate({ ent: "corporate", jur: "uk", rk: "medium" })}
               className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-foreground transition-colors">
-              <RotateCcw className="h-3.5 w-3.5" /> Reset
+              <RotateCcw className="h-3.5 w-3.5" /> Reset selection
             </button>
           </div>
 
+          {/* Mini regulatory summary */}
+          <div className="glass-card rounded-2xl p-4 mt-5">
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5 text-accent" /> Source</p>
+                <p className="text-sm text-foreground font-medium mt-1">{summary.primaryLaw}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5"><Gavel className="h-3.5 w-3.5 text-accent" /> Regulator</p>
+                <p className="text-sm text-foreground font-medium mt-1">{summary.regulator}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5"><ListChecks className="h-3.5 w-3.5 text-accent" /> Covers</p>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {summary.covers.map((c, i) => (
+                    <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-accent/10 text-accent">{c}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Summary stat bar */}
-          <div className="glass-card rounded-2xl p-4 mt-5 flex flex-wrap items-center gap-x-8 gap-y-3">
+          <div className="glass-card rounded-2xl p-4 mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
             <div className="pr-6 border-r border-surface-border">
               <div className="text-2xl font-bold leading-none">{counts.total}</div>
               <div className="text-xs text-text-muted mt-1">Total requirements</div>
             </div>
             {statBar.map((s) => (
-              <div key={s.key} className="flex items-center gap-2.5">
+              <button key={s.key} onClick={() => toggleFilter(s.key)} aria-pressed={filters.has(s.key)}
+                className={`flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors ${filters.has(s.key) ? "bg-white/10" : "hover:bg-white/5"}`}>
                 <s.icon className={`h-5 w-5 ${s.color}`} />
-                <div>
+                <div className="text-left">
                   <span className={`text-xl font-bold ${s.color}`}>{s.value}</span>
                   <span className="text-xs text-text-muted ml-2">{s.label} · {pct(s.value)}%</span>
                 </div>
-              </div>
+              </button>
             ))}
+          </div>
+
+          {/* Checklist progress */}
+          <div className="glass-card rounded-xl p-3 mt-3 flex items-center gap-4">
+            <ListChecks className="h-5 w-5 text-emerald-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="font-medium text-foreground">Onboarding checklist</span>
+                <span className="text-text-muted">Collected <span className="font-semibold text-emerald-500">{collected}</span> / {reqs.length}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${reqs.length ? Math.round((collected / reqs.length) * 100) : 0}%` }} />
+              </div>
+            </div>
+            <span className="text-[11px] text-text-muted hidden sm:block">Tracked in this browser</span>
+            <button onClick={resetChecklist} disabled={collected === 0}
+              className="text-xs text-text-muted hover:text-foreground disabled:opacity-40 inline-flex items-center gap-1">
+              <RotateCcw className="h-3.5 w-3.5" /> Reset
+            </button>
           </div>
 
           {/* Source breadcrumb */}
           <div className="flex flex-wrap items-center gap-2 mt-4 text-xs text-text-muted">
-            <span className="font-medium text-foreground">Source:</span>
+            <span className="font-medium text-foreground">Provisions:</span>
             {profile.regulatoryBasis.map((s, i) => (
               <span key={i} className="flex items-center gap-2">
                 {i > 0 && <span className="opacity-40">›</span>}
@@ -205,18 +284,22 @@ export default function KycMatrixClient({
           <div className="flex flex-wrap items-center gap-2 mt-5">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search requirements..."
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search requirements, documents, sources..."
                 className="w-full pl-9 pr-3 py-2 rounded-lg bg-white/5 border border-surface-border text-sm focus:outline-none focus:border-accent" />
             </div>
             {filterPills.map((f) => (
-              <button key={f.value} onClick={() => setStatusFilter((cur) => (cur === f.value ? "all" : f.value))}
-                aria-pressed={statusFilter === f.value}
+              <button key={f.value} onClick={() => toggleFilter(f.value)} aria-pressed={filters.has(f.value)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                  statusFilter === f.value ? "bg-accent text-white border-accent" : "bg-white/5 text-text-muted border-surface-border hover:bg-white/10"
+                  filters.has(f.value) ? "bg-accent text-white border-accent" : "bg-white/5 text-text-muted border-surface-border hover:bg-white/10"
                 }`}>
                 {f.label}
               </button>
             ))}
+            <button onClick={toggleExpandAll}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-surface-border bg-white/5 text-text-muted hover:bg-white/10 inline-flex items-center gap-1.5">
+              {allExpanded ? <ChevronsDownUp className="h-3.5 w-3.5" /> : <ChevronsUpDown className="h-3.5 w-3.5" />}
+              {allExpanded ? "Collapse all" : "Expand all"}
+            </button>
           </div>
 
           {/* Category progress cards */}
@@ -268,52 +351,76 @@ export default function KycMatrixClient({
                       {visible.map((r, ri) => {
                         const badge = statusBadge(r);
                         const open = openReqs.has(r.id);
+                        const isDone = done.has(r.id);
                         return (
-                          <div key={r.id} className="rounded-xl border border-surface-border overflow-hidden">
-                            <button onClick={() => toggleReq(r.id)} aria-expanded={open}
-                              className="w-full flex items-start justify-between gap-4 px-4 py-3 text-left hover:bg-surface-hover transition-colors">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap mb-1">
-                                  <span className="text-xs text-text-muted font-mono">{ci + 1}.{ri + 1}</span>
-                                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_PILL[badge.key]}`}>{badge.label}</span>
-                                  <span className="text-sm font-semibold text-foreground">{r.title}</span>
+                          <div key={r.id} className={`rounded-xl border overflow-hidden ${isDone ? "border-emerald-500/40 bg-emerald-500/5" : "border-surface-border"}`}>
+                            <div className="flex items-stretch">
+                              <label className="flex items-center px-3 cursor-pointer border-r border-surface-border" title="Mark collected">
+                                <input type="checkbox" checked={isDone} onChange={() => toggleDone(r.id)}
+                                  className="h-4 w-4 rounded border-surface-border text-emerald-500 focus:ring-emerald-500 cursor-pointer" />
+                              </label>
+                              <button onClick={() => toggleReq(r.id)} aria-expanded={open}
+                                className="flex-1 flex items-start justify-between gap-4 px-4 py-3 text-left hover:bg-surface-hover transition-colors">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                                    <span className="text-xs text-text-muted font-mono">{ci + 1}.{ri + 1}</span>
+                                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_PILL[badge.key]}`}>{badge.label}</span>
+                                    <span className={`text-sm font-semibold ${isDone ? "text-text-muted line-through" : "text-foreground"}`}>{r.title}</span>
+                                  </div>
+                                  <p className="text-xs text-text-muted line-clamp-2">{r.whatItMeans}</p>
                                 </div>
-                                <p className="text-xs text-text-muted line-clamp-2">{r.whatItMeans}</p>
-                              </div>
-                              <div className="flex items-center gap-3 shrink-0">
-                                <span className="text-[11px] text-text-muted hidden sm:flex items-center gap-1">
-                                  EDD: {r.eddTrigger ? <span className="text-risk-high font-medium">Yes</span> : <span>No</span>}
-                                </span>
-                                {open ? <ChevronDown className="h-4 w-4 text-text-muted" /> : <ChevronRight className="h-4 w-4 text-text-muted" />}
-                              </div>
-                            </button>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-[11px] text-text-muted hidden sm:flex items-center gap-1">
+                                    EDD: {r.eddTrigger ? <span className="text-risk-high font-medium">Yes</span> : <span>No</span>}
+                                  </span>
+                                  {open ? <ChevronDown className="h-4 w-4 text-text-muted" /> : <ChevronRight className="h-4 w-4 text-text-muted" />}
+                                </div>
+                              </button>
+                            </div>
 
                             {open && (
-                              <div className="px-4 pb-4 grid md:grid-cols-4 gap-4 border-t border-surface-border pt-4">
-                                <Column icon={FileText} title="What this means"><p className="text-xs text-text-muted">{r.whatItMeans}</p></Column>
-                                <Column icon={ClipboardList} title="What to collect">
-                                  <ul className="space-y-1">
-                                    {r.whatToCollect.map((w, i) => (
-                                      <li key={i} className="text-xs text-text-muted flex gap-1.5">
-                                        <CheckCircle2 className="h-3 w-3 text-accent mt-0.5 shrink-0" /><span>{w}</span>
-                                      </li>
+                              <div className="px-4 pb-4 border-t border-surface-border pt-4 space-y-4">
+                                {r.ruleSummary && (
+                                  <p className="text-xs text-foreground bg-accent/5 border border-accent/15 rounded-lg px-3 py-2">
+                                    <span className="font-semibold">What the rule requires:</span> {r.ruleSummary}
+                                  </p>
+                                )}
+                                <div className="grid md:grid-cols-4 gap-4">
+                                  <Column icon={FileText} title="What this means"><p className="text-xs text-text-muted">{r.whatItMeans}</p></Column>
+                                  <Column icon={ClipboardList} title="What to collect">
+                                    <ul className="space-y-1">
+                                      {r.whatToCollect.map((w, i) => (
+                                        <li key={i} className="text-xs text-text-muted flex gap-1.5">
+                                          <CheckCircle2 className="h-3 w-3 text-accent mt-0.5 shrink-0" /><span>{w}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                    {r.documentGuidance?.map((dg, i) => (
+                                      <div key={i} className="mt-2 rounded-lg bg-white/5 border border-surface-border p-2">
+                                        <p className="text-[11px] font-semibold text-foreground">{dg.label}</p>
+                                        <p className="text-xs text-text-muted mt-0.5">{dg.accepted.join(" · ")}</p>
+                                        <span className="mt-1 inline-flex"><SourceBadge source={dg.source.org} reference={dg.source.reference} url={dg.source.url} /></span>
+                                      </div>
                                     ))}
-                                  </ul>
-                                </Column>
-                                <Column icon={BookOpen} title="Legal basis & guidance">
-                                  <div className="flex flex-col items-start gap-1.5">
-                                    {r.legalBasis.map((s, i) => (
-                                      <SourceBadge key={i} source={s.org} reference={s.reference} url={s.url} />
-                                    ))}
-                                  </div>
-                                </Column>
-                                <Column icon={FileCheck2} title="Evidence examples">
-                                  <ul className="space-y-1">
-                                    {r.evidence.map((e, i) => (
-                                      <li key={i} className="text-xs text-text-muted">{e}</li>
-                                    ))}
-                                  </ul>
-                                </Column>
+                                  </Column>
+                                  <Column icon={BookOpen} title="Legal basis & guidance">
+                                    <div className="flex flex-col items-start gap-2">
+                                      {r.legalBasis.map((s, i) => (
+                                        <div key={i}>
+                                          <SourceBadge source={s.org} reference={s.reference} url={s.url} />
+                                          <p className="text-[11px] text-text-muted mt-0.5">{s.title}</p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </Column>
+                                  <Column icon={FileCheck2} title="Evidence examples">
+                                    <ul className="space-y-1">
+                                      {r.evidence.map((e, i) => (
+                                        <li key={i} className="text-xs text-text-muted">{e}</li>
+                                      ))}
+                                    </ul>
+                                  </Column>
+                                </div>
                               </div>
                             )}
                           </div>

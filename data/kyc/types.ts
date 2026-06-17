@@ -174,6 +174,13 @@ export const CATEGORY_ORDER: CddCategoryKey[] = [
   "additional_other",
 ];
 
+/** Jurisdiction-specific acceptable documents for a requirement, cited. */
+export interface DocumentGuidance {
+  label: string;
+  accepted: string[];
+  source: Source;
+}
+
 /** A rendered requirement for the Matrix UI, derived from a profile's sections. */
 export interface CddRequirement {
   id: string;
@@ -181,8 +188,12 @@ export interface CddRequirement {
   title: string;
   /** Plain-English "what this means" rationale. */
   whatItMeans: string;
+  /** One-line "what the rule requires" (the regulatory obligation in plain terms). */
+  ruleSummary?: string;
   /** The specific data/documents to collect. */
   whatToCollect: string[];
+  /** Jurisdiction-specific acceptable documents (e.g. accepted ID), cited. */
+  documentGuidance?: DocumentGuidance[];
   /** Example evidence that satisfies the requirement. */
   evidence: string[];
   /** The cited primary-source provisions (non-empty). */

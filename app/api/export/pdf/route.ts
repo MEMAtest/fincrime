@@ -128,11 +128,13 @@ export async function POST(request: NextRequest) {
       pdfBuffer = generateMaturityPDF({ ...result, narrative });
       filename = `MEMA-ControlsMaturity-${result.framework.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else if (module === "kyc_requirements") {
-      const { entity, jurisdiction, risk } = assessmentData as {
+      const { entity, jurisdiction, risk, completed } = assessmentData as {
         entity: EntityType;
         jurisdiction: Jurisdiction;
         risk: "all" | RiskLevel;
+        completed?: string[];
       };
+      const safeCompleted = Array.isArray(completed) ? completed.filter((x) => typeof x === "string") : [];
       if (!(ENTITY_ORDER as string[]).includes(entity) || !(JURISDICTION_ORDER as string[]).includes(jurisdiction)) {
         return NextResponse.json({ error: "Invalid entity or jurisdiction" }, { status: 400 });
       }
@@ -143,11 +145,11 @@ export async function POST(request: NextRequest) {
       }
       const date = new Date().toISOString().split("T")[0];
       if (format === "docx") {
-        pdfBuffer = await generateKycDocx({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel });
+        pdfBuffer = await generateKycDocx({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel, completed: safeCompleted });
         contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         filename = `MEMA-KYC-${entity}-${jurisdiction}-${date}.docx`;
       } else {
-        pdfBuffer = generateKycPDF({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel });
+        pdfBuffer = generateKycPDF({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel, completed: safeCompleted });
         filename = `MEMA-KYC-${entity}-${jurisdiction}-${date}.pdf`;
       }
     } else {

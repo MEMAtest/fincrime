@@ -7,6 +7,7 @@ interface KycDocxData {
   profile: CddProfile;
   fallback: boolean;
   risk: "all" | RiskLevel;
+  completed?: string[];
 }
 
 const para = (text: string, opts?: { bold?: boolean; italics?: boolean; color?: string; size?: number }) =>
@@ -22,13 +23,16 @@ const headerCell = (text: string, width: number) =>
 
 export async function generateKycDocx(data: KycDocxData): Promise<Buffer> {
   const { profile, fallback, risk } = data;
+  const completed = data.completed ?? [];
   const rk: RiskLevel = risk === "all" ? "medium" : risk;
   const requirements = buildRequirements(profile);
+  const collected = requirements.filter((r) => completed.includes(r.id)).length;
 
   const children: (Paragraph | Table)[] = [
     new Paragraph({ text: "KYC / CDD Requirements", heading: HeadingLevel.TITLE }),
     para(`${ENTITY_LABEL[profile.entityType]} — ${JURISDICTION_LABEL[profile.jurisdiction]} — ${RISK_LABEL[rk]}`, { bold: true }),
     para(JURISDICTION_REGULATOR[profile.jurisdiction] + (fallback ? "  (FATF baseline shown)" : ""), { italics: true, color: "666666" }),
+    para(`Onboarding checklist: collected ${collected} of ${requirements.length}.`, { color: "0F7B4F" }),
     para(""),
   ];
 
@@ -43,10 +47,13 @@ export async function generateKycDocx(data: KycDocxData): Promise<Buffer> {
       rows.push(
         new TableRow({
           children: [
-            cell([para(r.title, { bold: true }), para(r.whatItMeans, { size: 18 })], 38),
-            cell(r.whatToCollect.map((w) => bullet(w)), 32),
+            cell([para(r.title, { bold: true }), para(r.ruleSummary ?? r.whatItMeans, { size: 18 })], 38),
+            cell([
+              ...r.whatToCollect.map((w) => bullet(w)),
+              ...(r.documentGuidance?.map((d) => bullet(`${d.label}: ${d.accepted.join(", ")}`)) ?? []),
+            ], 32),
             cell(r.legalBasis.map((s) => para(`${s.org} ${s.reference}`, { size: 18 })), 18),
-            cell([para(r.eddTrigger ? "EDD trigger" : STATUS_LABEL[statusFor(r, rk)], { size: 18 })], 12),
+            cell([para(completed.includes(r.id) ? "Collected" : r.eddTrigger ? "EDD trigger" : STATUS_LABEL[statusFor(r, rk)], { size: 18 })], 12),
           ],
         })
       );

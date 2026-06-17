@@ -58,6 +58,9 @@ export function findRequirementGaps(profiles: CddProfile[]): string[] {
       for (const s of r.legalBasis) {
         if (!isValidUrl(s.url)) errors.push(`${p.entityType}/${p.jurisdiction} requirement "${r.title}": invalid URL "${s.url}"`);
       }
+      for (const dg of r.documentGuidance ?? []) {
+        if (!isValidUrl(dg.source.url)) errors.push(`${p.entityType}/${p.jurisdiction} requirement "${r.title}" docs "${dg.label}": invalid URL "${dg.source.url}"`);
+      }
     }
   }
   return errors;
