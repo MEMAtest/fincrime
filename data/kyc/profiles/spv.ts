@@ -1,6 +1,6 @@
 import type { CddProfile } from "../types";
 import { cite } from "../sources";
-import { it, sec, edd, HI } from "./_helpers";
+import { it, sec, edd, HI, legalPersonJurisdictions } from "./_helpers";
 
 /** SPV / special purpose vehicle (incl. diamonds & asset-holding vehicles). Corporate CDD with transparency focus. */
 
@@ -47,4 +47,5 @@ export const spv: CddProfile[] = [
     ],
     eddTriggers: [edd("Complex or opaque structure, or higher-risk rating", "EDD form; verify source of funds/wealth of UBOs; external EDD report", cite("mlr_r33"))],
   },
+  ...legalPersonJurisdictions("spv", "special purpose vehicle", "ownership and control including intermediary holding entities, and the purpose of the structure"),
 ];

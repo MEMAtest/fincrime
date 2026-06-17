@@ -1,6 +1,6 @@
 import type { CddProfile } from "../types";
 import { cite } from "../sources";
-import { it, sec, edd } from "./_helpers";
+import { it, sec, edd, legalPersonJurisdictions } from "./_helpers";
 
 /** Introductory broker: an intermediary introducing underlying clients. Reliance does not remove CDD responsibility. */
 
@@ -40,4 +40,5 @@ export const introductoryBroker: CddProfile[] = [
     ],
     eddTriggers: [edd("Weakly supervised broker or higher-risk jurisdiction", "EDD form; confirm AML controls; external EDD report", cite("mlr_r33"))],
   },
+  ...legalPersonJurisdictions("introductory_broker", "introductory broker", "the owners/controllers of the broker, and confirm its regulated / registered AML-supervised status"),
 ];

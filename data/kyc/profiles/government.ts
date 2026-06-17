@@ -24,7 +24,7 @@ export const government: CddProfile[] = [
     entityType: "government",
     jurisdiction: "uk",
     status: "in_force",
-    inherentRisk: "varies",
+    inherentRisk: "low",
     regulatoryBasis: cite("mlr_r37", "jmlsg_gov"),
     boThreshold: "Directors / principals / controllers (no private owners)",
     sddEligibility: "SDD available (MLR reg. 37) for public-sector bodies.",

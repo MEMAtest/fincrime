@@ -1,6 +1,6 @@
 import type { CddProfile } from "../types";
 import { cite } from "../sources";
-import { it, sec, edd } from "./_helpers";
+import { it, sec, edd, legalPersonJurisdictions } from "./_helpers";
 
 /** Program manager: manages a card / e-money or payment program on behalf of an issuer. */
 
@@ -40,4 +40,5 @@ export const programManager: CddProfile[] = [
     ],
     eddTriggers: [edd("Higher-risk program, flows or jurisdiction", "EDD form; confirm AML controls; external EDD report", cite("mlr_r33"))],
   },
+  ...legalPersonJurisdictions("program_manager", "program manager", "the owners/controllers of the program manager, and confirm its regulated / registered AML-supervised status"),
 ];

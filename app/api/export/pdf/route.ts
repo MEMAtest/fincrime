@@ -5,6 +5,7 @@ import { generateScreeningPDF } from "@/lib/pdf/screening-pdf";
 import { generateMaturityPDF } from "@/lib/pdf/maturity-pdf";
 import { generateKycPDF } from "@/lib/pdf/kyc-pdf";
 import { getCddProfile } from "@/data/kyc";
+import { ENTITY_ORDER, JURISDICTION_ORDER } from "@/data/kyc/types";
 import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
 import { getBestMatch } from "@/data/scoring/typology-scoring";
 import { scorePartnerRisk } from "@/data/scoring/partner-scoring";
@@ -130,11 +131,15 @@ export async function POST(request: NextRequest) {
         jurisdiction: Jurisdiction;
         risk: "all" | RiskLevel;
       };
+      if (!(ENTITY_ORDER as string[]).includes(entity) || !(JURISDICTION_ORDER as string[]).includes(jurisdiction)) {
+        return NextResponse.json({ error: "Invalid entity or jurisdiction" }, { status: 400 });
+      }
+      const safeRisk = (["all", "low", "medium", "high"] as string[]).includes(risk) ? risk : "all";
       const lookup = getCddProfile(entity, jurisdiction);
       if (!lookup) {
         return NextResponse.json({ error: "No matching CDD profile" }, { status: 404 });
       }
-      pdfBuffer = generateKycPDF({ profile: lookup.profile, fallback: lookup.fallback, risk: risk ?? "all" });
+      pdfBuffer = generateKycPDF({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel });
       filename = `MEMA-KYC-${entity}-${jurisdiction}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });

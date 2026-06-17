@@ -174,7 +174,7 @@ export const listedEntity: CddProfile[] = [
     jurisdiction: "hk",
     status: "in_force",
     inherentRisk: "low",
-    regulatoryBasis: cite("hk_amlo_s4", "hk_hkma_gl"),
+    regulatoryBasis: cite("hk_amlo_s2", "hk_amlo_s4", "hk_hkma_gl"),
     boThreshold: "Reduced (SDD)",
     sddEligibility: "SDD for companies on the SEHK or a recognised exchange whose disclosure regime meets the AMLO conditions (AMLO Sch. 2 s.4).",
     sections: [

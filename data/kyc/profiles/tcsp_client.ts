@@ -1,6 +1,6 @@
 import type { CddProfile } from "../types";
 import { cite } from "../sources";
-import { it, sec, edd, HI } from "./_helpers";
+import { it, sec, edd, HI, legalPersonJurisdictions } from "./_helpers";
 
 /** TCSP client: a corporate introduced/administered by a trust & company service provider. Corporate CDD + CSP checks. */
 
@@ -42,4 +42,5 @@ export const tcspClient: CddProfile[] = [
     ],
     eddTriggers: [edd("Higher-risk jurisdiction or opaque ownership", "EDD form; verify source of funds/wealth; external EDD report", cite("mlr_r33"))],
   },
+  ...legalPersonJurisdictions("tcsp_client", "corporate administered by the CSP", "the ultimate natural-person owners/controllers via the company registry or a certified org chart"),
 ];

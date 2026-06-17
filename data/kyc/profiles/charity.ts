@@ -92,7 +92,7 @@ export const charity: CddProfile[] = [
         it("Legal name, physical location and EIN; organizational documents", cite("us_cip_banks")),
       ]),
       sec("beneficial_ownership", [
-        it("One individual with significant control (e.g. Executive Director) under the control prong", cite("us_cdd_e")),
+        it("One individual with significant control (e.g. Executive Director) under the control prong (NPOs are excluded from the ownership prong)", cite("us_cdd_d", "us_cdd_e")),
       ]),
       sec("nature_purpose", [
         it("Understand purpose and expected activity; risk-based ongoing monitoring", cite("us_cdd")),

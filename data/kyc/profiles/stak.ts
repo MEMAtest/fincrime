@@ -1,6 +1,6 @@
 import type { CddProfile } from "../types";
 import { cite } from "../sources";
-import { it, sec, edd } from "./_helpers";
+import { it, sec, edd, legalPersonJurisdictions } from "./_helpers";
 
 /** STAK (Stichting Administratiekantoor). No shareholders, only certificate holders; treated like a company for BO. */
 
@@ -44,4 +44,5 @@ export const stak: CddProfile[] = [
     ],
     eddTriggers: [edd("Higher-risk rating or opaque control", "EDD form; verify source of funds/wealth; external EDD report", cite("mlr_r33"))],
   },
+  ...legalPersonJurisdictions("stak", "STAK (Stichting Administratiekantoor)", "ownership and control of the entity as for a company (certificate holders confer dividend rights, not ownership)"),
 ];

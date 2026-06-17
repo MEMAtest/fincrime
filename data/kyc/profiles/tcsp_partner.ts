@@ -1,6 +1,6 @@
 import type { CddProfile } from "../types";
 import { cite } from "../sources";
-import { it, sec, edd } from "./_helpers";
+import { it, sec, edd, legalPersonJurisdictions } from "./_helpers";
 
 /** TCSP partner: the trust & company service provider itself as a counterparty / introducer. */
 
@@ -39,4 +39,5 @@ export const tcspPartner: CddProfile[] = [
     ],
     eddTriggers: [edd("Weakly supervised TCSP or higher-risk jurisdiction", "EDD form; confirm AML controls; external EDD report", cite("mlr_r33"))],
   },
+  ...legalPersonJurisdictions("tcsp_partner", "trust & company service provider", "the owners/controllers of the TCSP, and confirm its regulated / registered AML-supervised status"),
 ];

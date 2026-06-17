@@ -35,6 +35,10 @@ export function findCitationGaps(profiles: CddProfile[]): string[] {
     for (const t of p.eddTriggers) {
       if (!t.sources || t.sources.length === 0) {
         errors.push(`${id} EDD "${t.trigger}": missing regulatory reference`);
+        continue;
+      }
+      for (const src of t.sources) {
+        if (!isValidUrl(src.url)) errors.push(`${id} EDD "${t.trigger}": invalid source URL "${src.url}"`);
       }
     }
   }

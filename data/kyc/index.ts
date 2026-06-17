@@ -47,6 +47,10 @@ export const allCddProfiles: CddProfile[] = [
 // stored regulatory reference. This runs during the Next build.
 assertAllCited(allCddProfiles);
 
+// O(1) lookup index, built once at module load.
+const keyOf = (entityType: EntityType, jurisdiction: Jurisdiction) => `${entityType}|${jurisdiction}`;
+const profileIndex = new Map<string, CddProfile>(allCddProfiles.map((p) => [keyOf(p.entityType, p.jurisdiction), p]));
+
 export interface ProfileLookup {
   profile: CddProfile;
   /** True when the exact (entity x jurisdiction) cell was not authored and the
@@ -62,9 +66,9 @@ export function entityTypesCovered(): EntityType[] {
 
 /** Exact (entity x jurisdiction) profile, or the FATF/global baseline as a flagged fallback. */
 export function getCddProfile(entityType: EntityType, jurisdiction: Jurisdiction): ProfileLookup | null {
-  const exact = allCddProfiles.find((p) => p.entityType === entityType && p.jurisdiction === jurisdiction);
+  const exact = profileIndex.get(keyOf(entityType, jurisdiction));
   if (exact) return { profile: exact, fallback: false };
-  const base = allCddProfiles.find((p) => p.entityType === entityType && p.jurisdiction === "global");
+  const base = profileIndex.get(keyOf(entityType, "global"));
   if (base) return { profile: base, fallback: jurisdiction !== "global" };
   return null;
 }

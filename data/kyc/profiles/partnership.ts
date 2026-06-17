@@ -55,7 +55,7 @@ export const partnership: CddProfile[] = [
       ]),
       sec("directors_controllers", [
         it("Identify and verify 2 partners", cite("jmlsg_corp"), { risk: ["low"] }),
-        it("Verify a minimum of 5 partners (or all if fewer), up to 50%", cite("jmlsg_corp"), { risk: MH }),
+        it("Verify a minimum of 5 partners (or all if fewer), up to 50% of the partners", cite("jmlsg_corp"), { risk: MH }),
       ]),
       sec("beneficial_ownership", [
         it("Identify ownership/control including intermediaries; verify UBOs", cite("mlr_r28"), { threshold: "25%+ (LR/MR); 10%+ (HR)" }),

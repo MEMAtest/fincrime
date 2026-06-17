@@ -67,7 +67,7 @@ export const fund: CddProfile[] = [
     sections: [
       sec("legal_entity", [it("Legal name, physical location and TIN/EIN", cite("us_cip_banks"))]),
       sec("beneficial_ownership", [
-        it("Control-prong individual for a pooled vehicle advised by a covered party (no ownership prong)", cite("us_cdd_e")),
+        it("Control-prong individual for a pooled vehicle advised by a covered party (no ownership prong)", cite("us_cdd_d", "us_cdd_e")),
       ]),
       sec("screening", [it("OFAC sanctions screening", cite("us_ffiec_pep"))]),
     ],
@@ -84,7 +84,7 @@ export const fund: CddProfile[] = [
     sections: [
       sec("legal_entity", [it("Name, legal form, registration number and registered office; manager and depositary", cite("eu_amld_13"))]),
       sec("beneficial_ownership", [
-        it("Investors with more than 25%; otherwise the manager's senior managing official", cite("eu_amld_bo", "eu_amlr_arr"), { threshold: "more than 25%" }),
+        it("Investors with more than 25%; otherwise the manager's senior managing official", cite("eu_amld_bo", "eu_amlr_bo"), { threshold: "more than 25%" }),
       ]),
       sec("screening", [it("PEP determination and sanctions screening", cite("eu_amld_pep"))]),
     ],
