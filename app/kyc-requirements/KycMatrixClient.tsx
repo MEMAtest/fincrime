@@ -12,7 +12,6 @@ import Footer from "@/components/layout/Footer";
 import Button from "@/components/ui/Button";
 import SourceBadge from "@/components/shared/SourceBadge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
-import SavedViews from "./SavedViews";
 import { getCddProfile, buildRequirements } from "@/data/kyc";
 import type { EntityType, Jurisdiction, RiskLevel, CddRequirement, CddCategoryKey } from "@/data/kyc/types";
 import {
@@ -151,7 +150,6 @@ export default function KycMatrixClient({
                 {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
                 {copied ? "Copied" : "Share"}
               </Button>
-              <SavedViews entity={ent} jurisdiction={jur} risk={rk} />
               <PDFExportButton module="kyc_requirements" assessmentData={{ entity: ent, jurisdiction: jur, risk: rk }} formats={["pdf", "docx"]} />
             </div>
           </div>
