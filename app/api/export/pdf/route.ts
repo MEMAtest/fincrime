@@ -5,6 +5,8 @@ import { generateScreeningPDF } from "@/lib/pdf/screening-pdf";
 import { generateMaturityPDF } from "@/lib/pdf/maturity-pdf";
 import { generateKycPDF } from "@/lib/pdf/kyc-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
+import { buildMergedRequirements } from "@/data/kyc/merge";
+import { coerceList } from "@/lib/list-params";
 import { ENTITY_ORDER, JURISDICTION_ORDER } from "@/data/kyc/types";
 import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
 import { getBestMatch, normalizeAnswers } from "@/data/scoring/typology-scoring";
@@ -131,25 +133,28 @@ export async function POST(request: NextRequest) {
         completed?: string[];
       };
       // Accept multi-select arrays (current client) or singular/comma strings (back-compat).
-      const toStrList = (plural: string[] | undefined, single: string | undefined): string[] =>
-        Array.isArray(plural) ? plural : typeof single === "string" ? single.split(",") : [];
-      const uniq = (arr: string[]) => [...new Set(arr.map((x) => x.trim()).filter(Boolean))];
-      const entities = uniq(toStrList(a.entities, a.entity)).filter((x): x is EntityType => (ENTITY_ORDER as string[]).includes(x));
-      const jurisdictions = uniq(toStrList(a.jurisdictions, a.jurisdiction)).filter((x): x is Jurisdiction => (JURISDICTION_ORDER as string[]).includes(x));
-      const risks = uniq(toStrList(a.risks, a.risk)).filter((x): x is RiskLevel => (["low", "medium", "high"] as string[]).includes(x));
+      const entities = coerceList(a.entities, a.entity).filter((x): x is EntityType => (ENTITY_ORDER as string[]).includes(x));
+      const jurisdictions = coerceList(a.jurisdictions, a.jurisdiction).filter((x): x is Jurisdiction => (JURISDICTION_ORDER as string[]).includes(x));
+      const risks = coerceList(a.risks, a.risk).filter((x): x is RiskLevel => (["low", "medium", "high"] as string[]).includes(x));
       const safeCompleted = Array.isArray(a.completed) ? a.completed.filter((x) => typeof x === "string") : [];
       if (entities.length === 0 || jurisdictions.length === 0) {
         return NextResponse.json({ error: "Invalid entities or jurisdictions" }, { status: 400 });
       }
       const risksFinal: RiskLevel[] = risks.length ? risks : ["medium"];
+      const merged = buildMergedRequirements(entities, jurisdictions);
+      if (merged.scenarios.length === 0) {
+        return NextResponse.json({ error: "No CDD profile for the selected combination" }, { status: 404 });
+      }
       const date = new Date().toISOString().split("T")[0];
-      const nameBit = `${entities.join("-")}-${jurisdictions.join("-")}`.slice(0, 60);
+      // Keep the filename short and collision-free for large multi-selects.
+      const rawName = `${entities.join("-")}-${jurisdictions.join("-")}`;
+      const nameBit = rawName.length <= 60 ? rawName : `${entities.length}entities-${jurisdictions.length}jur`;
       if (format === "docx") {
-        pdfBuffer = await generateKycDocx({ entities, jurisdictions, risks: risksFinal, completed: safeCompleted });
+        pdfBuffer = await generateKycDocx({ entities, jurisdictions, risks: risksFinal, completed: safeCompleted, merged });
         contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         filename = `MEMA-KYC-${nameBit}-${date}.docx`;
       } else {
-        pdfBuffer = generateKycPDF({ entities, jurisdictions, risks: risksFinal, completed: safeCompleted });
+        pdfBuffer = generateKycPDF({ entities, jurisdictions, risks: risksFinal, completed: safeCompleted, merged });
         filename = `MEMA-KYC-${nameBit}-${date}.pdf`;
       }
     } else {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateNarrative } from "@/lib/groq";
+import { coerceList } from "@/lib/list-params";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,13 +24,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing typologyTitle" }, { status: 400 });
     }
 
-    const toList = (plural: unknown, single: unknown): string[] =>
-      Array.isArray(plural) && plural.length > 0 ? (plural as string[]) : single ? [single as string] : [];
-
-    const firmList = toList(firmTypes, firmType);
-    const productList = toList(products, product);
-    const customerList = toList(customerTypes, customerType);
-    const themes: string[] = toList(riskThemes, riskTheme);
+    const firmList = coerceList(firmTypes, firmType);
+    const productList = coerceList(products, product);
+    const customerList = coerceList(customerTypes, customerType);
+    const themes: string[] = coerceList(riskThemes, riskTheme);
 
     const systemPrompt = [
       "You are a financial crime compliance expert writing for a UK-regulated firm's compliance team.",

@@ -16,63 +16,57 @@ import WizardShell from "@/components/wizard/WizardShell";
 import WizardStep from "@/components/wizard/WizardStep";
 import OptionCard from "@/components/wizard/OptionCard";
 import LivePreview from "@/components/wizard/LivePreview";
+import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL, RISK_THEME_LABEL } from "@/data/typologies/labels";
+import { parseListParam } from "@/lib/list-params";
 import type { FirmType, ProductType, CustomerType, RiskTheme } from "@/data/typologies/types";
 
 const STEPS = ["Firm Type", "Product", "Customer", "Risk Themes", "Confirm"];
 
+// Labels come from data/typologies/labels.ts (single source, shared with results +
+// PDF); the wizard owns only the descriptions and icons.
 const FIRM_OPTIONS: { value: FirmType; label: string; description: string; icon: typeof Building2 }[] = [
-  { value: "emi", label: "E-Money Institution (EMI)", description: "Authorised to issue electronic money and provide payment services", icon: Wallet },
-  { value: "pi", label: "Payment Institution (PI)", description: "Authorised to execute payment transactions and transfers", icon: Banknote },
-  { value: "bank", label: "Bank / Credit Institution", description: "Deposit-taking and lending institution", icon: Landmark },
-  { value: "msb", label: "Money Service Business (MSB)", description: "Provides money transmission, currency exchange, or cheque cashing", icon: Globe },
-  { value: "crypto", label: "Crypto Asset Service Provider", description: "Registered for crypto exchange or custodian services", icon: Coins },
-  { value: "neobank", label: "Neobank / Digital Bank", description: "Digital-first banking or payments platform", icon: CreditCard },
-  { value: "wealth_manager", label: "Wealth Manager", description: "Investment advisory and portfolio management", icon: BarChart3 },
-  { value: "insurance", label: "Insurance Provider", description: "General or life insurance underwriting", icon: ShieldAlert },
+  { value: "emi", label: FIRM_TYPE_LABEL.emi, description: "Authorised to issue electronic money and provide payment services", icon: Wallet },
+  { value: "pi", label: FIRM_TYPE_LABEL.pi, description: "Authorised to execute payment transactions and transfers", icon: Banknote },
+  { value: "bank", label: FIRM_TYPE_LABEL.bank, description: "Deposit-taking and lending institution", icon: Landmark },
+  { value: "msb", label: FIRM_TYPE_LABEL.msb, description: "Provides money transmission, currency exchange, or cheque cashing", icon: Globe },
+  { value: "crypto", label: FIRM_TYPE_LABEL.crypto, description: "Registered for crypto exchange or custodian services", icon: Coins },
+  { value: "neobank", label: FIRM_TYPE_LABEL.neobank, description: "Digital-first banking or payments platform", icon: CreditCard },
+  { value: "wealth_manager", label: FIRM_TYPE_LABEL.wealth_manager, description: "Investment advisory and portfolio management", icon: BarChart3 },
+  { value: "insurance", label: FIRM_TYPE_LABEL.insurance, description: "General or life insurance underwriting", icon: ShieldAlert },
 ];
 
 const PRODUCT_OPTIONS: { value: ProductType; label: string; description: string; icon: typeof CreditCard }[] = [
-  { value: "cross_border_payments", label: "Cross-Border Payments", description: "International fund transfers and FX payments", icon: Globe },
-  { value: "domestic_payments", label: "Domestic Payments", description: "UK faster payments, BACS, CHAPS", icon: Banknote },
-  { value: "e_money_accounts", label: "E-Money Accounts", description: "Stored value accounts and prepaid wallets", icon: Wallet },
-  { value: "remittance", label: "Remittance", description: "Personal money transfers to other countries", icon: Globe },
-  { value: "trade_finance", label: "Trade Finance", description: "Letters of credit, invoicing, supply chain finance", icon: FileText },
-  { value: "fx_transfers", label: "FX Transfers", description: "Foreign exchange and currency conversion", icon: DollarSign },
-  { value: "card_issuing", label: "Card Issuing", description: "Debit, prepaid, or credit card programmes", icon: CreditCard },
-  { value: "marketplace_payouts", label: "Marketplace Payouts", description: "Platform disbursements to merchants or sellers", icon: Briefcase },
-  { value: "crypto_exchange", label: "Crypto Exchange", description: "Fiat-to-crypto or crypto-to-crypto trading", icon: Coins },
-  { value: "lending", label: "Lending", description: "Consumer or business lending products", icon: Landmark },
+  { value: "cross_border_payments", label: PRODUCT_LABEL.cross_border_payments, description: "International fund transfers and FX payments", icon: Globe },
+  { value: "domestic_payments", label: PRODUCT_LABEL.domestic_payments, description: "UK faster payments, BACS, CHAPS", icon: Banknote },
+  { value: "e_money_accounts", label: PRODUCT_LABEL.e_money_accounts, description: "Stored value accounts and prepaid wallets", icon: Wallet },
+  { value: "remittance", label: PRODUCT_LABEL.remittance, description: "Personal money transfers to other countries", icon: Globe },
+  { value: "trade_finance", label: PRODUCT_LABEL.trade_finance, description: "Letters of credit, invoicing, supply chain finance", icon: FileText },
+  { value: "fx_transfers", label: PRODUCT_LABEL.fx_transfers, description: "Foreign exchange and currency conversion", icon: DollarSign },
+  { value: "card_issuing", label: PRODUCT_LABEL.card_issuing, description: "Debit, prepaid, or credit card programmes", icon: CreditCard },
+  { value: "marketplace_payouts", label: PRODUCT_LABEL.marketplace_payouts, description: "Platform disbursements to merchants or sellers", icon: Briefcase },
+  { value: "crypto_exchange", label: PRODUCT_LABEL.crypto_exchange, description: "Fiat-to-crypto or crypto-to-crypto trading", icon: Coins },
+  { value: "lending", label: PRODUCT_LABEL.lending, description: "Consumer or business lending products", icon: Landmark },
 ];
 
 const CUSTOMER_OPTIONS: { value: CustomerType; label: string; description: string; icon: typeof Users }[] = [
-  { value: "individuals", label: "Individuals", description: "Personal accounts and retail customers", icon: UserCheck },
-  { value: "smes", label: "SMEs", description: "Small and medium-sized enterprises", icon: Briefcase },
-  { value: "corporates", label: "Corporates", description: "Large corporate entities and institutions", icon: Building2 },
-  { value: "high_net_worth", label: "High Net Worth Individuals", description: "HNWIs with complex financial arrangements", icon: Crown },
-  { value: "politically_exposed", label: "PEPs & Associates", description: "Politically exposed persons and their associates", icon: Megaphone },
-  { value: "non_profit", label: "Non-Profit / Charities", description: "Charitable organisations and NGOs", icon: Heart },
-  { value: "agents_intermediaries", label: "Agents & Intermediaries", description: "Third-party agents, brokers, and intermediaries", icon: HandshakeIcon },
+  { value: "individuals", label: CUSTOMER_LABEL.individuals, description: "Personal accounts and retail customers", icon: UserCheck },
+  { value: "smes", label: CUSTOMER_LABEL.smes, description: "Small and medium-sized enterprises", icon: Briefcase },
+  { value: "corporates", label: CUSTOMER_LABEL.corporates, description: "Large corporate entities and institutions", icon: Building2 },
+  { value: "high_net_worth", label: CUSTOMER_LABEL.high_net_worth, description: "HNWIs with complex financial arrangements", icon: Crown },
+  { value: "politically_exposed", label: CUSTOMER_LABEL.politically_exposed, description: "Politically exposed persons and their associates", icon: Megaphone },
+  { value: "non_profit", label: CUSTOMER_LABEL.non_profit, description: "Charitable organisations and NGOs", icon: Heart },
+  { value: "agents_intermediaries", label: CUSTOMER_LABEL.agents_intermediaries, description: "Third-party agents, brokers, and intermediaries", icon: HandshakeIcon },
 ];
 
 const RISK_THEME_OPTIONS: { value: RiskTheme; label: string; description: string; icon: typeof AlertTriangle }[] = [
-  { value: "terrorist_financing", label: "Terrorist Financing", description: "Financing of terrorism and related activities", icon: Bomb },
-  { value: "money_laundering", label: "Money Laundering", description: "Placement, layering, and integration of criminal proceeds", icon: DollarSign },
-  { value: "sanctions_evasion", label: "Sanctions Evasion", description: "Circumvention of OFSI, OFAC, EU, or UN sanctions", icon: ShieldOff },
-  { value: "fraud", label: "Fraud", description: "Financial fraud, APP fraud, and deception", icon: AlertTriangle },
-  { value: "tax_evasion", label: "Tax Evasion", description: "Criminal evasion of tax obligations", icon: Scale },
-  { value: "bribery_corruption", label: "Bribery & Corruption", description: "Facilitation of bribery or corrupt payments", icon: Crown },
-  { value: "proliferation_financing", label: "Proliferation Financing", description: "Financing of weapons of mass destruction programmes", icon: SearchIcon },
+  { value: "terrorist_financing", label: RISK_THEME_LABEL.terrorist_financing, description: "Financing of terrorism and related activities", icon: Bomb },
+  { value: "money_laundering", label: RISK_THEME_LABEL.money_laundering, description: "Placement, layering, and integration of criminal proceeds", icon: DollarSign },
+  { value: "sanctions_evasion", label: RISK_THEME_LABEL.sanctions_evasion, description: "Circumvention of OFSI, OFAC, EU, or UN sanctions", icon: ShieldOff },
+  { value: "fraud", label: RISK_THEME_LABEL.fraud, description: "Financial fraud, APP fraud, and deception", icon: AlertTriangle },
+  { value: "tax_evasion", label: RISK_THEME_LABEL.tax_evasion, description: "Criminal evasion of tax obligations", icon: Scale },
+  { value: "bribery_corruption", label: RISK_THEME_LABEL.bribery_corruption, description: "Facilitation of bribery or corrupt payments", icon: Crown },
+  { value: "proliferation_financing", label: RISK_THEME_LABEL.proliferation_financing, description: "Financing of weapons of mass destruction programmes", icon: SearchIcon },
 ];
-
-const RISK_THEME_LABEL: Record<RiskTheme, string> = Object.fromEntries(
-  RISK_THEME_OPTIONS.map((o) => [o.value, o.label])
-) as Record<RiskTheme, string>;
-
-const labels: Record<string, Record<string, string>> = {
-  firmType: Object.fromEntries(FIRM_OPTIONS.map((o) => [o.value, o.label])),
-  product: Object.fromEntries(PRODUCT_OPTIONS.map((o) => [o.value, o.label])),
-  customerType: Object.fromEntries(CUSTOMER_OPTIONS.map((o) => [o.value, o.label])),
-};
 
 function SelectionCount({ count, onClear }: { count: number; onClear: () => void }) {
   return (
@@ -107,14 +101,10 @@ function TypologyIQWizard() {
   // Each param is comma-separated; a single value (e.g. from firm-research)
   // parses cleanly to a one-element array.
   useEffect(() => {
-    const list = <T,>(name: string, alt?: string): T[] => {
-      const raw = searchParams.get(name) ?? (alt ? searchParams.get(alt) : null);
-      return raw ? (raw.split(",").map((v) => v.trim()).filter(Boolean) as T[]) : [];
-    };
-    const firmTypes = list<FirmType>("firmType");
-    const products = list<ProductType>("product");
-    const customerTypes = list<CustomerType>("customerType");
-    const riskThemes = list<RiskTheme>("riskThemes", "riskTheme");
+    const firmTypes = parseListParam(searchParams.get("firmType"), { allow: Object.keys(FIRM_TYPE_LABEL) }) as FirmType[];
+    const products = parseListParam(searchParams.get("product"), { allow: Object.keys(PRODUCT_LABEL) }) as ProductType[];
+    const customerTypes = parseListParam(searchParams.get("customerType"), { allow: Object.keys(CUSTOMER_LABEL) }) as CustomerType[];
+    const riskThemes = parseListParam(searchParams.get("riskThemes") ?? searchParams.get("riskTheme"), { allow: Object.keys(RISK_THEME_LABEL) }) as RiskTheme[];
     if (firmTypes.length || products.length || customerTypes.length || riskThemes.length) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sync wizard selections from deep-link URL params
       setAnswers((a) => ({
@@ -168,13 +158,13 @@ function TypologyIQWizard() {
     setStep((s) => Math.max(0, s - 1));
   }, []);
 
-  const joinLabels = (values: string[], map: Record<string, string>) =>
+  const joinLabels = <T extends string>(values: T[], map: Record<T, string>) =>
     values.length > 0 ? values.map((v) => map[v] ?? v).join(", ") : null;
 
   const previewItems = [
-    { label: "Firm Type", value: joinLabels(answers.firmTypes, labels.firmType) },
-    { label: "Product", value: joinLabels(answers.products, labels.product) },
-    { label: "Customer Type", value: joinLabels(answers.customerTypes, labels.customerType) },
+    { label: "Firm Type", value: joinLabels(answers.firmTypes, FIRM_TYPE_LABEL) },
+    { label: "Product", value: joinLabels(answers.products, PRODUCT_LABEL) },
+    { label: "Customer Type", value: joinLabels(answers.customerTypes, CUSTOMER_LABEL) },
     { label: "Risk Themes", value: joinLabels(answers.riskThemes, RISK_THEME_LABEL) },
   ];
 

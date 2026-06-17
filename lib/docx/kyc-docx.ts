@@ -1,5 +1,5 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } from "docx";
-import { buildMergedRequirements, mergedStatus } from "@/data/kyc/merge";
+import { buildMergedRequirements, mergedStatus, type MergedResult } from "@/data/kyc/merge";
 import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
 import { ENTITY_LABEL, JURISDICTION_LABEL, RISK_LABEL, CATEGORY_TITLE, CATEGORY_ORDER, STATUS_LABEL } from "@/data/kyc/types";
 
@@ -8,6 +8,8 @@ interface KycDocxData {
   jurisdictions: Jurisdiction[];
   risks: RiskLevel[];
   completed?: string[];
+  /** Prebuilt superset (route builds it once); falls back to building from the arrays. */
+  merged?: MergedResult;
 }
 
 const para = (text: string, opts?: { bold?: boolean; italics?: boolean; color?: string; size?: number }) =>
@@ -26,7 +28,7 @@ export async function generateKycDocx(data: KycDocxData): Promise<Buffer> {
   const risks = data.risks.length ? data.risks : (["medium"] as RiskLevel[]);
   const completed = data.completed ?? [];
   const multiJur = jurisdictions.length > 1;
-  const merged = buildMergedRequirements(entities, jurisdictions);
+  const merged = data.merged ?? buildMergedRequirements(entities, jurisdictions);
   const requirements = merged.requirements;
   const collected = requirements.filter((r) => completed.includes(r.key)).length;
 

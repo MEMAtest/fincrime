@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS } from "./shared";
-import { buildMergedRequirements, mergedStatus } from "@/data/kyc/merge";
+import { buildMergedRequirements, mergedStatus, type MergedResult } from "@/data/kyc/merge";
 import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
 import { ENTITY_LABEL, JURISDICTION_LABEL, RISK_LABEL, CATEGORY_TITLE, CATEGORY_ORDER, STATUS_LABEL } from "@/data/kyc/types";
 
@@ -10,6 +10,8 @@ interface KycPDFData {
   jurisdictions: Jurisdiction[];
   risks: RiskLevel[];
   completed?: string[];
+  /** Prebuilt superset (route builds it once); falls back to building from the arrays. */
+  merged?: MergedResult;
 }
 
 export function generateKycPDF(data: KycPDFData): Buffer {
@@ -21,7 +23,7 @@ export function generateKycPDF(data: KycPDFData): Buffer {
 
   let y = addHeader(doc, "KYC / CDD Requirements");
 
-  const merged = buildMergedRequirements(entities, jurisdictions);
+  const merged = data.merged ?? buildMergedRequirements(entities, jurisdictions);
   const requirements = merged.requirements;
 
   doc.setFontSize(14);

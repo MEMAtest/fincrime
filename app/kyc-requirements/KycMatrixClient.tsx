@@ -14,6 +14,7 @@ import SourceBadge from "@/components/shared/SourceBadge";
 import MultiSelect from "@/components/shared/MultiSelect";
 import PDFExportButton from "@/components/shared/PDFExportButton";
 import { buildMergedRequirements, mergedStatus, type MergedRequirement } from "@/data/kyc/merge";
+import { parseListParam } from "@/lib/list-params";
 import type { EntityType, Jurisdiction, RiskLevel, CddCategoryKey, RequirementStatus } from "@/data/kyc/types";
 import {
   ENTITY_ORDER, JURISDICTION_ORDER, ENTITY_LABEL, JURISDICTION_LABEL,
@@ -36,14 +37,6 @@ const STATUS_PILL: Record<string, string> = {
   edd: "bg-risk-high/12 text-risk-high",
 };
 
-function parseList(raw: string, allowed: readonly string[], fallback: string[]): string[] {
-  const out: string[] = [];
-  for (const v of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
-    if (allowed.includes(v) && !out.includes(v)) out.push(v);
-  }
-  return out.length ? out : fallback;
-}
-
 export default function KycMatrixClient({
   entity,
   jurisdiction,
@@ -56,9 +49,9 @@ export default function KycMatrixClient({
   const router = useRouter();
   const pathname = usePathname();
 
-  const ents = useMemo(() => parseList(entity, ENTITY_ORDER as string[], ["corporate"]) as EntityType[], [entity]);
-  const jurs = useMemo(() => parseList(jurisdiction, JURISDICTION_ORDER as string[], ["uk"]) as Jurisdiction[], [jurisdiction]);
-  const rks = useMemo(() => parseList(risk, ["low", "medium", "high"], ["medium"]) as RiskLevel[], [risk]);
+  const ents = useMemo(() => parseListParam(entity, { allow: ENTITY_ORDER, fallback: ["corporate"] }) as EntityType[], [entity]);
+  const jurs = useMemo(() => parseListParam(jurisdiction, { allow: JURISDICTION_ORDER, fallback: ["uk"] }) as Jurisdiction[], [jurisdiction]);
+  const rks = useMemo(() => parseListParam(risk, { allow: ["low", "medium", "high"], fallback: ["medium"] }) as RiskLevel[], [risk]);
 
   const setDim = (dim: "entity" | "jurisdiction" | "risk", values: string[]) => {
     const params = new URLSearchParams();
@@ -468,8 +461,8 @@ export default function KycMatrixClient({
                                     {r.documentGuidance.map((jd) => (
                                       <div key={jd.jurisdiction} className="mt-2">
                                         {multiJur && <p className="text-[11px] font-semibold text-accent mb-1">{JURISDICTION_LABEL[jd.jurisdiction]}</p>}
-                                        {jd.guidance.map((dg, i) => (
-                                          <div key={i} className="mt-1.5 rounded-lg bg-white/5 border border-surface-border p-2">
+                                        {jd.guidance.map((dg) => (
+                                          <div key={`${dg.label}|${dg.source.reference}`} className="mt-1.5 rounded-lg bg-white/5 border border-surface-border p-2">
                                             <p className="text-[11px] font-semibold text-foreground">{dg.label}</p>
                                             <p className="text-xs text-text-muted mt-0.5">{dg.accepted.join(" · ")}</p>
                                             <span className="mt-1 inline-flex"><SourceBadge source={dg.source.org} reference={dg.source.reference} url={dg.source.url} title={dg.source.title} /></span>
@@ -480,8 +473,8 @@ export default function KycMatrixClient({
                                   </Column>
                                   <Column icon={BookOpen} title="Legal basis & guidance">
                                     <div className="flex flex-col items-start gap-2">
-                                      {r.legalBasis.map((s, i) => (
-                                        <div key={i}>
+                                      {r.legalBasis.map((s) => (
+                                        <div key={`${s.org}|${s.reference}`}>
                                           <SourceBadge source={s.org} reference={s.reference} url={s.url} title={s.title} />
                                           <p className="text-[11px] text-text-muted mt-0.5">{s.title}</p>
                                         </div>

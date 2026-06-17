@@ -21,6 +21,7 @@ import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import { getBestMatch, getTopMatches, getRelatedTypologies } from "@/data/scoring/typology-scoring";
 import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL, RISK_THEME_LABEL } from "@/data/typologies/labels";
+import { parseListParam } from "@/lib/list-params";
 import type { FirmType, ProductType, CustomerType, RiskTheme, SourceOrg } from "@/data/typologies/types";
 
 function TypologyResults() {
@@ -33,19 +34,11 @@ function TypologyResults() {
   const answers = useMemo(() => {
     // Validate against the enum (label-map keys) and de-dup, so a hand-edited or
     // stale deep link can't inject junk values that render raw or crash THEME_CONFIG.
-    const list = <T extends string>(name: string, allowed: Record<string, unknown>, alt?: string): T[] => {
-      const raw = searchParams.get(name) ?? (alt ? searchParams.get(alt) : null) ?? "";
-      const out: T[] = [];
-      for (const v of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
-        if (v in allowed && !out.includes(v as T)) out.push(v as T);
-      }
-      return out;
-    };
     return {
-      firmTypes: list<FirmType>("firmType", FIRM_TYPE_LABEL),
-      products: list<ProductType>("product", PRODUCT_LABEL),
-      customerTypes: list<CustomerType>("customerType", CUSTOMER_LABEL),
-      riskThemes: list<RiskTheme>("riskThemes", RISK_THEME_LABEL, "riskTheme"),
+      firmTypes: parseListParam(searchParams.get("firmType"), { allow: Object.keys(FIRM_TYPE_LABEL) }) as FirmType[],
+      products: parseListParam(searchParams.get("product"), { allow: Object.keys(PRODUCT_LABEL) }) as ProductType[],
+      customerTypes: parseListParam(searchParams.get("customerType"), { allow: Object.keys(CUSTOMER_LABEL) }) as CustomerType[],
+      riskThemes: parseListParam(searchParams.get("riskThemes") ?? searchParams.get("riskTheme"), { allow: Object.keys(RISK_THEME_LABEL) }) as RiskTheme[],
     };
   }, [searchParams]);
 

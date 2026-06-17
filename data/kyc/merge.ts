@@ -130,9 +130,13 @@ export function buildMergedRequirements(
         mergeSources(m.legalBasis, r.legalBasis);
 
         if (r.documentGuidance && r.documentGuidance.length) {
-          let jd = m.documentGuidance.find((d) => d.jurisdiction === jurisdiction);
+          // Group by the profile's actual jurisdiction (the docs were resolved for
+          // it). On a FATF fallback this is "global", so fallback cells aren't
+          // mislabelled with the selected jurisdiction's name.
+          const docJur = lookup.profile.jurisdiction;
+          let jd = m.documentGuidance.find((d) => d.jurisdiction === docJur);
           if (!jd) {
-            jd = { jurisdiction, guidance: [] };
+            jd = { jurisdiction: docJur, guidance: [] };
             m.documentGuidance.push(jd);
           }
           for (const dg of r.documentGuidance) {
