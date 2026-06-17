@@ -1,4 +1,5 @@
 import type { CddProfile } from "./types";
+import { buildRequirements } from "./requirements";
 
 function isValidUrl(u: string): boolean {
   try {
@@ -45,9 +46,26 @@ export function findCitationGaps(profiles: CddProfile[]): string[] {
   return errors;
 }
 
+/** Every derived CddRequirement (incl. ongoing-monitoring + EDD triggers) must be cited too. */
+export function findRequirementGaps(profiles: CddProfile[]): string[] {
+  const errors: string[] = [];
+  for (const p of profiles) {
+    for (const r of buildRequirements(p)) {
+      if (!r.legalBasis || r.legalBasis.length === 0) {
+        errors.push(`${p.entityType}/${p.jurisdiction} requirement "${r.title}": no legal basis`);
+        continue;
+      }
+      for (const s of r.legalBasis) {
+        if (!isValidUrl(s.url)) errors.push(`${p.entityType}/${p.jurisdiction} requirement "${r.title}": invalid URL "${s.url}"`);
+      }
+    }
+  }
+  return errors;
+}
+
 /** Throws (failing the build) if any requirement lacks a stored regulatory reference. */
 export function assertAllCited(profiles: CddProfile[]): void {
-  const gaps = findCitationGaps(profiles);
+  const gaps = [...findCitationGaps(profiles), ...findRequirementGaps(profiles)];
   if (gaps.length > 0) {
     throw new Error(
       `KYC citation gate failed: ${gaps.length} requirement(s) lack a stored regulatory reference.\n` +

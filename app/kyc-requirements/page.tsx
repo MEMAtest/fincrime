@@ -4,16 +4,21 @@ import KycMatrixClient from "./KycMatrixClient";
 export const metadata: Metadata = {
   title: "KYC / CDD Requirements Matrix",
   description:
-    "By entity type and jurisdiction: the CDD information you must collect, what the rules say (cited to the primary source), and the EDD triggers. UK, US, EU, Germany, France, Singapore, Hong Kong and the FATF baseline.",
+    "Build a tailored view of applicable KYC and CDD requirements by entity type, jurisdiction and risk context. Every requirement is mapped to its primary-source regulatory reference. UK, US, EU, Germany, France, Singapore, Hong Kong and the FATF baseline.",
 };
 
 export default async function KycRequirementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ jurisdiction?: string | string[]; risk?: string | string[] }>;
+  searchParams: Promise<{ entity?: string | string[]; jurisdiction?: string | string[]; risk?: string | string[] }>;
 }) {
   const sp = await searchParams;
-  const j = Array.isArray(sp.jurisdiction) ? sp.jurisdiction[0] : sp.jurisdiction;
-  const r = Array.isArray(sp.risk) ? sp.risk[0] : sp.risk;
-  return <KycMatrixClient initialJurisdiction={j ?? "uk"} initialRisk={r ?? "all"} />;
+  const pick = (v?: string | string[]) => (Array.isArray(v) ? v[0] : v);
+  return (
+    <KycMatrixClient
+      entity={pick(sp.entity) ?? "corporate"}
+      jurisdiction={pick(sp.jurisdiction) ?? "uk"}
+      risk={pick(sp.risk) ?? "medium"}
+    />
+  );
 }

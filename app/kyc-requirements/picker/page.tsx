@@ -78,7 +78,7 @@ export default function KycPickerPage() {
         jurisdiction: answers.jurisdiction!,
         risk: answers.risk!,
       });
-      router.push(`/kyc-requirements/results?${params.toString()}`);
+      router.push(`/kyc-requirements?${params.toString()}`);
     } else {
       setStep((s) => s + 1);
     }

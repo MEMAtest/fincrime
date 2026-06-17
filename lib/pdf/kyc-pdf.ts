@@ -1,25 +1,19 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS } from "./shared";
+import { buildRequirements } from "@/data/kyc";
 import type { CddProfile, RiskLevel } from "@/data/kyc/types";
-import { ENTITY_LABEL, JURISDICTION_LABEL, JURISDICTION_REGULATOR, SECTION_TITLE, RISK_LABEL } from "@/data/kyc/types";
-
-type RiskFilter = "all" | RiskLevel;
+import { ENTITY_LABEL, JURISDICTION_LABEL, JURISDICTION_REGULATOR, RISK_LABEL, CATEGORY_TITLE, CATEGORY_ORDER, statusFor, STATUS_LABEL } from "@/data/kyc/types";
 
 interface KycPDFData {
   profile: CddProfile;
   fallback: boolean;
-  risk: RiskFilter;
+  risk: "all" | RiskLevel;
 }
-
-const refOf = (sources: { org: string; reference: string }[]) =>
-  sources.map((s) => `${s.org} ${s.reference}`).join("; ");
-
-const riskCell = (levels: RiskLevel[]) =>
-  levels.length === 3 ? "All" : levels.map((l) => RISK_LABEL[l].replace(" Risk", "")).join(", ");
 
 export function generateKycPDF(data: KycPDFData): Buffer {
   const { profile, fallback, risk } = data;
+  const rk: RiskLevel = risk === "all" ? "medium" : risk;
   const doc = new jsPDF();
 
   let y = addHeader(doc, "KYC / CDD Requirements");
@@ -27,7 +21,7 @@ export function generateKycPDF(data: KycPDFData): Buffer {
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(MEMA_COLORS.text);
-  doc.text(`${ENTITY_LABEL[profile.entityType]} — ${JURISDICTION_LABEL[profile.jurisdiction]}`, 20, y);
+  doc.text(`${ENTITY_LABEL[profile.entityType]} - ${JURISDICTION_LABEL[profile.jurisdiction]} - ${RISK_LABEL[rk]}`, 20, y);
   y += 6;
 
   doc.setFontSize(9);
@@ -36,17 +30,21 @@ export function generateKycPDF(data: KycPDFData): Buffer {
   doc.text(JURISDICTION_REGULATOR[profile.jurisdiction] + (fallback ? "  (FATF baseline shown)" : ""), 20, y);
   y += 8;
 
-  // Key facts
+  const requirements = buildRequirements(profile);
+
+  // Summary
+  const nonEdd = requirements.filter((r) => !r.eddTrigger);
+  const summary = [
+    ["Total requirements", String(requirements.length)],
+    ["Required", String(nonEdd.filter((r) => statusFor(r, rk) === "required").length)],
+    ["Conditional", String(nonEdd.filter((r) => statusFor(r, rk) === "conditional").length)],
+    ["Not applicable", String(nonEdd.filter((r) => statusFor(r, rk) === "not_applicable").length)],
+    ["EDD triggers", String(requirements.length - nonEdd.length)],
+    ["Beneficial ownership", profile.boThreshold],
+  ];
   autoTable(doc, {
     startY: y,
-    head: [["", ""]],
-    body: [
-      ["Inherent risk", profile.inherentRisk === "varies" ? "Varies" : RISK_LABEL[profile.inherentRisk]],
-      ["Beneficial ownership", profile.boThreshold],
-      ["Simplified due diligence", profile.sddEligibility],
-      ...(profile.exemptionNote ? [["Exemption", profile.exemptionNote]] : []),
-      ["Overarching basis", profile.regulatoryBasis.map((s) => `${s.org} ${s.reference}`).join("; ")],
-    ],
+    body: summary,
     theme: "plain",
     styles: { fontSize: 8, cellPadding: 1.5 },
     columnStyles: { 0: { fontStyle: "bold", cellWidth: 45 }, 1: { cellWidth: 125 } },
@@ -54,50 +52,29 @@ export function generateKycPDF(data: KycPDFData): Buffer {
   // @ts-expect-error jspdf-autotable adds lastAutoTable
   y = doc.lastAutoTable.finalY + 8;
 
-  const show = (levels: RiskLevel[]) => risk === "all" || levels.includes(risk);
-
-  for (const section of profile.sections) {
-    const items = section.items.filter((i) => show(i.appliesAtRisk));
-    if (items.length === 0) continue;
+  for (const cat of CATEGORY_ORDER) {
+    const reqs = requirements.filter((r) => r.category === cat);
+    if (reqs.length === 0) continue;
     y = checkPageBreak(doc, y, 40);
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(MEMA_COLORS.text);
-    doc.text(SECTION_TITLE[section.key], 20, y);
+    doc.text(CATEGORY_TITLE[cat], 20, y);
     y += 3;
 
     autoTable(doc, {
       startY: y,
-      head: [["Requirement", "Applies", "Regulatory reference"]],
-      body: items.map((i) => [
-        i.text + (i.threshold ? ` (${i.threshold})` : "") + (i.conditional ? ` — ${i.conditional}` : ""),
-        riskCell(i.appliesAtRisk),
-        refOf(i.sources),
+      head: [["Requirement", "What to collect", "Legal basis", "Status"]],
+      body: reqs.map((r) => [
+        `${r.title}\n${r.whatItMeans}`,
+        r.whatToCollect.map((w) => `- ${w}`).join("\n"),
+        r.legalBasis.map((s) => `${s.org} ${s.reference}`).join("\n"),
+        r.eddTrigger ? "EDD trigger" : STATUS_LABEL[statusFor(r, rk)],
       ]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff", fontSize: 8 },
-      styles: { fontSize: 7.5, cellPadding: 1.5, valign: "top" },
-      columnStyles: { 0: { cellWidth: 95 }, 1: { cellWidth: 20 }, 2: { cellWidth: 55 } },
-    });
-    // @ts-expect-error jspdf-autotable adds lastAutoTable
-    y = doc.lastAutoTable.finalY + 6;
-  }
-
-  if (profile.eddTriggers.length > 0) {
-    y = checkPageBreak(doc, y, 40);
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(MEMA_COLORS.text);
-    doc.text("Enhanced Due Diligence triggers", 20, y);
-    y += 3;
-    autoTable(doc, {
-      startY: y,
-      head: [["Trigger", "Required measure", "Reference"]],
-      body: profile.eddTriggers.map((t) => [t.trigger, t.action, refOf(t.sources)]),
-      theme: "grid",
-      headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff", fontSize: 8 },
-      styles: { fontSize: 7.5, cellPadding: 1.5, valign: "top" },
-      columnStyles: { 0: { cellWidth: 55 }, 1: { cellWidth: 75 }, 2: { cellWidth: 40 } },
+      styles: { fontSize: 7, cellPadding: 1.5, valign: "top" },
+      columnStyles: { 0: { cellWidth: 70 }, 1: { cellWidth: 55 }, 2: { cellWidth: 30 }, 3: { cellWidth: 15 } },
     });
     // @ts-expect-error jspdf-autotable adds lastAutoTable
     y = doc.lastAutoTable.finalY + 6;
@@ -108,7 +85,7 @@ export function generateKycPDF(data: KycPDFData): Buffer {
   doc.setFont("helvetica", "italic");
   doc.setTextColor(120, 120, 120);
   const disclaimer = doc.splitTextToSize(
-    "Reference summary only, not legal advice. Verify against the cited primary source. Incoming changes (e.g. EU AMLR from 2027) are tagged where relevant.",
+    "Guidance only, not legal advice. Use alongside your organisation's policies and verify against the cited primary source. Incoming changes (e.g. EU AMLR from 2027) are tagged where relevant.",
     170
   );
   doc.text(disclaimer, 20, y);

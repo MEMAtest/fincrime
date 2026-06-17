@@ -85,4 +85,5 @@ export function listProfiles(jurisdiction: Jurisdiction): ProfileLookup[] {
     .filter((x): x is ProfileLookup => x !== null);
 }
 
+export { buildRequirements } from "./requirements";
 export type { CddProfile } from "./types";

@@ -93,6 +93,13 @@ export const SRC = {
   hk_amlo_bo: { org: "HKMA", reference: "AMLO Sch. 2 s.1", title: "Beneficial owner definition (>25%)", url: "https://www.elegislation.gov.hk/hk/cap615" },
   hk_hkma_gl: { org: "HKMA", reference: "HKMA AML/CFT Guideline ch.4", title: "CDD guidance for authorised institutions", url: "https://www.hkma.gov.hk/eng/key-functions/banking/anti-money-laundering-and-counter-financing-of-terrorism/" },
   hk_sfc_gl: { org: "SFC", reference: "SFC AML/CFT Guideline", title: "CDD guidance for licensed corporations", url: "https://www.sfc.hk/en/Rules-and-standards/Anti-money-laundering-and-counter-financing-of-terrorism" },
+
+  /* ── Ongoing monitoring (per jurisdiction) ───────── */
+  uk_mlr_ongoing: { org: "MLR", reference: "reg. 28(11)", title: "Ongoing monitoring of the business relationship", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/28" },
+  us_cdd_ongoing: { org: "FinCEN", reference: "31 CFR 1010.230(a)(5)", title: "Ongoing monitoring (CDD Rule pillar)", url: "https://www.law.cornell.edu/cfr/text/31/1010.230" },
+  eu_amld_ongoing: { org: "EU", reference: "AMLD5 Art. 13(1)(d)", title: "Ongoing monitoring of the business relationship", url: "https://eur-lex.europa.eu/eli/dir/2015/849/oj/eng" },
+  de_gwg_ongoing: { org: "BaFin", reference: "GwG §10(1) Nr.5", title: "Continuous monitoring (Allgemeine Sorgfaltspflichten)", url: "https://www.gesetze-im-internet.de/gwg_2017/__10.html" },
+  sg_n626_ongoing: { org: "MAS", reference: "Notice 626 §11", title: "Ongoing monitoring of transactions and customers", url: "https://www.mas.gov.sg/regulation/notices/notice-626" },
 } as const satisfies Record<string, Source>;
 
 export type SourceKey = keyof typeof SRC;

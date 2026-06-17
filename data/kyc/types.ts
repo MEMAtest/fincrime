@@ -149,6 +149,67 @@ export const RISK_LABEL: Record<RiskLevel, string> = {
   high: "Higher Risk",
 };
 
+/* ── Categories (display grouping for the Matrix view) ── */
+
+export type CddCategoryKey =
+  | "identification_verification"
+  | "beneficial_ownership_control"
+  | "purpose_nature"
+  | "ongoing_monitoring"
+  | "additional_other";
+
+export const CATEGORY_TITLE: Record<CddCategoryKey, string> = {
+  identification_verification: "Identification & Verification",
+  beneficial_ownership_control: "Beneficial Ownership & Control",
+  purpose_nature: "Purpose & Intended Nature of Business Relationship",
+  ongoing_monitoring: "Ongoing Monitoring",
+  additional_other: "Additional / Other Considerations",
+};
+
+export const CATEGORY_ORDER: CddCategoryKey[] = [
+  "identification_verification",
+  "beneficial_ownership_control",
+  "purpose_nature",
+  "ongoing_monitoring",
+  "additional_other",
+];
+
+/** A rendered requirement for the Matrix UI, derived from a profile's sections. */
+export interface CddRequirement {
+  id: string;
+  category: CddCategoryKey;
+  title: string;
+  /** Plain-English "what this means" rationale. */
+  whatItMeans: string;
+  /** The specific data/documents to collect. */
+  whatToCollect: string[];
+  /** Example evidence that satisfies the requirement. */
+  evidence: string[];
+  /** The cited primary-source provisions (non-empty). */
+  legalBasis: Source[];
+  /** Risk levels at which this requirement applies. */
+  appliesAtRisk: RiskLevel[];
+  /** Set when the requirement only applies in certain circumstances. */
+  conditional?: string;
+  /** True when this requirement is itself an EDD trigger / enhanced measure. */
+  eddTrigger: boolean;
+}
+
+export type RequirementStatus = "required" | "conditional" | "not_applicable";
+
+export const STATUS_LABEL: Record<RequirementStatus, string> = {
+  required: "Required",
+  conditional: "Conditional",
+  not_applicable: "Not applicable",
+};
+
+/** Derive a requirement's status for a selected risk level. */
+export function statusFor(req: CddRequirement, risk: RiskLevel): RequirementStatus {
+  if (!req.appliesAtRisk.includes(risk)) return "not_applicable";
+  if (req.conditional) return "conditional";
+  return "required";
+}
+
 export const SECTION_TITLE: Record<CddSectionKey, string> = {
   identity: "Identity",
   legal_entity: "Legal Entity",
