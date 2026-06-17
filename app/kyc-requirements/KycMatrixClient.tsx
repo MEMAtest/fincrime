@@ -5,11 +5,14 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   Building2, Globe2, ShieldCheck, ChevronDown, ChevronRight, Search, RotateCcw,
   CheckCircle2, HelpCircle, MinusCircle, AlertTriangle, FileText, ClipboardList, BookOpen, FileCheck2,
+  Share2, Check,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import Button from "@/components/ui/Button";
 import SourceBadge from "@/components/shared/SourceBadge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
+import SavedViews from "./SavedViews";
 import { getCddProfile, buildRequirements } from "@/data/kyc";
 import type { EntityType, Jurisdiction, RiskLevel, CddRequirement, CddCategoryKey } from "@/data/kyc/types";
 import {
@@ -62,6 +65,15 @@ export default function KycMatrixClient({
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [copied, setCopied] = useState(false);
+
+  const share = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* clipboard unavailable */ }
+  };
   const [openCats, setOpenCats] = useState<Set<CddCategoryKey>>(new Set(CATEGORY_ORDER));
   const [openReqs, setOpenReqs] = useState<Set<string>>(() => {
     const first = buildRequirements(profile)[0];
@@ -134,7 +146,14 @@ export default function KycMatrixClient({
                 Every requirement is mapped to its primary-source regulatory reference.
               </p>
             </div>
-            <PDFExportButton module="kyc_requirements" assessmentData={{ entity: ent, jurisdiction: jur, risk: rk }} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button variant="secondary" size="sm" onClick={share}>
+                {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
+                {copied ? "Copied" : "Share"}
+              </Button>
+              <SavedViews entity={ent} jurisdiction={jur} risk={rk} />
+              <PDFExportButton module="kyc_requirements" assessmentData={{ entity: ent, jurisdiction: jur, risk: rk }} formats={["pdf", "docx"]} />
+            </div>
           </div>
 
           {/* Selector bar */}

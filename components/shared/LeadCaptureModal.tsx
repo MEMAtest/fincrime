@@ -5,7 +5,7 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { Download, Loader2 } from "lucide-react";
-import type { PDFModule } from "./PDFExportButton";
+import type { PDFModule, ExportFormat } from "./PDFExportButton";
 
 const MODULE_LABEL: Record<PDFModule, string> = {
   typology_iq: "TypologyIQ",
@@ -20,6 +20,7 @@ interface LeadCaptureModalProps {
   onClose: () => void;
   module: PDFModule;
   assessmentData: Record<string, unknown>;
+  format?: ExportFormat;
   onSuccess?: () => void;
 }
 
@@ -28,8 +29,11 @@ export default function LeadCaptureModal({
   onClose,
   module,
   assessmentData,
+  format = "pdf",
   onSuccess,
 }: LeadCaptureModalProps) {
+  const ext = format === "docx" ? "docx" : "pdf";
+  const docLabel = format === "docx" ? "Word document" : "PDF";
   const [form, setForm] = useState({
     email: "",
     name: "",
@@ -65,7 +69,7 @@ export default function LeadCaptureModal({
 
       if (!leadRes.ok) throw new Error("Failed to submit");
 
-      // 2. Generate and download PDF
+      // 2. Generate and download the document
       const pdfRes = await fetch("/api/export/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,6 +77,7 @@ export default function LeadCaptureModal({
           module,
           assessmentData,
           email: form.email,
+          format,
         }),
       });
 
@@ -81,7 +86,7 @@ export default function LeadCaptureModal({
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `MEMA-FinCrime-${MODULE_LABEL[module]}-${new Date().toISOString().split("T")[0]}.pdf`;
+        a.download = `MEMA-FinCrime-${MODULE_LABEL[module]}-${new Date().toISOString().split("T")[0]}.${ext}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -104,7 +109,7 @@ export default function LeadCaptureModal({
           <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
             <Download className="h-6 w-6 text-emerald-600" />
           </div>
-          <p className="text-slate-700 mb-2">Your PDF has been downloaded.</p>
+          <p className="text-slate-700 mb-2">Your {docLabel} has been downloaded.</p>
           <p className="text-sm text-slate-500">
             A copy has also been sent to your email.
           </p>
@@ -117,7 +122,7 @@ export default function LeadCaptureModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Download PDF Report">
+    <Modal open={open} onClose={onClose} title={`Download ${docLabel}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           label="Email address *"
@@ -154,7 +159,7 @@ export default function LeadCaptureModal({
             className="mt-1 rounded border-slate-300 text-accent focus:ring-accent"
           />
           <span className="text-xs text-slate-500">
-            I'd like to receive occasional FinCrime insights from MEMA Consultants.
+            I&apos;d like to receive occasional FinCrime insights from MEMA Consultants.
           </span>
         </label>
 
@@ -166,18 +171,18 @@ export default function LeadCaptureModal({
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              Generating PDF...
+              Generating {docLabel}...
             </>
           ) : (
             <>
               <Download className="h-4 w-4" />
-              Download PDF
+              Download {docLabel}
             </>
           )}
         </Button>
 
         <p className="text-xs text-slate-400 text-center">
-          By downloading, you agree to MEMA's privacy policy.
+          By downloading, you agree to MEMA&apos;s privacy policy.
         </p>
       </form>
     </Modal>

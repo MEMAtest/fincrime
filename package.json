@@ -12,6 +12,7 @@
     "@aws-sdk/client-ses": "^3.1045.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
+    "docx": "^9.7.1",
     "framer-motion": "^12.38.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",

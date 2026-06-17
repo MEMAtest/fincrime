@@ -4,6 +4,7 @@ import { generatePartnerPDF } from "@/lib/pdf/partner-pdf";
 import { generateScreeningPDF } from "@/lib/pdf/screening-pdf";
 import { generateMaturityPDF } from "@/lib/pdf/maturity-pdf";
 import { generateKycPDF } from "@/lib/pdf/kyc-pdf";
+import { generateKycDocx } from "@/lib/docx/kyc-docx";
 import { getCddProfile } from "@/data/kyc";
 import { ENTITY_ORDER, JURISDICTION_ORDER } from "@/data/kyc/types";
 import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
@@ -27,7 +28,7 @@ const MODULE_TITLE: Record<string, string> = {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { module, assessmentData, email } = body;
+    const { module, assessmentData, email, format } = body;
 
     if (!module || !assessmentData) {
       return NextResponse.json({ error: "Missing module or assessmentData" }, { status: 400 });
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
 
     let pdfBuffer: Buffer;
     let filename: string;
+    let contentType = "application/pdf";
 
     if (module === "typology_iq") {
       const { firmType, product, customerType, riskThemes, riskTheme, narrative } = assessmentData as {
@@ -139,8 +141,15 @@ export async function POST(request: NextRequest) {
       if (!lookup) {
         return NextResponse.json({ error: "No matching CDD profile" }, { status: 404 });
       }
-      pdfBuffer = generateKycPDF({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel });
-      filename = `MEMA-KYC-${entity}-${jurisdiction}-${new Date().toISOString().split("T")[0]}.pdf`;
+      const date = new Date().toISOString().split("T")[0];
+      if (format === "docx") {
+        pdfBuffer = await generateKycDocx({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel });
+        contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        filename = `MEMA-KYC-${entity}-${jurisdiction}-${date}.docx`;
+      } else {
+        pdfBuffer = generateKycPDF({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel });
+        filename = `MEMA-KYC-${entity}-${jurisdiction}-${date}.pdf`;
+      }
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }
@@ -182,7 +191,7 @@ export async function POST(request: NextRequest) {
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
-        "Content-Type": "application/pdf",
+        "Content-Type": contentType,
         "Content-Disposition": `attachment; filename="${filename}"`,
       },
     });
