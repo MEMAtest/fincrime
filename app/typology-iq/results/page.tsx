@@ -20,6 +20,7 @@ import PDFExportButton from "@/components/shared/PDFExportButton";
 import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import { getBestMatch, getTopMatches, getRelatedTypologies } from "@/data/scoring/typology-scoring";
+import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL } from "@/data/typologies/labels";
 import type { FirmType, ProductType, CustomerType, RiskTheme, SourceOrg } from "@/data/typologies/types";
 
 function TypologyResults() {
@@ -30,28 +31,27 @@ function TypologyResults() {
   const [showAllWorkflow, setShowAllWorkflow] = useState(false);
 
   const answers = useMemo(() => {
-    const themesParam = searchParams.get("riskThemes") ?? searchParams.get("riskTheme") ?? "";
-    const riskThemes = themesParam
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean) as RiskTheme[];
+    const list = <T,>(name: string, alt?: string): T[] => {
+      const raw = searchParams.get(name) ?? (alt ? searchParams.get(alt) : null) ?? "";
+      return raw.split(",").map((v) => v.trim()).filter(Boolean) as T[];
+    };
     return {
-      firmType: searchParams.get("firmType") as FirmType,
-      product: searchParams.get("product") as ProductType,
-      customerType: searchParams.get("customerType") as CustomerType,
-      riskThemes,
+      firmTypes: list<FirmType>("firmType"),
+      products: list<ProductType>("product"),
+      customerTypes: list<CustomerType>("customerType"),
+      riskThemes: list<RiskTheme>("riskThemes", "riskTheme"),
     };
   }, [searchParams]);
 
   const result = useMemo(() => {
-    if (!answers.firmType || !answers.product || !answers.customerType || answers.riskThemes.length === 0) {
+    if (!answers.firmTypes.length || !answers.products.length || !answers.customerTypes.length || !answers.riskThemes.length) {
       return null;
     }
     return getBestMatch(answers);
   }, [answers]);
 
   const topMatches = useMemo(() => {
-    if (!answers.firmType) return [];
+    if (!answers.firmTypes.length) return [];
     return getTopMatches(answers, 3);
   }, [answers]);
 
@@ -62,6 +62,7 @@ function TypologyResults() {
 
   useEffect(() => {
     if (!result) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- start loading state before the async narrative fetch
     setNarrativeLoading(true);
     fetch("/api/typology/narrative", {
       method: "POST",
@@ -70,9 +71,9 @@ function TypologyResults() {
         typologyTitle: result.typology.title,
         typologyDescription: result.typology.description,
         controlObjective: result.typology.controlObjective,
-        firmType: answers.firmType,
-        product: answers.product,
-        customerType: answers.customerType,
+        firmTypes: answers.firmTypes,
+        products: answers.products,
+        customerTypes: answers.customerTypes,
         riskThemes: answers.riskThemes,
         score: result.score,
       }),
@@ -124,6 +125,29 @@ function TypologyResults() {
         />
       </div>
 
+      {/* Profile Assessed (multi-select) */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        {[
+          { label: "Firm Types", values: answers.firmTypes.map((v) => FIRM_TYPE_LABEL[v] ?? v) },
+          { label: "Products", values: answers.products.map((v) => PRODUCT_LABEL[v] ?? v) },
+          { label: "Customer Types", values: answers.customerTypes.map((v) => CUSTOMER_LABEL[v] ?? v) },
+        ].map((group) => (
+          <div key={group.label}>
+            <p className="text-xs text-text-muted uppercase tracking-wider mb-2">{group.label}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {group.values.map((v) => (
+                <span
+                  key={v}
+                  className="inline-flex items-center px-2.5 py-1 rounded-full border border-white/10 bg-white/[0.03] text-xs text-foreground"
+                >
+                  {v}
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Selected Risk Themes */}
       {answers.riskThemes.length > 0 && (
         <div className="mb-6">
@@ -165,7 +189,7 @@ function TypologyResults() {
             </p>
             <div className="flex flex-wrap gap-2 mt-4">
               {typology.sources.map((s) => (
-                <SourceBadge key={s.reference} source={s.org as SourceOrg} reference={s.reference} url={s.url} />
+                <SourceBadge key={s.reference} source={s.org as SourceOrg} reference={s.reference} url={s.url} title={s.title} />
               ))}
             </div>
           </div>

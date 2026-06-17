@@ -1,50 +1,61 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS } from "./shared";
-import { buildRequirements } from "@/data/kyc";
-import type { CddProfile, RiskLevel } from "@/data/kyc/types";
-import { ENTITY_LABEL, JURISDICTION_LABEL, JURISDICTION_REGULATOR, RISK_LABEL, CATEGORY_TITLE, CATEGORY_ORDER, statusFor, STATUS_LABEL } from "@/data/kyc/types";
+import { buildMergedRequirements, mergedStatus } from "@/data/kyc/merge";
+import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
+import { ENTITY_LABEL, JURISDICTION_LABEL, RISK_LABEL, CATEGORY_TITLE, CATEGORY_ORDER, STATUS_LABEL } from "@/data/kyc/types";
 
 interface KycPDFData {
-  profile: CddProfile;
-  fallback: boolean;
-  risk: "all" | RiskLevel;
+  entities: EntityType[];
+  jurisdictions: Jurisdiction[];
+  risks: RiskLevel[];
   completed?: string[];
 }
 
 export function generateKycPDF(data: KycPDFData): Buffer {
-  const { profile, fallback, risk } = data;
+  const { entities, jurisdictions } = data;
+  const risks = data.risks.length ? data.risks : (["medium"] as RiskLevel[]);
   const completed = data.completed ?? [];
-  const rk: RiskLevel = risk === "all" ? "medium" : risk;
+  const multiJur = jurisdictions.length > 1;
   const doc = new jsPDF();
 
   let y = addHeader(doc, "KYC / CDD Requirements");
 
+  const merged = buildMergedRequirements(entities, jurisdictions);
+  const requirements = merged.requirements;
+
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(MEMA_COLORS.text);
-  doc.text(`${ENTITY_LABEL[profile.entityType]} - ${JURISDICTION_LABEL[profile.jurisdiction]} - ${RISK_LABEL[rk]}`, 20, y);
+  doc.text(
+    `${entities.map((e) => ENTITY_LABEL[e]).join(", ")} - ${jurisdictions.map((j) => JURISDICTION_LABEL[j]).join(", ")}`,
+    20,
+    y
+  );
   y += 6;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text(JURISDICTION_REGULATOR[profile.jurisdiction] + (fallback ? "  (FATF baseline shown)" : ""), 20, y);
+  doc.text(
+    `Risk context: ${risks.map((r) => RISK_LABEL[r]).join(", ")}` +
+      (merged.anyFallback ? "  (FATF baseline used where a cell is not authored)" : ""),
+    20,
+    y
+  );
   y += 8;
-
-  const requirements = buildRequirements(profile);
 
   // Summary
   const nonEdd = requirements.filter((r) => !r.eddTrigger);
-  const collected = requirements.filter((r) => completed.includes(r.id)).length;
+  const collected = requirements.filter((r) => completed.includes(r.key)).length;
   const summary = [
+    ["Scenarios combined", String(merged.scenarios.length)],
     ["Total requirements", String(requirements.length)],
     ["Collected (this session)", `${collected} of ${requirements.length}`],
-    ["Required", String(nonEdd.filter((r) => statusFor(r, rk) === "required").length)],
-    ["Conditional", String(nonEdd.filter((r) => statusFor(r, rk) === "conditional").length)],
-    ["Not applicable", String(nonEdd.filter((r) => statusFor(r, rk) === "not_applicable").length)],
+    ["Required", String(nonEdd.filter((r) => mergedStatus(r, risks) === "required").length)],
+    ["Conditional", String(nonEdd.filter((r) => mergedStatus(r, risks) === "conditional").length)],
+    ["Not applicable", String(nonEdd.filter((r) => mergedStatus(r, risks) === "not_applicable").length)],
     ["EDD triggers", String(requirements.length - nonEdd.length)],
-    ["Beneficial ownership", profile.boThreshold],
   ];
   autoTable(doc, {
     startY: y,
@@ -71,9 +82,16 @@ export function generateKycPDF(data: KycPDFData): Buffer {
       head: [["Requirement", "What to collect", "Legal basis", "Status"]],
       body: reqs.map((r) => [
         `${r.title}\n${r.ruleSummary ?? r.whatItMeans}`,
-        [...r.whatToCollect.map((w) => `- ${w}`), ...(r.documentGuidance?.map((d) => `${d.label}: ${d.accepted.join(", ")}`) ?? [])].join("\n"),
+        [
+          ...r.whatToCollect.map((w) => `- ${w}`),
+          ...r.documentGuidance.flatMap((jd) =>
+            jd.guidance.map(
+              (d) => `${multiJur ? `[${JURISDICTION_LABEL[jd.jurisdiction]}] ` : ""}${d.label}: ${d.accepted.join(", ")}`
+            )
+          ),
+        ].join("\n"),
         r.legalBasis.map((s) => `${s.org} ${s.reference}`).join("\n"),
-        completed.includes(r.id) ? "Collected" : r.eddTrigger ? "EDD trigger" : STATUS_LABEL[statusFor(r, rk)],
+        completed.includes(r.key) ? "Collected" : r.eddTrigger ? "EDD trigger" : STATUS_LABEL[mergedStatus(r, risks)],
       ]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff", fontSize: 8 },

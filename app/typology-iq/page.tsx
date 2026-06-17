@@ -74,55 +74,76 @@ const labels: Record<string, Record<string, string>> = {
   customerType: Object.fromEntries(CUSTOMER_OPTIONS.map((o) => [o.value, o.label])),
 };
 
+function SelectionCount({ count, onClear }: { count: number; onClear: () => void }) {
+  return (
+    <div className="mb-3 flex items-center justify-between text-xs text-text-muted">
+      <span>{count} selected</span>
+      {count > 0 && (
+        <button type="button" onClick={onClear} className="text-accent hover:underline cursor-pointer">
+          Clear all
+        </button>
+      )}
+    </div>
+  );
+}
+
 function TypologyIQWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<{
-    firmType: FirmType | null;
-    product: ProductType | null;
-    customerType: CustomerType | null;
+    firmTypes: FirmType[];
+    products: ProductType[];
+    customerTypes: CustomerType[];
     riskThemes: RiskTheme[];
   }>({
-    firmType: null,
-    product: null,
-    customerType: null,
+    firmTypes: [],
+    products: [],
+    customerTypes: [],
     riskThemes: [],
   });
 
   // Allow firm-research and list pages to deep-link prefilled selections.
+  // Each param is comma-separated; a single value (e.g. from firm-research)
+  // parses cleanly to a one-element array.
   useEffect(() => {
-    const firmType = searchParams.get("firmType") as FirmType | null;
-    const product = searchParams.get("product") as ProductType | null;
-    const customerType = searchParams.get("customerType") as CustomerType | null;
-    const themesParam = searchParams.get("riskThemes") ?? searchParams.get("riskTheme");
-    const riskThemes = themesParam
-      ? (themesParam.split(",").filter(Boolean) as RiskTheme[])
-      : [];
-    if (firmType || product || customerType || riskThemes.length > 0) {
+    const list = <T,>(name: string, alt?: string): T[] => {
+      const raw = searchParams.get(name) ?? (alt ? searchParams.get(alt) : null);
+      return raw ? (raw.split(",").map((v) => v.trim()).filter(Boolean) as T[]) : [];
+    };
+    const firmTypes = list<FirmType>("firmType");
+    const products = list<ProductType>("product");
+    const customerTypes = list<CustomerType>("customerType");
+    const riskThemes = list<RiskTheme>("riskThemes", "riskTheme");
+    if (firmTypes.length || products.length || customerTypes.length || riskThemes.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync wizard selections from deep-link URL params
       setAnswers((a) => ({
-        firmType: firmType ?? a.firmType,
-        product: product ?? a.product,
-        customerType: customerType ?? a.customerType,
-        riskThemes: riskThemes.length > 0 ? riskThemes : a.riskThemes,
+        firmTypes: firmTypes.length ? firmTypes : a.firmTypes,
+        products: products.length ? products : a.products,
+        customerTypes: customerTypes.length ? customerTypes : a.customerTypes,
+        riskThemes: riskThemes.length ? riskThemes : a.riskThemes,
       }));
     }
   }, [searchParams]);
 
-  const toggleTheme = useCallback((theme: RiskTheme) => {
-    setAnswers((a) => ({
-      ...a,
-      riskThemes: a.riskThemes.includes(theme)
-        ? a.riskThemes.filter((t) => t !== theme)
-        : [...a.riskThemes, theme],
-    }));
+  const toggle = useCallback(<K extends "firmTypes" | "products" | "customerTypes" | "riskThemes">(
+    key: K,
+    value: string,
+  ) => {
+    setAnswers((a) => {
+      const current = a[key] as string[];
+      const next = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      return { ...a, [key]: next } as typeof a;
+    });
   }, []);
 
   const canGoNext = useCallback(() => {
     switch (step) {
-      case 0: return !!answers.firmType;
-      case 1: return !!answers.product;
-      case 2: return !!answers.customerType;
+      case 0: return answers.firmTypes.length > 0;
+      case 1: return answers.products.length > 0;
+      case 2: return answers.customerTypes.length > 0;
       case 3: return answers.riskThemes.length > 0;
       case 4: return true;
       default: return false;
@@ -132,9 +153,9 @@ function TypologyIQWizard() {
   const handleNext = useCallback(() => {
     if (step === STEPS.length - 1) {
       const params = new URLSearchParams({
-        firmType: answers.firmType!,
-        product: answers.product!,
-        customerType: answers.customerType!,
+        firmType: answers.firmTypes.join(","),
+        product: answers.products.join(","),
+        customerType: answers.customerTypes.join(","),
         riskThemes: answers.riskThemes.join(","),
       });
       router.push(`/typology-iq/results?${params.toString()}`);
@@ -147,15 +168,14 @@ function TypologyIQWizard() {
     setStep((s) => Math.max(0, s - 1));
   }, []);
 
-  const themesLabel = answers.riskThemes.length > 0
-    ? answers.riskThemes.map((t) => RISK_THEME_LABEL[t]).join(", ")
-    : null;
+  const joinLabels = (values: string[], map: Record<string, string>) =>
+    values.length > 0 ? values.map((v) => map[v] ?? v).join(", ") : null;
 
   const previewItems = [
-    { label: "Firm Type", value: answers.firmType ? labels.firmType[answers.firmType] : null },
-    { label: "Product", value: answers.product ? labels.product[answers.product] : null },
-    { label: "Customer Type", value: answers.customerType ? labels.customerType[answers.customerType] : null },
-    { label: "Risk Themes", value: themesLabel },
+    { label: "Firm Type", value: joinLabels(answers.firmTypes, labels.firmType) },
+    { label: "Product", value: joinLabels(answers.products, labels.product) },
+    { label: "Customer Type", value: joinLabels(answers.customerTypes, labels.customerType) },
+    { label: "Risk Themes", value: joinLabels(answers.riskThemes, RISK_THEME_LABEL) },
   ];
 
   return (
@@ -171,8 +191,9 @@ function TypologyIQWizard() {
       {step === 0 && (
         <WizardStep
           title="What type of firm are you?"
-          subtitle="This determines which typologies are most applicable to your regulated activities."
+          subtitle="Select one or more firm types. This determines which typologies are most applicable to your regulated activities."
         >
+          <SelectionCount count={answers.firmTypes.length} onClear={() => setAnswers((a) => ({ ...a, firmTypes: [] }))} />
           {FIRM_OPTIONS.map((opt) => (
             <OptionCard
               key={opt.value}
@@ -180,8 +201,9 @@ function TypologyIQWizard() {
               label={opt.label}
               description={opt.description}
               icon={opt.icon}
-              selected={answers.firmType === opt.value}
-              onSelect={(v) => setAnswers((a) => ({ ...a, firmType: v as FirmType }))}
+              multi
+              selected={answers.firmTypes.includes(opt.value)}
+              onSelect={(v) => toggle("firmTypes", v)}
             />
           ))}
         </WizardStep>
@@ -189,9 +211,10 @@ function TypologyIQWizard() {
 
       {step === 1 && (
         <WizardStep
-          title="Which product or service?"
-          subtitle="Select the primary product or service you want to assess for financial crime risk."
+          title="Which products or services?"
+          subtitle="Select one or more products or services you want to assess for financial crime risk."
         >
+          <SelectionCount count={answers.products.length} onClear={() => setAnswers((a) => ({ ...a, products: [] }))} />
           {PRODUCT_OPTIONS.map((opt) => (
             <OptionCard
               key={opt.value}
@@ -199,8 +222,9 @@ function TypologyIQWizard() {
               label={opt.label}
               description={opt.description}
               icon={opt.icon}
-              selected={answers.product === opt.value}
-              onSelect={(v) => setAnswers((a) => ({ ...a, product: v as ProductType }))}
+              multi
+              selected={answers.products.includes(opt.value)}
+              onSelect={(v) => toggle("products", v)}
             />
           ))}
         </WizardStep>
@@ -209,8 +233,9 @@ function TypologyIQWizard() {
       {step === 2 && (
         <WizardStep
           title="Who are your primary customers?"
-          subtitle="Select the main customer segment for this product."
+          subtitle="Select one or more customer segments for these products."
         >
+          <SelectionCount count={answers.customerTypes.length} onClear={() => setAnswers((a) => ({ ...a, customerTypes: [] }))} />
           {CUSTOMER_OPTIONS.map((opt) => (
             <OptionCard
               key={opt.value}
@@ -218,8 +243,9 @@ function TypologyIQWizard() {
               label={opt.label}
               description={opt.description}
               icon={opt.icon}
-              selected={answers.customerType === opt.value}
-              onSelect={(v) => setAnswers((a) => ({ ...a, customerType: v as CustomerType }))}
+              multi
+              selected={answers.customerTypes.includes(opt.value)}
+              onSelect={(v) => toggle("customerTypes", v)}
             />
           ))}
         </WizardStep>
@@ -230,18 +256,7 @@ function TypologyIQWizard() {
           title="Which risk themes concern you?"
           subtitle="Select one or more financial crime risk categories. Multiple selections broaden the matched typologies."
         >
-          <div className="mb-3 flex items-center justify-between text-xs text-text-muted">
-            <span>{answers.riskThemes.length} selected</span>
-            {answers.riskThemes.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setAnswers((a) => ({ ...a, riskThemes: [] }))}
-                className="text-accent hover:underline cursor-pointer"
-              >
-                Clear all
-              </button>
-            )}
-          </div>
+          <SelectionCount count={answers.riskThemes.length} onClear={() => setAnswers((a) => ({ ...a, riskThemes: [] }))} />
           {RISK_THEME_OPTIONS.map((opt) => {
             const selected = answers.riskThemes.includes(opt.value);
             return (
@@ -249,7 +264,7 @@ function TypologyIQWizard() {
                 key={opt.value}
                 type="button"
                 aria-pressed={selected}
-                onClick={() => toggleTheme(opt.value)}
+                onClick={() => toggle("riskThemes", opt.value)}
                 className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
                   selected
                     ? "border-accent bg-accent/5 shadow-md shadow-accent/10"

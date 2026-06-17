@@ -2,18 +2,19 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS } from "./shared";
 import type { Typology } from "@/data/typologies/types";
+import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL, RISK_THEME_LABEL } from "@/data/typologies/labels";
 
 interface TypologyPDFData {
   typology: Typology;
   score: number;
   breakdown: { firmTypeScore: number; productScore: number; customerTypeScore: number; riskThemeScore: number };
-  answers: { firmType: string; product: string; customerType: string; riskThemes: string[] };
+  answers: { firmTypes: string[]; products: string[]; customerTypes: string[]; riskThemes: string[] };
   narrative?: string;
 }
 
 export function generateTypologyPDF(data: TypologyPDFData): Buffer {
   const doc = new jsPDF();
-  const { typology, score, breakdown, narrative } = data;
+  const { typology, score, breakdown, answers, narrative } = data;
 
   let y = addHeader(doc, "TypologyIQ Assessment Report");
 
@@ -30,6 +31,26 @@ export function generateTypologyPDF(data: TypologyPDFData): Buffer {
   const descLines = doc.splitTextToSize(typology.description, 170);
   doc.text(descLines, 20, y);
   y += descLines.length * 5 + 5;
+
+  // Profile assessed (multi-select selections)
+  const labelList = (values: string[], map: Record<string, string>) =>
+    values.map((v) => map[v] ?? v).join(", ") || "-";
+  autoTable(doc, {
+    startY: y,
+    head: [["Profile Assessed", ""]],
+    body: [
+      ["Firm Type(s)", labelList(answers.firmTypes, FIRM_TYPE_LABEL as Record<string, string>)],
+      ["Product(s)", labelList(answers.products, PRODUCT_LABEL as Record<string, string>)],
+      ["Customer Type(s)", labelList(answers.customerTypes, CUSTOMER_LABEL as Record<string, string>)],
+      ["Risk Theme(s)", labelList(answers.riskThemes, RISK_THEME_LABEL as Record<string, string>)],
+    ],
+    theme: "grid",
+    headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
+    styles: { fontSize: 9, cellPadding: 3 },
+    columnStyles: { 0: { cellWidth: 40, fontStyle: "bold" } },
+  });
+  // @ts-expect-error jspdf-autotable adds lastAutoTable
+  y = doc.lastAutoTable.finalY + 8;
 
   // Score card
   doc.setFillColor(MEMA_COLORS.accent);

@@ -13,7 +13,8 @@ export default async function KycRequirementsPage({
   searchParams: Promise<{ entity?: string | string[]; jurisdiction?: string | string[]; risk?: string | string[] }>;
 }) {
   const sp = await searchParams;
-  const pick = (v?: string | string[]) => (Array.isArray(v) ? v[0] : v);
+  // Accept comma-separated lists or repeated params; normalise to a comma string.
+  const pick = (v?: string | string[]) => (Array.isArray(v) ? v.join(",") : v);
   return (
     <KycMatrixClient
       entity={pick(sp.entity) ?? "corporate"}

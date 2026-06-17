@@ -128,7 +128,7 @@ function PartnerResults() {
             </p>
             <div className="flex flex-wrap gap-2">
               {flow.sources.map((s) => (
-                <SourceBadge key={s.reference} source={s.org as SourceOrg} reference={s.reference} url={s.url} />
+                <SourceBadge key={s.reference} source={s.org as SourceOrg} reference={s.reference} url={s.url} title={s.title} />
               ))}
             </div>
           </div>

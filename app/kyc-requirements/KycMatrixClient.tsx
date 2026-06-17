@@ -5,18 +5,19 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   Building2, Globe2, ShieldCheck, ChevronDown, ChevronRight, Search, RotateCcw,
   CheckCircle2, HelpCircle, MinusCircle, AlertTriangle, FileText, ClipboardList, BookOpen, FileCheck2,
-  Share2, Check, ListChecks, ChevronsDownUp, ChevronsUpDown, Gavel,
+  Share2, Check, ListChecks, ChevronsDownUp, ChevronsUpDown, Gavel, Layers,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Button from "@/components/ui/Button";
 import SourceBadge from "@/components/shared/SourceBadge";
+import MultiSelect from "@/components/shared/MultiSelect";
 import PDFExportButton from "@/components/shared/PDFExportButton";
-import { getCddProfile, buildRequirements } from "@/data/kyc";
-import type { EntityType, Jurisdiction, RiskLevel, CddRequirement, CddCategoryKey } from "@/data/kyc/types";
+import { buildMergedRequirements, mergedStatus, type MergedRequirement } from "@/data/kyc/merge";
+import type { EntityType, Jurisdiction, RiskLevel, CddCategoryKey, RequirementStatus } from "@/data/kyc/types";
 import {
-  ENTITY_ORDER, JURISDICTION_ORDER, ENTITY_LABEL, JURISDICTION_LABEL, JURISDICTION_REGULATOR,
-  CATEGORY_TITLE, CATEGORY_ORDER, statusFor,
+  ENTITY_ORDER, JURISDICTION_ORDER, ENTITY_LABEL, JURISDICTION_LABEL,
+  CATEGORY_TITLE, CATEGORY_ORDER,
 } from "@/data/kyc/types";
 import { JURISDICTION_SUMMARY } from "@/data/kyc/summaries";
 
@@ -35,6 +36,14 @@ const STATUS_PILL: Record<string, string> = {
   edd: "bg-risk-high/12 text-risk-high",
 };
 
+function parseList(raw: string, allowed: readonly string[], fallback: string[]): string[] {
+  const out: string[] = [];
+  for (const v of raw.split(",").map((s) => s.trim()).filter(Boolean)) {
+    if (allowed.includes(v) && !out.includes(v)) out.push(v);
+  }
+  return out.length ? out : fallback;
+}
+
 export default function KycMatrixClient({
   entity,
   jurisdiction,
@@ -47,33 +56,32 @@ export default function KycMatrixClient({
   const router = useRouter();
   const pathname = usePathname();
 
-  const ent: EntityType = (ENTITY_ORDER as string[]).includes(entity) ? (entity as EntityType) : "corporate";
-  const jur: Jurisdiction = (JURISDICTION_ORDER as string[]).includes(jurisdiction) ? (jurisdiction as Jurisdiction) : "uk";
-  const rk: RiskLevel = (["low", "medium", "high"] as string[]).includes(risk) ? (risk as RiskLevel) : "medium";
+  const ents = useMemo(() => parseList(entity, ENTITY_ORDER as string[], ["corporate"]) as EntityType[], [entity]);
+  const jurs = useMemo(() => parseList(jurisdiction, JURISDICTION_ORDER as string[], ["uk"]) as Jurisdiction[], [jurisdiction]);
+  const rks = useMemo(() => parseList(risk, ["low", "medium", "high"], ["medium"]) as RiskLevel[], [risk]);
 
-  const navigate = (next: { ent?: EntityType; jur?: Jurisdiction; rk?: RiskLevel }) => {
+  const setDim = (dim: "entity" | "jurisdiction" | "risk", values: string[]) => {
     const params = new URLSearchParams();
-    params.set("entity", next.ent ?? ent);
-    params.set("jurisdiction", next.jur ?? jur);
-    params.set("risk", next.rk ?? rk);
+    params.set("entity", (dim === "entity" ? values : ents).join(","));
+    params.set("jurisdiction", (dim === "jurisdiction" ? values : jurs).join(","));
+    params.set("risk", (dim === "risk" ? values : rks).join(","));
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  const lookup = getCddProfile(ent, jur)!;
-  const { profile, fallback } = lookup;
-  const reqs = useMemo(() => buildRequirements(profile), [profile]);
-  const summary = JURISDICTION_SUMMARY[jur];
+  const merged = useMemo(() => buildMergedRequirements(ents, jurs), [ents, jurs]);
+  const reqs = merged.requirements;
+  const multiScenario = merged.scenarios.length > 1;
+  const multiJur = jurs.length > 1;
 
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Set<FilterKey>>(new Set());
   const [copied, setCopied] = useState(false);
   const [openCats, setOpenCats] = useState<Set<CddCategoryKey>>(new Set(CATEGORY_ORDER));
-  const [openReqs, setOpenReqs] = useState<Set<string>>(() => new Set(reqs[0] ? [reqs[0].id] : []));
+  const [openReqs, setOpenReqs] = useState<Set<string>>(() => new Set(reqs[0] ? [reqs[0].key] : []));
 
-  // Working checklist (collected/done), persisted per (entity, jurisdiction) in
-  // this browser. Not keyed by risk: requirement ids are risk-independent, so the
-  // same physical requirement is one checklist item across risk views.
-  const checklistKey = `kyc-checklist:${ent}|${jur}`;
+  // Working checklist (collected/done), keyed by the sorted multi-selection so each
+  // scenario set has its own progress. Requirement keys are risk-independent.
+  const checklistKey = `kyc-checklist:${[...ents].sort().join(",")}|${[...jurs].sort().join(",")}`;
   const [done, setDone] = useState<Set<string>>(new Set());
   useEffect(() => {
     let next = new Set<string>();
@@ -82,13 +90,13 @@ export default function KycMatrixClient({
       const parsed = raw ? JSON.parse(raw) : null;
       if (Array.isArray(parsed)) next = new Set(parsed.filter((x) => typeof x === "string"));
     } catch { /* ignore */ }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the per-scenario checklist from localStorage
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate the per-selection checklist from localStorage
     setDone(next);
   }, [checklistKey]);
-  const toggleDone = (id: string) =>
+  const toggleDone = (key: string) =>
     setDone((p) => {
       const n = new Set(p);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      if (n.has(key)) n.delete(key); else n.add(key);
       try { localStorage.setItem(checklistKey, JSON.stringify([...n])); } catch { /* ignore */ }
       return n;
     });
@@ -96,7 +104,7 @@ export default function KycMatrixClient({
     setDone(new Set());
     try { localStorage.removeItem(checklistKey); } catch { /* ignore */ }
   };
-  const collected = reqs.filter((r) => done.has(r.id)).length;
+  const collected = reqs.filter((r) => done.has(r.key)).length;
 
   const share = async () => {
     try {
@@ -108,41 +116,43 @@ export default function KycMatrixClient({
 
   const toggleCat = (c: CddCategoryKey) =>
     setOpenCats((p) => { const n = new Set(p); if (n.has(c)) n.delete(c); else n.add(c); return n; });
-  const toggleReq = (id: string) =>
-    setOpenReqs((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleReq = (key: string) =>
+    setOpenReqs((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const toggleFilter = (k: FilterKey) =>
     setFilters((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
-  const allExpanded = reqs.length > 0 && reqs.every((r) => openReqs.has(r.id));
+  const allExpanded = reqs.length > 0 && reqs.every((r) => openReqs.has(r.key));
   const toggleExpandAll = () => {
     if (allExpanded) { setOpenReqs(new Set()); }
-    else { setOpenCats(new Set(CATEGORY_ORDER)); setOpenReqs(new Set(reqs.map((r) => r.id))); }
+    else { setOpenCats(new Set(CATEGORY_ORDER)); setOpenReqs(new Set(reqs.map((r) => r.key))); }
   };
 
-  const bucketOf = (r: CddRequirement): FilterKey => (r.eddTrigger ? "edd" : (statusFor(r, rk) as FilterKey));
+  const stOf = (r: MergedRequirement): RequirementStatus => mergedStatus(r, rks);
+  const bucketOf = (r: MergedRequirement): FilterKey => (r.eddTrigger ? "edd" : (stOf(r) as FilterKey));
 
   // Summary counts: EDD triggers counted separately from required/conditional/not-applicable.
   const nonEdd = reqs.filter((r) => !r.eddTrigger);
   const counts = {
-    required: nonEdd.filter((r) => statusFor(r, rk) === "required").length,
-    conditional: nonEdd.filter((r) => statusFor(r, rk) === "conditional").length,
-    not_applicable: nonEdd.filter((r) => statusFor(r, rk) === "not_applicable").length,
+    required: nonEdd.filter((r) => stOf(r) === "required").length,
+    conditional: nonEdd.filter((r) => stOf(r) === "conditional").length,
+    not_applicable: nonEdd.filter((r) => stOf(r) === "not_applicable").length,
     edd: reqs.length - nonEdd.length,
     total: reqs.length,
   };
   const pct = (n: number) => (counts.total ? Math.round((n / counts.total) * 100) : 0);
 
-  // Lowercased search haystack per requirement, recomputed only when the scenario changes.
+  // Lowercased search haystack per requirement, recomputed only when the superset changes.
   const haystacks = useMemo(
     () =>
       new Map(
         reqs.map((r) => [
-          r.id,
+          r.key,
           [
             r.title, r.whatItMeans, r.ruleSummary ?? "",
             ...r.whatToCollect, ...r.evidence,
-            ...(r.documentGuidance?.flatMap((d) => [d.label, ...d.accepted]) ?? []),
+            ...r.documentGuidance.flatMap((jd) => jd.guidance.flatMap((g) => [g.label, ...g.accepted])),
             ...r.legalBasis.flatMap((b) => [b.org, b.reference, b.title]),
+            ...r.appliesTo.flatMap((a) => [ENTITY_LABEL[a.entity], JURISDICTION_LABEL[a.jurisdiction]]),
             CATEGORY_TITLE[r.category],
           ].join(" ").toLowerCase(),
         ])
@@ -150,9 +160,9 @@ export default function KycMatrixClient({
     [reqs]
   );
 
-  const matches = (r: CddRequirement) => {
+  const matches = (r: MergedRequirement) => {
     const s = search.trim().toLowerCase();
-    const textOk = !s || (haystacks.get(r.id) ?? "").includes(s);
+    const textOk = !s || (haystacks.get(r.key) ?? "").includes(s);
     const statusOk = filters.size === 0 || filters.has(bucketOf(r));
     return textOk && statusOk;
   };
@@ -173,11 +183,13 @@ export default function KycMatrixClient({
     { value: "edd", label: "EDD triggers" },
   ];
 
-  const statusBadge = (r: CddRequirement) => {
+  const statusBadge = (r: MergedRequirement) => {
     if (r.eddTrigger) return { key: "edd", label: "EDD trigger" };
-    const st = statusFor(r, rk);
+    const st = stOf(r);
     return { key: st, label: st === "required" ? "Required" : st === "conditional" ? "Conditional" : "Not applicable" };
   };
+
+  const tagLabel = (entityType: EntityType, j: Jurisdiction) => `${ENTITY_LABEL[entityType]} · ${JURISDICTION_LABEL[j]}`;
 
   return (
     <>
@@ -191,8 +203,9 @@ export default function KycMatrixClient({
                 KYC / CDD Requirements <span className="gradient-text">Matrix</span>
               </h1>
               <p className="mt-1 text-sm text-text-muted max-w-2xl">
-                A working reference and checklist: pick the entity, jurisdiction and risk to see what to collect, what the
-                rules say, and tick off what you have. Every requirement is mapped to its primary-source regulatory reference.
+                A working reference and checklist. Pick one or more entity types, jurisdictions and risk levels to see a
+                combined, de-duplicated view of what to collect, what the rules say, and tick off what you have. Every
+                requirement is mapped to its primary-source regulatory reference.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -200,48 +213,77 @@ export default function KycMatrixClient({
                 {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
                 {copied ? "Copied" : "Share"}
               </Button>
-              <PDFExportButton module="kyc_requirements" assessmentData={{ entity: ent, jurisdiction: jur, risk: rk, completed: reqs.filter((r) => done.has(r.id)).map((r) => r.id) }} formats={["pdf", "docx"]} />
+              <PDFExportButton
+                module="kyc_requirements"
+                assessmentData={{ entities: ents, jurisdictions: jurs, risks: rks, completed: reqs.filter((r) => done.has(r.key)).map((r) => r.key) }}
+                formats={["pdf", "docx"]}
+              />
             </div>
           </div>
 
           {/* Selector bar */}
           <div className="glass-card rounded-2xl p-4 sm:p-5 mt-5 grid sm:grid-cols-3 gap-4 items-end">
-            <Selector label="Entity / Customer Type" icon={Building2} value={ent} onChange={(v) => navigate({ ent: v as EntityType })}
-              options={ENTITY_ORDER.map((e) => ({ value: e, label: ENTITY_LABEL[e] }))} />
-            <Selector label="Jurisdiction" icon={Globe2} value={jur} onChange={(v) => navigate({ jur: v as Jurisdiction })}
-              options={JURISDICTION_ORDER.map((j) => ({ value: j, label: JURISDICTION_LABEL[j] }))} />
-            <Selector label="CDD Level / Risk Context" icon={ShieldCheck} value={rk} onChange={(v) => navigate({ rk: v as RiskLevel })}
-              options={RISK_OPTIONS} />
+            <MultiSelect label="Entity / Customer Type" icon={Building2} selected={ents}
+              onChange={(v) => setDim("entity", v)} options={ENTITY_ORDER.map((e) => ({ value: e, label: ENTITY_LABEL[e] }))} />
+            <MultiSelect label="Jurisdiction" icon={Globe2} selected={jurs}
+              onChange={(v) => setDim("jurisdiction", v)} options={JURISDICTION_ORDER.map((j) => ({ value: j, label: JURISDICTION_LABEL[j] }))} />
+            <MultiSelect label="CDD Level / Risk Context" icon={ShieldCheck} selected={rks}
+              onChange={(v) => setDim("risk", v)} options={RISK_OPTIONS} />
           </div>
           <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-text-muted">{JURISDICTION_REGULATOR[jur]}{fallback ? " · FATF baseline shown" : ""}</p>
-            <button onClick={() => navigate({ ent: "corporate", jur: "uk", rk: "medium" })}
+            <p className="text-xs text-text-muted">
+              {merged.scenarios.length} scenario{merged.scenarios.length === 1 ? "" : "s"} combined
+              {merged.anyFallback ? " · FATF baseline used where a cell is not authored" : ""}
+            </p>
+            <button onClick={() => router.replace(`${pathname}?entity=corporate&jurisdiction=uk&risk=medium`, { scroll: false })}
               className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-foreground transition-colors">
               <RotateCcw className="h-3.5 w-3.5" /> Reset selection
             </button>
           </div>
 
-          {/* Mini regulatory summary */}
-          <div className="glass-card rounded-2xl p-4 mt-5">
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5 text-accent" /> Source</p>
-                <p className="text-sm text-foreground font-medium mt-1">{summary.primaryLaw}</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5"><Gavel className="h-3.5 w-3.5 text-accent" /> Regulator</p>
-                <p className="text-sm text-foreground font-medium mt-1">{summary.regulator}</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5"><ListChecks className="h-3.5 w-3.5 text-accent" /> Covers</p>
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {summary.covers.map((c, i) => (
-                    <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-accent/10 text-accent">{c}</span>
-                  ))}
+          {/* Mini regulatory summaries (one per selected jurisdiction) */}
+          <div className={`mt-5 grid gap-3 ${jurs.length > 1 ? "md:grid-cols-2" : ""}`}>
+            {jurs.map((j) => {
+              const summary = JURISDICTION_SUMMARY[j];
+              return (
+                <div key={j} className="glass-card rounded-2xl p-4">
+                  {multiJur && <p className="text-xs font-semibold text-accent mb-2">{JURISDICTION_LABEL[j]}</p>}
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5"><BookOpen className="h-3.5 w-3.5 text-accent" /> Source</p>
+                      <p className="text-sm text-foreground font-medium mt-1">{summary.primaryLaw}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5"><Gavel className="h-3.5 w-3.5 text-accent" /> Regulator</p>
+                      <p className="text-sm text-foreground font-medium mt-1">{summary.regulator}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5"><ListChecks className="h-3.5 w-3.5 text-accent" /> Covers</p>
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {summary.covers.map((c, i) => (
+                          <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-accent/10 text-accent">{c}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+
+          {/* Selected scenarios */}
+          {multiScenario && (
+            <div className="glass-card rounded-2xl p-4 mt-4">
+              <p className="text-[11px] uppercase tracking-wider text-text-muted flex items-center gap-1.5 mb-2"><Layers className="h-3.5 w-3.5 text-accent" /> Scenarios combined</p>
+              <div className="flex flex-wrap gap-1.5">
+                {merged.scenarios.map((s) => (
+                  <span key={`${s.entity}-${s.jurisdiction}`} className="text-[11px] px-2 py-0.5 rounded-full bg-white/5 border border-surface-border text-foreground">
+                    {tagLabel(s.entity, s.jurisdiction)}{s.fallback ? " (FATF)" : ""}
+                  </span>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Summary stat bar */}
           <div className="glass-card rounded-2xl p-4 mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
@@ -280,11 +322,11 @@ export default function KycMatrixClient({
             </button>
           </div>
 
-          {/* Source breadcrumb */}
+          {/* Provisions breadcrumb (union across scenarios) */}
           <div className="flex flex-wrap items-center gap-2 mt-4 text-xs text-text-muted">
             <span className="font-medium text-foreground">Provisions:</span>
-            {profile.regulatoryBasis.map((s, i) => (
-              <span key={i} className="flex items-center gap-2">
+            {merged.provisions.map((s, i) => (
+              <span key={`${s.org}-${s.reference}-${i}`} className="flex items-center gap-2">
                 {i > 0 && <span className="opacity-40">›</span>}
                 <span>{s.org} {s.reference}</span>
               </span>
@@ -317,7 +359,7 @@ export default function KycMatrixClient({
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
             {groups.map(({ cat, all }) => {
               const catNonEdd = all.filter((r) => !r.eddTrigger);
-              const req = catNonEdd.filter((r) => statusFor(r, rk) === "required").length;
+              const req = catNonEdd.filter((r) => stOf(r) === "required").length;
               const p = catNonEdd.length ? Math.round((req / catNonEdd.length) * 100) : 0;
               return (
                 <div key={cat} className="glass-card rounded-xl p-3">
@@ -338,9 +380,9 @@ export default function KycMatrixClient({
               if (visible.length === 0) return null;
               const isOpen = openCats.has(cat);
               const catNonEdd = all.filter((r) => !r.eddTrigger);
-              const req = catNonEdd.filter((r) => statusFor(r, rk) === "required").length;
-              const cond = catNonEdd.filter((r) => statusFor(r, rk) === "conditional").length;
-              const na = catNonEdd.filter((r) => statusFor(r, rk) === "not_applicable").length;
+              const req = catNonEdd.filter((r) => stOf(r) === "required").length;
+              const cond = catNonEdd.filter((r) => stOf(r) === "conditional").length;
+              const na = catNonEdd.filter((r) => stOf(r) === "not_applicable").length;
               return (
                 <div key={cat} className="glass-card rounded-2xl overflow-hidden">
                   <button onClick={() => toggleCat(cat)} aria-expanded={isOpen}
@@ -361,23 +403,29 @@ export default function KycMatrixClient({
                     <div className="px-5 pb-5 space-y-3">
                       {visible.map((r, ri) => {
                         const badge = statusBadge(r);
-                        const open = openReqs.has(r.id);
-                        const isDone = done.has(r.id);
+                        const open = openReqs.has(r.key);
+                        const isDone = done.has(r.key);
+                        const partial = multiScenario && r.appliesTo.length < merged.scenarios.length;
                         return (
-                          <div key={r.id} className={`rounded-xl border overflow-hidden ${isDone ? "border-emerald-500/40 bg-emerald-500/5" : "border-surface-border"}`}>
+                          <div key={r.key} className={`rounded-xl border overflow-hidden ${isDone ? "border-emerald-500/40 bg-emerald-500/5" : "border-surface-border"}`}>
                             <div className="flex items-stretch">
                               <label className="flex items-center px-3 cursor-pointer border-r border-surface-border" title="Mark collected">
-                                <input type="checkbox" checked={isDone} onChange={() => toggleDone(r.id)}
+                                <input type="checkbox" checked={isDone} onChange={() => toggleDone(r.key)}
                                   aria-label={`Mark "${r.title}" collected`}
                                   className="h-4 w-4 rounded border-surface-border text-emerald-500 focus:ring-emerald-500 cursor-pointer" />
                               </label>
-                              <button onClick={() => toggleReq(r.id)} aria-expanded={open}
+                              <button onClick={() => toggleReq(r.key)} aria-expanded={open}
                                 className="flex-1 flex items-start justify-between gap-4 px-4 py-3 text-left hover:bg-surface-hover transition-colors">
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap mb-1">
                                     <span className="text-xs text-text-muted font-mono">{ci + 1}.{ri + 1}</span>
                                     <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_PILL[badge.key]}`}>{badge.label}</span>
                                     <span className={`text-sm font-semibold ${isDone ? "text-text-muted line-through" : "text-foreground"}`}>{r.title}</span>
+                                    {partial && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-white/5 border border-surface-border text-text-muted">
+                                        {r.appliesTo.length}/{merged.scenarios.length} scenarios
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-xs text-text-muted line-clamp-2">{r.whatItMeans}</p>
                                 </div>
@@ -392,6 +440,16 @@ export default function KycMatrixClient({
 
                             {open && (
                               <div className="px-4 pb-4 border-t border-surface-border pt-4 space-y-4">
+                                {multiScenario && (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wide mr-1">Applies to:</span>
+                                    {r.appliesTo.map((a) => (
+                                      <span key={`${a.entity}-${a.jurisdiction}`} className="text-[11px] px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+                                        {tagLabel(a.entity, a.jurisdiction)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                                 {r.ruleSummary && (
                                   <p className="text-xs text-foreground bg-accent/5 border border-accent/15 rounded-lg px-3 py-2">
                                     <span className="font-semibold">What the rule requires:</span> {r.ruleSummary}
@@ -407,11 +465,16 @@ export default function KycMatrixClient({
                                         </li>
                                       ))}
                                     </ul>
-                                    {r.documentGuidance?.map((dg, i) => (
-                                      <div key={i} className="mt-2 rounded-lg bg-white/5 border border-surface-border p-2">
-                                        <p className="text-[11px] font-semibold text-foreground">{dg.label}</p>
-                                        <p className="text-xs text-text-muted mt-0.5">{dg.accepted.join(" · ")}</p>
-                                        <span className="mt-1 inline-flex"><SourceBadge source={dg.source.org} reference={dg.source.reference} url={dg.source.url} /></span>
+                                    {r.documentGuidance.map((jd) => (
+                                      <div key={jd.jurisdiction} className="mt-2">
+                                        {multiJur && <p className="text-[11px] font-semibold text-accent mb-1">{JURISDICTION_LABEL[jd.jurisdiction]}</p>}
+                                        {jd.guidance.map((dg, i) => (
+                                          <div key={i} className="mt-1.5 rounded-lg bg-white/5 border border-surface-border p-2">
+                                            <p className="text-[11px] font-semibold text-foreground">{dg.label}</p>
+                                            <p className="text-xs text-text-muted mt-0.5">{dg.accepted.join(" · ")}</p>
+                                            <span className="mt-1 inline-flex"><SourceBadge source={dg.source.org} reference={dg.source.reference} url={dg.source.url} title={dg.source.title} /></span>
+                                          </div>
+                                        ))}
                                       </div>
                                     ))}
                                   </Column>
@@ -419,7 +482,7 @@ export default function KycMatrixClient({
                                     <div className="flex flex-col items-start gap-2">
                                       {r.legalBasis.map((s, i) => (
                                         <div key={i}>
-                                          <SourceBadge source={s.org} reference={s.reference} url={s.url} />
+                                          <SourceBadge source={s.org} reference={s.reference} url={s.url} title={s.title} />
                                           <p className="text-[11px] text-text-muted mt-0.5">{s.title}</p>
                                         </div>
                                       ))}
@@ -453,28 +516,6 @@ export default function KycMatrixClient({
       </main>
       <Footer />
     </>
-  );
-}
-
-function Selector({
-  label, icon: Icon, value, onChange, options,
-}: {
-  label: string; icon: typeof Building2; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <label className="block">
-      <span className="text-[11px] uppercase tracking-wider text-text-muted">{label}</span>
-      <div className="mt-1 flex items-center gap-2 rounded-lg bg-white/5 border border-surface-border px-3 py-2 focus-within:border-accent">
-        <Icon className="h-4 w-4 text-accent shrink-0" />
-        <select value={value} onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-transparent text-sm text-foreground focus:outline-none cursor-pointer">
-          {options.map((o) => (
-            <option key={o.value} value={o.value} className="bg-background text-foreground">{o.label}</option>
-          ))}
-        </select>
-      </div>
-    </label>
   );
 }
 

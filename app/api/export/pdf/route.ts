@@ -5,14 +5,13 @@ import { generateScreeningPDF } from "@/lib/pdf/screening-pdf";
 import { generateMaturityPDF } from "@/lib/pdf/maturity-pdf";
 import { generateKycPDF } from "@/lib/pdf/kyc-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
-import { getCddProfile } from "@/data/kyc";
 import { ENTITY_ORDER, JURISDICTION_ORDER } from "@/data/kyc/types";
 import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
-import { getBestMatch } from "@/data/scoring/typology-scoring";
+import { getBestMatch, normalizeAnswers } from "@/data/scoring/typology-scoring";
 import { scorePartnerRisk } from "@/data/scoring/partner-scoring";
 import { getBestScreeningMatch } from "@/data/scoring/screening-scoring";
 import { scoreMaturity } from "@/data/scoring/maturity-scoring";
-import type { FirmType, ProductType, CustomerType, RiskTheme } from "@/data/typologies/types";
+import type { FirmType } from "@/data/typologies/types";
 import type { ModelType, FlowType, Actor, ControlOwnership } from "@/data/partner-flows/types";
 import type { ScreeningCategory, ScreeningTrigger } from "@/data/screening/types";
 import type { ControlArea, MaturityLevel } from "@/data/maturity/types";
@@ -39,28 +38,25 @@ export async function POST(request: NextRequest) {
     let contentType = "application/pdf";
 
     if (module === "typology_iq") {
-      const { firmType, product, customerType, riskThemes, riskTheme, narrative } = assessmentData as {
-        firmType: FirmType;
-        product: ProductType;
-        customerType: CustomerType;
-        riskThemes?: RiskTheme[];
-        riskTheme?: RiskTheme;
-        narrative?: string;
-      };
+      const { narrative } = assessmentData as { narrative?: string };
+      const answers = normalizeAnswers(assessmentData);
 
-      const themes: RiskTheme[] = riskThemes && riskThemes.length > 0
-        ? riskThemes
-        : riskTheme
-        ? [riskTheme]
-        : [];
+      if (!answers.firmTypes.length || !answers.products.length || !answers.customerTypes.length || !answers.riskThemes.length) {
+        return NextResponse.json({ error: "Missing typology selections" }, { status: 400 });
+      }
 
-      const result = getBestMatch({ firmType, product, customerType, riskThemes: themes });
+      const result = getBestMatch(answers);
 
       pdfBuffer = generateTypologyPDF({
         typology: result.typology,
         score: result.score,
         breakdown: result.breakdown,
-        answers: { firmType, product, customerType, riskThemes: themes },
+        answers: {
+          firmTypes: answers.firmTypes,
+          products: answers.products,
+          customerTypes: answers.customerTypes,
+          riskThemes: answers.riskThemes,
+        },
         narrative,
       });
       filename = `MEMA-TypologyIQ-${result.typology.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
@@ -128,29 +124,33 @@ export async function POST(request: NextRequest) {
       pdfBuffer = generateMaturityPDF({ ...result, narrative });
       filename = `MEMA-ControlsMaturity-${result.framework.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else if (module === "kyc_requirements") {
-      const { entity, jurisdiction, risk, completed } = assessmentData as {
-        entity: EntityType;
-        jurisdiction: Jurisdiction;
-        risk: "all" | RiskLevel;
+      const a = assessmentData as {
+        entities?: string[]; entity?: string;
+        jurisdictions?: string[]; jurisdiction?: string;
+        risks?: string[]; risk?: string;
         completed?: string[];
       };
-      const safeCompleted = Array.isArray(completed) ? completed.filter((x) => typeof x === "string") : [];
-      if (!(ENTITY_ORDER as string[]).includes(entity) || !(JURISDICTION_ORDER as string[]).includes(jurisdiction)) {
-        return NextResponse.json({ error: "Invalid entity or jurisdiction" }, { status: 400 });
+      // Accept multi-select arrays (current client) or singular/comma strings (back-compat).
+      const toStrList = (plural: string[] | undefined, single: string | undefined): string[] =>
+        Array.isArray(plural) ? plural : typeof single === "string" ? single.split(",") : [];
+      const uniq = (arr: string[]) => [...new Set(arr.map((x) => x.trim()).filter(Boolean))];
+      const entities = uniq(toStrList(a.entities, a.entity)).filter((x): x is EntityType => (ENTITY_ORDER as string[]).includes(x));
+      const jurisdictions = uniq(toStrList(a.jurisdictions, a.jurisdiction)).filter((x): x is Jurisdiction => (JURISDICTION_ORDER as string[]).includes(x));
+      const risks = uniq(toStrList(a.risks, a.risk)).filter((x): x is RiskLevel => (["low", "medium", "high"] as string[]).includes(x));
+      const safeCompleted = Array.isArray(a.completed) ? a.completed.filter((x) => typeof x === "string") : [];
+      if (entities.length === 0 || jurisdictions.length === 0) {
+        return NextResponse.json({ error: "Invalid entities or jurisdictions" }, { status: 400 });
       }
-      const safeRisk = (["all", "low", "medium", "high"] as string[]).includes(risk) ? risk : "all";
-      const lookup = getCddProfile(entity, jurisdiction);
-      if (!lookup) {
-        return NextResponse.json({ error: "No matching CDD profile" }, { status: 404 });
-      }
+      const risksFinal: RiskLevel[] = risks.length ? risks : ["medium"];
       const date = new Date().toISOString().split("T")[0];
+      const nameBit = `${entities.join("-")}-${jurisdictions.join("-")}`.slice(0, 60);
       if (format === "docx") {
-        pdfBuffer = await generateKycDocx({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel, completed: safeCompleted });
+        pdfBuffer = await generateKycDocx({ entities, jurisdictions, risks: risksFinal, completed: safeCompleted });
         contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-        filename = `MEMA-KYC-${entity}-${jurisdiction}-${date}.docx`;
+        filename = `MEMA-KYC-${nameBit}-${date}.docx`;
       } else {
-        pdfBuffer = generateKycPDF({ profile: lookup.profile, fallback: lookup.fallback, risk: safeRisk as "all" | RiskLevel, completed: safeCompleted });
-        filename = `MEMA-KYC-${entity}-${jurisdiction}-${date}.pdf`;
+        pdfBuffer = generateKycPDF({ entities, jurisdictions, risks: risksFinal, completed: safeCompleted });
+        filename = `MEMA-KYC-${nameBit}-${date}.pdf`;
       }
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });

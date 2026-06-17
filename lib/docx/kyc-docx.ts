@@ -1,12 +1,12 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType } from "docx";
-import { buildRequirements } from "@/data/kyc";
-import type { CddProfile, RiskLevel } from "@/data/kyc/types";
-import { ENTITY_LABEL, JURISDICTION_LABEL, JURISDICTION_REGULATOR, RISK_LABEL, CATEGORY_TITLE, CATEGORY_ORDER, statusFor, STATUS_LABEL } from "@/data/kyc/types";
+import { buildMergedRequirements, mergedStatus } from "@/data/kyc/merge";
+import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
+import { ENTITY_LABEL, JURISDICTION_LABEL, RISK_LABEL, CATEGORY_TITLE, CATEGORY_ORDER, STATUS_LABEL } from "@/data/kyc/types";
 
 interface KycDocxData {
-  profile: CddProfile;
-  fallback: boolean;
-  risk: "all" | RiskLevel;
+  entities: EntityType[];
+  jurisdictions: Jurisdiction[];
+  risks: RiskLevel[];
   completed?: string[];
 }
 
@@ -22,17 +22,19 @@ const headerCell = (text: string, width: number) =>
   new TableCell({ children: [para(text, { bold: true, color: "FFFFFF" })], width: { size: width, type: WidthType.PERCENTAGE }, shading: { fill: "14B8A6" } });
 
 export async function generateKycDocx(data: KycDocxData): Promise<Buffer> {
-  const { profile, fallback, risk } = data;
+  const { entities, jurisdictions } = data;
+  const risks = data.risks.length ? data.risks : (["medium"] as RiskLevel[]);
   const completed = data.completed ?? [];
-  const rk: RiskLevel = risk === "all" ? "medium" : risk;
-  const requirements = buildRequirements(profile);
-  const collected = requirements.filter((r) => completed.includes(r.id)).length;
+  const multiJur = jurisdictions.length > 1;
+  const merged = buildMergedRequirements(entities, jurisdictions);
+  const requirements = merged.requirements;
+  const collected = requirements.filter((r) => completed.includes(r.key)).length;
 
   const children: (Paragraph | Table)[] = [
     new Paragraph({ text: "KYC / CDD Requirements", heading: HeadingLevel.TITLE }),
-    para(`${ENTITY_LABEL[profile.entityType]} — ${JURISDICTION_LABEL[profile.jurisdiction]} — ${RISK_LABEL[rk]}`, { bold: true }),
-    para(JURISDICTION_REGULATOR[profile.jurisdiction] + (fallback ? "  (FATF baseline shown)" : ""), { italics: true, color: "666666" }),
-    para(`Onboarding checklist: collected ${collected} of ${requirements.length}.`, { color: "0F7B4F" }),
+    para(`${entities.map((e) => ENTITY_LABEL[e]).join(", ")} — ${jurisdictions.map((j) => JURISDICTION_LABEL[j]).join(", ")}`, { bold: true }),
+    para(`Risk context: ${risks.map((r) => RISK_LABEL[r]).join(", ")}` + (merged.anyFallback ? "  (FATF baseline used where a cell is not authored)" : ""), { italics: true, color: "666666" }),
+    para(`${merged.scenarios.length} scenario(s) combined. Onboarding checklist: collected ${collected} of ${requirements.length}.`, { color: "0F7B4F" }),
     para(""),
   ];
 
@@ -50,10 +52,12 @@ export async function generateKycDocx(data: KycDocxData): Promise<Buffer> {
             cell([para(r.title, { bold: true }), para(r.ruleSummary ?? r.whatItMeans, { size: 18 })], 38),
             cell([
               ...r.whatToCollect.map((w) => bullet(w)),
-              ...(r.documentGuidance?.map((d) => bullet(`${d.label}: ${d.accepted.join(", ")}`)) ?? []),
+              ...r.documentGuidance.flatMap((jd) =>
+                jd.guidance.map((d) => bullet(`${multiJur ? `[${JURISDICTION_LABEL[jd.jurisdiction]}] ` : ""}${d.label}: ${d.accepted.join(", ")}`))
+              ),
             ], 32),
             cell(r.legalBasis.map((s) => para(`${s.org} ${s.reference}`, { size: 18 })), 18),
-            cell([para(completed.includes(r.id) ? "Collected" : r.eddTrigger ? "EDD trigger" : STATUS_LABEL[statusFor(r, rk)], { size: 18 })], 12),
+            cell([para(completed.includes(r.key) ? "Collected" : r.eddTrigger ? "EDD trigger" : STATUS_LABEL[mergedStatus(r, risks)], { size: 18 })], 12),
           ],
         })
       );

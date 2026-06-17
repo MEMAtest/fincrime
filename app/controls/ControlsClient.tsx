@@ -519,6 +519,7 @@ export default function ControlsClient({ initialFramework }: { initialFramework:
                                   source={frameworkOrg}
                                   reference={s.reference}
                                   url={s.url}
+                                  title={s.title}
                                 />
                               ))}
                             </div>

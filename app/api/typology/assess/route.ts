@@ -1,32 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBestMatch, getTopMatches } from "@/data/scoring/typology-scoring";
-import type { FirmType, ProductType, CustomerType, RiskTheme } from "@/data/typologies/types";
+import { getBestMatch, getTopMatches, normalizeAnswers } from "@/data/scoring/typology-scoring";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firmType, product, customerType, riskThemes, riskTheme } = body as {
-      firmType: FirmType;
-      product: ProductType;
-      customerType: CustomerType;
-      riskThemes?: RiskTheme[];
-      riskTheme?: RiskTheme;
-    };
+    const answers = normalizeAnswers(body);
 
-    const themes: RiskTheme[] = riskThemes && riskThemes.length > 0
-      ? riskThemes
-      : riskTheme
-      ? [riskTheme]
-      : [];
-
-    if (!firmType || !product || !customerType || themes.length === 0) {
+    if (!answers.firmTypes.length || !answers.products.length || !answers.customerTypes.length || !answers.riskThemes.length) {
       return NextResponse.json(
         { error: "Missing required fields: firmType, product, customerType, riskThemes" },
         { status: 400 }
       );
     }
 
-    const answers = { firmType, product, customerType, riskThemes: themes };
     const bestMatch = getBestMatch(answers);
     const topMatches = getTopMatches(answers, 3);
 

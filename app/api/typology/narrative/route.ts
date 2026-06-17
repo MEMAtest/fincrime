@@ -9,8 +9,11 @@ export async function POST(request: NextRequest) {
       typologyDescription,
       controlObjective,
       firmType,
+      firmTypes,
       product,
+      products,
       customerType,
+      customerTypes,
       riskThemes,
       riskTheme,
       score,
@@ -20,11 +23,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing typologyTitle" }, { status: 400 });
     }
 
-    const themes: string[] = Array.isArray(riskThemes)
-      ? riskThemes
-      : riskTheme
-      ? [riskTheme]
-      : [];
+    const toList = (plural: unknown, single: unknown): string[] =>
+      Array.isArray(plural) && plural.length > 0 ? (plural as string[]) : single ? [single as string] : [];
+
+    const firmList = toList(firmTypes, firmType);
+    const productList = toList(products, product);
+    const customerList = toList(customerTypes, customerType);
+    const themes: string[] = toList(riskThemes, riskTheme);
 
     const systemPrompt = [
       "You are a financial crime compliance expert writing for a UK-regulated firm's compliance team.",
@@ -38,9 +43,9 @@ export async function POST(request: NextRequest) {
       `Typology: ${typologyTitle}`,
       `Description: ${typologyDescription}`,
       `Control Objective: ${controlObjective}`,
-      `Firm Type: ${firmType}`,
-      `Product: ${product}`,
-      `Customer Type: ${customerType}`,
+      `Firm Type(s): ${firmList.join(", ") || "(none specified)"}`,
+      `Product(s): ${productList.join(", ") || "(none specified)"}`,
+      `Customer Type(s): ${customerList.join(", ") || "(none specified)"}`,
       `Risk Themes: ${themes.join(", ") || "(none specified)"}`,
       `Match Score: ${score}/100`,
       "",
