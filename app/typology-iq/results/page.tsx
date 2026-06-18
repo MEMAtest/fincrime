@@ -16,6 +16,10 @@ import EvidencePanel from "@/components/results/EvidencePanel";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import MatchExplanation from "@/components/results/MatchExplanation";
 import AiDisclosure from "@/components/shared/AiDisclosure";
+import GlossaryTerm from "@/components/shared/GlossaryTerm";
+import HowItWorks from "@/components/shared/HowItWorks";
+import NextSteps from "@/components/shared/NextSteps";
+import { totalEnforcementCases, enforcementBenchmarks } from "@/lib/enforcement/select";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
@@ -139,6 +143,24 @@ function TypologyResults() {
         />
       </div>
 
+      {/* How TypologyIQ works (collapsed by default) */}
+      <HowItWorks
+        title="How TypologyIQ works"
+        steps={[
+          { title: "Deterministic match", body: "Your selections are scored against each typology with fixed weights (firm type 30, product 25, customer 20, risk theme 25). The same inputs always give the same result; nothing is random or AI-driven." },
+          { title: "Cited typologies", body: "Each typology and its controls map to authoritative sources (FATF, Wolfsberg, FCA, JMLSG). Open any source badge to see and copy the reference." },
+          { title: "AI-assisted summary", body: "The Risk Intelligence narrative is written by an AI model from your selections and the matched typology. It explains the deterministic result; it does not add new facts and is not legal advice." },
+          { title: "Real enforcement", body: "The Evidence tab maps the risk to real FCA enforcement cases, including the controls that would have caught each failure." },
+        ]}
+        provenance={[
+          { label: "Typologies", value: "15, framework-aligned" },
+          { label: "Enforcement cases", value: `${totalEnforcementCases} FCA fines` },
+          { label: "Scoring", value: "Deterministic, weighted" },
+          { label: "Frameworks", value: "FATF, Wolfsberg, FCA, JMLSG" },
+        ]}
+        lastUpdated={enforcementBenchmarks.generatedAt}
+      />
+
       {/* Profile Assessed (multi-select) */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         {[
@@ -229,6 +251,16 @@ function TypologyResults() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Key terms (inline glossary) */}
+      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+        <span className="font-medium text-foreground">Key terms:</span>
+        <GlossaryTerm term="CDD" />
+        <GlossaryTerm term="EDD" />
+        <GlossaryTerm term="beneficial owner" />
+        <GlossaryTerm term="SAR" />
+        <GlossaryTerm term="transaction monitoring" />
       </div>
 
       {/* Why this matched (deterministic explainability) */}
@@ -469,7 +501,7 @@ function TypologyResults() {
             id: "evidence",
             label: "Evidence",
             icon: Scale,
-            content: <EvidencePanel themes={answers.riskThemes} />,
+            content: <EvidencePanel themes={answers.riskThemes} typology={typology} />,
           },
           {
             id: "benchmarks",
@@ -477,6 +509,14 @@ function TypologyResults() {
             icon: BarChart3,
             content: <BenchmarksPanel />,
           },
+        ]}
+      />
+
+      <NextSteps
+        items={[
+          { title: "Browse the Controls Library", body: "See controls grouped by risk theme, filtered to your firm type.", href: `/controls?firmType=${answers.firmTypes[0]}`, icon: Layers },
+          { title: "Map partner control ownership", body: "Define who owns each control across a partner payment flow (RACI).", href: "/partner-control-map", icon: GitBranch },
+          { title: "Check KYC requirements", body: "What to collect by entity type and jurisdiction, each cited.", href: "/kyc-requirements", icon: ClipboardCheck },
         ]}
       />
     </div>

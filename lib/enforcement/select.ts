@@ -6,6 +6,22 @@ import type { RiskTheme, FirmType } from "@/data/typologies/types";
 export { enforcementBenchmarks };
 export const totalEnforcementCases = enforcementCases.length;
 
+/** Compact GBP formatter shared across the evidence and benchmarks panels. */
+export function fmtGbp(n: number): string {
+  if (n >= 1_000_000_000) return `£${(n / 1_000_000_000).toFixed(1)}bn`;
+  if (n >= 1_000_000) return `£${(n / 1_000_000).toFixed(0)}m`;
+  if (n >= 1_000) return `£${Math.round(n / 1_000)}k`;
+  return `£${n}`;
+}
+
+/** Total GBP penalties across the cases tagged to the given themes. */
+export function totalPenaltiesForThemes(themes: RiskTheme[]): number {
+  const set = new Set(themes);
+  return enforcementCases
+    .filter((c) => c.riskThemes.some((t) => set.has(t)))
+    .reduce((sum, c) => sum + c.amountGbp, 0);
+}
+
 function median(nums: number[]): number {
   if (nums.length === 0) return 0;
   const sorted = [...nums].sort((a, b) => a - b);

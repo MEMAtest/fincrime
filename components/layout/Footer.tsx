@@ -38,9 +38,10 @@ export default function Footer() {
           <Link href="/controls?framework=jmlsg">JMLSG</Link>
         </div>
         <div className="fcol">
-          <h4>Company</h4>
+          <h4>Learn</h4>
+          <Link href="/glossary">Glossary</Link>
+          <Link href="/methodology">Methodology</Link>
           <a href="https://memaconsultants.com" target="_blank" rel="noopener noreferrer">Talk to MEMA</a>
-          <Link href="/controls">Methodology</Link>
           <Link href="/firm-research">Get started</Link>
         </div>
       </div>

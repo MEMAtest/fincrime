@@ -11,10 +11,13 @@ import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import SourceBadge from "@/components/shared/SourceBadge";
 import { allTypologies } from "@/data/typologies";
+import { lessonFor } from "@/data/enforcement/lessons";
 import type { RiskTheme, FirmType, SourceOrg } from "@/data/typologies/types";
 
 /* ── Enforcement actions ───────────────────────────── */
 
+// "What would have caught this" now lives once in data/enforcement/lessons.ts
+// (joined by firm + year); this array only carries the display fields.
 interface EnforcementAction {
   firm: string;
   regulator: string;
@@ -22,7 +25,6 @@ interface EnforcementAction {
   fine: string;
   summary: string;
   controlAreas: RiskTheme[];
-  preventedBy: string[];
 }
 
 const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
@@ -33,12 +35,6 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     fine: "£29m",
     summary: "AML screening failures: inadequate screening of sanctions lists and PEPs, with gaps in automated monitoring systems.",
     controlAreas: ["sanctions_evasion", "money_laundering"],
-    preventedBy: [
-      "Automated sanctions screening on all transactions",
-      "PEP identification and enhanced due diligence",
-      "Regular screening system effectiveness reviews",
-      "Independent model validation of screening calibration",
-    ],
   },
   {
     firm: "Monzo",
@@ -47,12 +43,6 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     fine: "Warning notice",
     summary: "AML failings: insufficient monitoring of customer transactions and delayed suspicious activity reporting.",
     controlAreas: ["money_laundering", "fraud"],
-    preventedBy: [
-      "Real-time transaction monitoring with tuned thresholds",
-      "Timely SAR submission workflows",
-      "Adequate staffing for financial crime operations",
-      "Board-level MI on AML control effectiveness",
-    ],
   },
   {
     firm: "NatWest",
@@ -61,12 +51,6 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     fine: "£265m",
     summary: "Cash monitoring failures: failed to adequately monitor cash deposits in a commercial customer account, allowing £365m in suspicious cash deposits over 5 years.",
     controlAreas: ["money_laundering"],
-    preventedBy: [
-      "Cash deposit anomaly detection rules",
-      "Customer activity vs. expected profile monitoring",
-      "Enhanced due diligence triggers on cash-intensive businesses",
-      "Automated escalation for large cumulative cash deposits",
-    ],
   },
   {
     firm: "HSBC",
@@ -75,12 +59,6 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     fine: "£64m",
     summary: "Transaction monitoring failures: deficient automated transaction monitoring across multiple business lines.",
     controlAreas: ["money_laundering", "terrorist_financing"],
-    preventedBy: [
-      "Comprehensive transaction monitoring coverage",
-      "Regular scenario tuning and gap analysis",
-      "End-to-end data quality assurance",
-      "Independent assurance over monitoring effectiveness",
-    ],
   },
   {
     firm: "Metro Bank",
@@ -89,12 +67,6 @@ const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
     fine: "£16.7m",
     summary: "Transaction monitoring failure: an automated-system gap meant accounts opened from a certain date were not monitored for money-laundering risk, leaving tens of millions of transactions unmonitored.",
     controlAreas: ["money_laundering"],
-    preventedBy: [
-      "End-to-end coverage testing of automated transaction monitoring",
-      "Controls to detect accounts excluded from monitoring",
-      "Data-completeness reconciliation between onboarding and monitoring",
-      "Independent assurance over monitoring coverage",
-    ],
   },
 ];
 
@@ -139,7 +111,7 @@ const orgForFramework = (f: FrameworkFilter): SourceOrg | null =>
 
 /* ── Page component ────────────────────────────────── */
 
-export default function ControlsClient({ initialFramework }: { initialFramework: string }) {
+export default function ControlsClient({ initialFramework, initialFirmType }: { initialFramework: string; initialFirmType?: string }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -154,7 +126,9 @@ export default function ControlsClient({ initialFramework }: { initialFramework:
     router.replace(f === "all" ? pathname : `${pathname}?framework=${f}`, { scroll: false });
   };
 
-  const [firmFilter, setFirmFilter] = useState<FirmType | "all">("all");
+  const [firmFilter, setFirmFilter] = useState<FirmType | "all">(
+    FIRM_TYPES.some((f) => f.value === initialFirmType) ? (initialFirmType as FirmType) : "all"
+  );
   const [enforcementOpen, setEnforcementOpen] = useState(false);
   const [expandedThemes, setExpandedThemes] = useState<Set<RiskTheme>>(new Set());
 
@@ -321,7 +295,9 @@ export default function ControlsClient({ initialFramework }: { initialFramework:
 
               {enforcementOpen && (
                 <div className="px-6 pb-6 space-y-6">
-                  {ENFORCEMENT_ACTIONS.map((action, i) => (
+                  {ENFORCEMENT_ACTIONS.map((action, i) => {
+                    const prevented = lessonFor(action.firm, action.year)?.preventedBy ?? [];
+                    return (
                     <div
                       key={i}
                       className="border border-surface-border rounded-xl p-5"
@@ -350,24 +326,27 @@ export default function ControlsClient({ initialFramework }: { initialFramework:
                           </span>
                         ))}
                       </div>
-                      <div>
-                        <p className="text-xs font-medium text-foreground mb-1.5 flex items-center gap-1.5">
-                          <Scale className="h-3.5 w-3.5 text-accent" />
-                          Controls that would have prevented this:
-                        </p>
-                        <ul className="space-y-1">
-                          {action.preventedBy.map((ctrl, j) => (
-                            <li
-                              key={j}
-                              className="text-xs text-text-muted pl-4 relative before:content-[''] before:absolute before:left-1.5 before:top-[7px] before:w-1 before:h-1 before:rounded-full before:bg-accent"
-                            >
-                              {ctrl}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+                      {prevented.length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-foreground mb-1.5 flex items-center gap-1.5">
+                            <Scale className="h-3.5 w-3.5 text-accent" />
+                            Controls that would have prevented this:
+                          </p>
+                          <ul className="space-y-1">
+                            {prevented.map((ctrl, j) => (
+                              <li
+                                key={j}
+                                className="text-xs text-text-muted pl-4 relative before:content-[''] before:absolute before:left-1.5 before:top-[7px] before:w-1 before:h-1 before:rounded-full before:bg-accent"
+                              >
+                                {ctrl}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

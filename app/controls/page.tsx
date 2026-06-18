@@ -10,9 +10,10 @@ export const metadata: Metadata = {
 export default async function ControlsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ framework?: string | string[] }>;
+  searchParams: Promise<{ framework?: string | string[]; firmType?: string | string[] }>;
 }) {
   const sp = await searchParams;
   const fw = Array.isArray(sp.framework) ? sp.framework[0] : sp.framework;
-  return <ControlsClient initialFramework={fw ?? "all"} />;
+  const firm = Array.isArray(sp.firmType) ? sp.firmType[0] : sp.firmType;
+  return <ControlsClient initialFramework={fw ?? "all"} initialFirmType={firm} />;
 }

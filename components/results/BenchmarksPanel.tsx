@@ -2,16 +2,9 @@
 
 import { BarChart3, TrendingUp } from "lucide-react";
 import BarChart from "@/components/charts/BarChart";
-import { benchmarksForFirmType } from "@/lib/enforcement/select";
+import { benchmarksForFirmType, fmtGbp } from "@/lib/enforcement/select";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import type { RiskTheme, FirmType } from "@/data/typologies/types";
-
-function fmtGbp(n: number): string {
-  if (n >= 1_000_000_000) return `£${(n / 1_000_000_000).toFixed(1)}bn`;
-  if (n >= 1_000_000) return `£${(n / 1_000_000).toFixed(0)}m`;
-  if (n >= 1_000) return `£${Math.round(n / 1_000)}k`;
-  return `£${n}`;
-}
 
 export default function BenchmarksPanel({
   firmFilter = "all",

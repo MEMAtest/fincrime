@@ -2,12 +2,13 @@
 
 import { useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   Building2, CreditCard, Users, AlertTriangle, FileText,
   Landmark, Wallet, Globe, Banknote, ShieldAlert, Scale,
   UserCheck, Briefcase, Crown, Heart, HandshakeIcon,
   Bomb, DollarSign, ShieldOff, Search as SearchIcon, Megaphone,
-  BarChart3, Coins, Check,
+  BarChart3, Coins, Check, Sparkles,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -183,6 +184,17 @@ function TypologyIQWizard() {
           title="What type of firm are you?"
           subtitle="Select one or more firm types. This determines which typologies are most applicable to your regulated activities."
         >
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            <Link
+              href="/typology-iq?firmType=emi&product=cross_border_payments&customerType=individuals&riskThemes=money_laundering"
+              className="inline-flex items-center gap-1 text-accent hover:underline"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Try a worked example
+            </Link>
+            <Link href="/methodology" className="text-text-muted hover:text-foreground">
+              How it works
+            </Link>
+          </div>
           <SelectionCount count={answers.firmTypes.length} onClear={() => setAnswers((a) => ({ ...a, firmTypes: [] }))} />
           {FIRM_OPTIONS.map((opt) => (
             <OptionCard

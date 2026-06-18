@@ -2,10 +2,24 @@ import type { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://fincrime.memaconsultants.com";
+  const now = new Date();
+  const page = (path: string, priority: number): MetadataRoute.Sitemap[number] => ({
+    url: `${baseUrl}${path}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority,
+  });
 
   return [
-    { url: baseUrl, lastModified: new Date(), changeFrequency: "weekly", priority: 1 },
-    { url: `${baseUrl}/typology-iq`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.9 },
-    { url: `${baseUrl}/partner-control-map`, lastModified: new Date(), changeFrequency: "weekly", priority: 0.9 },
+    page("", 1),
+    page("/typology-iq", 0.9),
+    page("/partner-control-map", 0.9),
+    page("/controls", 0.9),
+    page("/kyc-requirements", 0.9),
+    page("/screening-control-designer", 0.8),
+    page("/controls-maturity", 0.8),
+    page("/firm-research", 0.8),
+    page("/glossary", 0.7),
+    page("/methodology", 0.7),
   ];
 }
