@@ -11,6 +11,8 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Button from "@/components/ui/Button";
 import SourceBadge from "@/components/shared/SourceBadge";
+import GlossaryTerm from "@/components/shared/GlossaryTerm";
+import GlossaryText from "@/components/shared/GlossaryText";
 import MultiSelect from "@/components/shared/MultiSelect";
 import PDFExportButton from "@/components/shared/PDFExportButton";
 import { buildMergedRequirements, mergedStatus, type MergedRequirement } from "@/data/kyc/merge";
@@ -315,6 +317,16 @@ export default function KycMatrixClient({
             </button>
           </div>
 
+          {/* Key terms (inline glossary) */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-4 text-xs text-text-muted">
+            <span className="font-medium text-foreground">Key terms:</span>
+            <GlossaryTerm term="beneficial owner" />
+            <GlossaryTerm term="CDD" />
+            <GlossaryTerm term="EDD" />
+            <GlossaryTerm term="SDD" />
+            <GlossaryTerm term="PEP" />
+          </div>
+
           {/* Provisions breadcrumb (union across scenarios) */}
           <div className="flex flex-wrap items-center gap-2 mt-4 text-xs text-text-muted">
             <span className="font-medium text-foreground">Provisions:</span>
@@ -449,7 +461,7 @@ export default function KycMatrixClient({
                                   </p>
                                 )}
                                 <div className="grid md:grid-cols-4 gap-4">
-                                  <Column icon={FileText} title="What this means"><p className="text-xs text-text-muted">{r.whatItMeans}</p></Column>
+                                  <Column icon={FileText} title="What this means"><p className="text-xs text-text-muted"><GlossaryText>{r.whatItMeans}</GlossaryText></p></Column>
                                   <Column icon={ClipboardList} title="What to collect">
                                     <ul className="space-y-1">
                                       {r.whatToCollect.map((w, i) => (

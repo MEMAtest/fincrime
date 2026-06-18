@@ -15,6 +15,7 @@ import ResultTabs from "@/components/results/ResultTabs";
 import EvidencePanel from "@/components/results/EvidencePanel";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import MatchExplanation from "@/components/results/MatchExplanation";
+import BenchmarkStrip from "@/components/results/BenchmarkStrip";
 import AiDisclosure from "@/components/shared/AiDisclosure";
 import GlossaryTerm from "@/components/shared/GlossaryTerm";
 import HowItWorks from "@/components/shared/HowItWorks";
@@ -160,6 +161,8 @@ function TypologyResults() {
         ]}
         lastUpdated={enforcementBenchmarks.generatedAt}
       />
+
+      <BenchmarkStrip />
 
       {/* Profile Assessed (multi-select) */}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">

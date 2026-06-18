@@ -14,6 +14,7 @@ import ResultsGrid from "@/components/results/ResultsGrid";
 import ResultTabs from "@/components/results/ResultTabs";
 import EvidencePanel from "@/components/results/EvidencePanel";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
+import BenchmarkStrip from "@/components/results/BenchmarkStrip";
 import RiskRatingBadge from "@/components/shared/RiskRatingBadge";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
@@ -182,6 +183,8 @@ function PartnerResults() {
         ]}
         lastUpdated={enforcementBenchmarks.generatedAt}
       />
+
+      <BenchmarkStrip />
 
       {/* Key terms */}
       <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
