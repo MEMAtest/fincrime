@@ -16,6 +16,7 @@ export default function GlossaryTerm({ term, children }: { term: string; childre
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const ref = useRef<HTMLSpanElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -24,13 +25,26 @@ export default function GlossaryTerm({ term, children }: { term: string; childre
       if (e.key === "Escape") setOpen(false);
     };
     const onScroll = () => setOpen(false);
+    // Dismiss on a tap/click outside the term or its popover (so touch users,
+    // who get no mouseleave/blur, can close it).
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !popRef.current?.contains(t)) setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
     window.addEventListener("scroll", onScroll, true);
+    document.addEventListener("pointerdown", onPointerDown);
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("scroll", onScroll, true);
+      document.removeEventListener("pointerdown", onPointerDown);
     };
   }, [open]);
+
+  // Clear any pending close timer on unmount.
+  useEffect(() => () => {
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+  }, []);
 
   if (!entry) return <>{children ?? term}</>;
 
@@ -87,7 +101,9 @@ export default function GlossaryTerm({ term, children }: { term: string; childre
       {open && pos && typeof document !== "undefined" &&
         createPortal(
           <div
+            ref={popRef}
             role="dialog"
+            aria-label={`${entry.term} definition`}
             onMouseEnter={cancelClose}
             onMouseLeave={scheduleClose}
             className="absolute z-[120] w-64 rounded-xl border border-slate-200 bg-white shadow-xl p-3 text-left"

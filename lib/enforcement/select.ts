@@ -22,6 +22,14 @@ export function totalPenaltiesForThemes(themes: RiskTheme[]): number {
     .reduce((sum, c) => sum + c.amountGbp, 0);
 }
 
+/** How many cases are tagged to the given themes (mirrors casesForThemes' all-cases fallback). */
+export function countCasesForThemes(themes: RiskTheme[]): number {
+  if (!themes.length) return enforcementCases.length;
+  const set = new Set(themes);
+  const n = enforcementCases.filter((c) => c.riskThemes.some((t) => set.has(t))).length;
+  return n || enforcementCases.length;
+}
+
 function median(nums: number[]): number {
   if (nums.length === 0) return 0;
   const sorted = [...nums].sort((a, b) => a - b);

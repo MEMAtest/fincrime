@@ -12,7 +12,7 @@ const DEFAULT_MODEL = "Groq llama-3.3-70b";
  * explains the deterministic-score-then-AI layering and the model's bounds.
  * Reusable across every tool that renders a Groq narrative.
  */
-export default function AiDisclosure({ model = DEFAULT_MODEL }: { model?: string }) {
+export default function AiDisclosure({ model = DEFAULT_MODEL, scoringNote }: { model?: string; scoringNote?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -30,13 +30,13 @@ export default function AiDisclosure({ model = DEFAULT_MODEL }: { model?: string
       <Modal open={open} onClose={() => setOpen(false)} title="How this intelligence is generated">
         <div className="space-y-3 text-sm text-slate-600">
           <p>
-            <span className="font-semibold text-slate-800">Deterministic first.</span> The match and its score are
-            calculated by a fixed weighted model, with no AI: firm type 30, product 25, customer 20, risk theme 25.
-            The same inputs always give the same result.
+            <span className="font-semibold text-slate-800">Deterministic first.</span> The result and its score are
+            calculated by a fixed, deterministic model, with no AI: the same inputs always give the same result.
+            {scoringNote ? ` ${scoringNote}` : ""}
           </p>
           <p>
             <span className="font-semibold text-slate-800">AI-assisted summary.</span> The narrative is written by{" "}
-            {model} from your selections and the matched typology. It restates and explains the deterministic result;
+            {model} from your selections and the matched result. It restates and explains the deterministic result;
             it does not introduce new facts or citations.
           </p>
           <p>

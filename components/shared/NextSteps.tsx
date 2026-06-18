@@ -13,11 +13,11 @@ export interface NextStepItem {
  * rule holds automatically). Used on results pages to carry the user's context
  * into the next tool.
  */
-export default function NextSteps({ items, heading = "Next steps" }: { items: NextStepItem[]; heading?: string }) {
+export default function NextSteps({ items }: { items: NextStepItem[] }) {
   if (!items.length) return null;
   return (
     <div className="mt-10">
-      <h3 className="text-sm font-semibold text-foreground mb-3">{heading}</h3>
+      <h3 className="text-sm font-semibold text-foreground mb-3">Next steps</h3>
       <div className="grid sm:grid-cols-2 gap-3">
         {items.map((it) => {
           const Icon = it.icon;

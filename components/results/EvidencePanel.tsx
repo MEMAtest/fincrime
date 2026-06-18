@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Scale, ListChecks, BookOpen, ShieldCheck, ChevronDown } from "lucide-react";
-import { casesForThemes, fmtGbp, totalPenaltiesForThemes, totalEnforcementCases } from "@/lib/enforcement/select";
+import { casesForThemes, fmtGbp, totalPenaltiesForThemes, countCasesForThemes } from "@/lib/enforcement/select";
 import { lessonFor } from "@/data/enforcement/lessons";
 import { INDICATORS_BY_THEME, FRAMEWORK_SOURCES } from "@/data/sources";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
@@ -14,6 +14,8 @@ export default function EvidencePanel({ themes, typology }: { themes: RiskTheme[
   const cases = casesForThemes(themes, 12);
   const visible = showAll ? cases : cases.slice(0, 6);
   const totalPenalties = totalPenaltiesForThemes(themes);
+  const matchedCount = countCasesForThemes(themes);
+  const themeLabel = themes.map((t) => THEME_CONFIG[t]?.label ?? t).join(", ") || "financial crime";
 
   // Fallback "what would have caught this" when a case has no bespoke lesson:
   // controls drawn from the matched typology (if one was passed in).
@@ -35,9 +37,7 @@ export default function EvidencePanel({ themes, typology }: { themes: RiskTheme[
         </div>
         {totalPenalties > 0 && (
           <p className="text-sm text-text-muted mb-4">
-            UK regulators have fined firms <span className="font-semibold text-emerald-500">{fmtGbp(totalPenalties)}</span> across{" "}
-            {cases.length === totalEnforcementCases ? "all" : "the"} cases tagged to{" "}
-            {themes.map((t) => THEME_CONFIG[t]?.label ?? t).join(", ") || "financial crime"}.
+            UK regulators have fined firms <span className="font-semibold text-emerald-500">{fmtGbp(totalPenalties)}</span> across the cases tagged to {themeLabel}.
           </p>
         )}
         <div className="grid sm:grid-cols-2 gap-4">
@@ -89,7 +89,7 @@ export default function EvidencePanel({ themes, typology }: { themes: RiskTheme[
         </div>
         <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
           <p className="text-xs text-text-muted">
-            Source: FCA fines dataset (regactions.com). Showing {visible.length} of {totalEnforcementCases} cases.
+            Source: FCA fines dataset (regactions.com). Showing {visible.length} of {matchedCount} cases tagged to {themeLabel}.
           </p>
           {cases.length > 6 && (
             <button

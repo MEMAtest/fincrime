@@ -1,11 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState, useEffect, Suspense } from "react";
+import { useMemo, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, SlidersHorizontal, Cpu, GitBranch, BarChart3,
-  ClipboardCheck, ArrowLeft, Sparkles, Layers, Scale,
+  ClipboardCheck, ArrowLeft, Layers, Scale,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -18,53 +18,51 @@ import BenchmarkStrip from "@/components/results/BenchmarkStrip";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
-import AiDisclosure from "@/components/shared/AiDisclosure";
+import NarrativeCard from "@/components/results/NarrativeCard";
+import KeyTerms from "@/components/shared/KeyTerms";
 import HowItWorks from "@/components/shared/HowItWorks";
 import NextSteps from "@/components/shared/NextSteps";
-import GlossaryTerm from "@/components/shared/GlossaryTerm";
+import { useNarrative } from "@/lib/useNarrative";
+import { allScreeningControls } from "@/data/screening";
 import { totalEnforcementCases, enforcementBenchmarks } from "@/lib/enforcement/select";
 import { getBestScreeningMatch } from "@/data/scoring/screening-scoring";
 import { SCREENING_CATEGORY_LABEL, SCREENING_TRIGGER_LABEL } from "@/data/screening/types";
+import { FIRM_TYPE_LABEL } from "@/data/typologies/labels";
 import type { ScreeningCategory, ScreeningTrigger } from "@/data/screening/types";
 import type { FirmType, SourceOrg } from "@/data/typologies/types";
 
 function ScreeningResults() {
   const searchParams = useSearchParams();
-  const [narrative, setNarrative] = useState<string | null>(null);
-  const [narrativeLoading, setNarrativeLoading] = useState(false);
 
-  const answers = useMemo(() => ({
-    firmType: searchParams.get("firmType") as FirmType,
-    category: searchParams.get("category") as ScreeningCategory,
-    trigger: searchParams.get("trigger") as ScreeningTrigger,
-  }), [searchParams]);
+  const answers = useMemo(() => {
+    const rawFirm = searchParams.get("firmType") ?? "";
+    return {
+      // Validate firmType against the enum so a stale/hand-edited deep link can't
+      // push junk into the scorer or the narrative API.
+      firmType: (rawFirm in FIRM_TYPE_LABEL ? rawFirm : "") as FirmType,
+      category: searchParams.get("category") as ScreeningCategory,
+      trigger: searchParams.get("trigger") as ScreeningTrigger,
+    };
+  }, [searchParams]);
 
   const result = useMemo(() => {
     if (!answers.firmType || !answers.category || !answers.trigger) return null;
     return getBestScreeningMatch(answers);
   }, [answers]);
 
-  useEffect(() => {
-    if (!result) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- start loading state before the async narrative fetch
-    setNarrativeLoading(true);
-    fetch("/api/screening/narrative", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        controlTitle: result.control.title,
-        controlObjective: result.control.controlObjective,
-        category: answers.category,
-        firmType: answers.firmType,
-        trigger: answers.trigger,
-        score: result.score,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => setNarrative(data.narrative || null))
-      .catch(() => setNarrative(null))
-      .finally(() => setNarrativeLoading(false));
-  }, [result, answers]);
+  const { narrative, loading: narrativeLoading } = useNarrative(
+    "/api/screening/narrative",
+    result
+      ? {
+          controlTitle: result.control.title,
+          controlObjective: result.control.controlObjective,
+          category: answers.category,
+          firmType: answers.firmType,
+          trigger: answers.trigger,
+          score: result.score,
+        }
+      : null
+  );
 
   if (!result) {
     return (
@@ -126,7 +124,7 @@ function ScreeningResults() {
           { title: "Real enforcement", body: "The Evidence tab maps the risk to real FCA enforcement cases, including the controls that would have caught each failure." },
         ]}
         provenance={[
-          { label: "Screening controls", value: "5 categories" },
+          { label: "Screening controls", value: `${allScreeningControls.length} controls` },
           { label: "Enforcement cases", value: `${totalEnforcementCases} FCA fines` },
           { label: "Scoring", value: "Deterministic, weighted" },
           { label: "Frameworks", value: "OFSI, JMLSG, FCA, Wolfsberg" },
@@ -136,36 +134,10 @@ function ScreeningResults() {
 
       <BenchmarkStrip />
 
-      {/* Key terms */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-        <span className="font-medium text-foreground">Key terms:</span>
-        <GlossaryTerm term="sanctions screening" />
-        <GlossaryTerm term="PEP" />
-        <GlossaryTerm term="EDD" />
-        <GlossaryTerm term="red-flag indicator" />
-      </div>
+      <KeyTerms terms={["sanctions screening", "PEP", "EDD", "red-flag indicator"]} />
 
       {/* Screening Intelligence (AI-assisted, distinguished from cited fact) */}
-      {(narrativeLoading || narrative) && (
-        <div className="rounded-2xl border-l-2 border-accent/40 bg-accent/[0.03] p-6 mb-8">
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <h3 className="text-sm font-semibold text-foreground">Screening Intelligence</h3>
-            <AiDisclosure />
-          </div>
-          {narrativeLoading ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-text-muted">Generating intelligence...</span>
-            </div>
-          ) : (
-            <>
-              <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
-              <p className="mt-3 text-[11px] text-text-muted/70">AI-assisted summary of the deterministic result. Not legal advice; verify against the cited sources.</p>
-            </>
-          )}
-        </div>
-      )}
+      <NarrativeCard heading="Screening Intelligence" narrative={narrative} loading={narrativeLoading} />
 
       <ResultTabs
         tabs={[

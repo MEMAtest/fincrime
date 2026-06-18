@@ -38,7 +38,7 @@ export const CASE_LESSONS: CaseLesson[] = [
     ],
   },
   {
-    firm: "Credit Suisse International, Credit Suisse Securities (Europe) Ltd, and Credit Suisse AG", year: 2021, aliases: ["Credit Suisse"],
+    firm: "Credit Suisse International, Credit Suisse Securities (Europe) Ltd, and Credit Suisse AG", year: 2021,
     rootCause: "Weak financial-crime and anti-bribery controls around opaque loans connected to sovereign debt.",
     preventedBy: [
       "Enhanced due diligence on PEP and sovereign exposures",
@@ -48,7 +48,7 @@ export const CASE_LESSONS: CaseLesson[] = [
     ],
   },
   {
-    firm: "Santander UK Plc", year: 2022, aliases: ["Santander"],
+    firm: "Santander UK Plc", year: 2022,
     rootCause: "Inadequate monitoring let business accounts receive far more than expected, including funds linked to money laundering, with slow action on alerts.",
     preventedBy: [
       "Expected-turnover thresholds set at onboarding and review",
@@ -78,7 +78,7 @@ export const CASE_LESSONS: CaseLesson[] = [
     ],
   },
   {
-    firm: "Barclays Bank plc", year: 2025, aliases: ["Barclays"],
+    firm: "Barclays Bank plc", year: 2025,
     rootCause: "Failed to identify and assess financial-crime risk with due skill, care and diligence over several years.",
     preventedBy: [
       "Documented financial-crime risk assessment refreshed on change",
@@ -88,7 +88,7 @@ export const CASE_LESSONS: CaseLesson[] = [
     ],
   },
   {
-    firm: "Commerzbank AG", year: 2020, aliases: ["Commerzbank"],
+    firm: "Commerzbank AG", year: 2020,
     rootCause: "Long-running failure to conduct timely CDD and to fix known monitoring weaknesses despite internal warnings.",
     preventedBy: [
       "Periodic CDD refresh with overdue tracking",
@@ -140,8 +140,8 @@ export const CASE_LESSONS: CaseLesson[] = [
 
 const lessonIndex: Record<string, CaseLesson> = {};
 for (const l of CASE_LESSONS) {
-  lessonIndex[`${l.firm.toLowerCase()}|${l.year}`] = l;
-  for (const a of l.aliases ?? []) lessonIndex[`${a.toLowerCase()}|${l.year}`] = l;
+  lessonIndex[`${l.firm.trim().toLowerCase()}|${l.year}`] = l;
+  for (const a of l.aliases ?? []) lessonIndex[`${a.trim().toLowerCase()}|${l.year}`] = l;
 }
 
 export function lessonFor(firm: string, year: number): CaseLesson | undefined {

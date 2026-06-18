@@ -1,10 +1,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState, useEffect, Suspense } from "react";
+import { useMemo, Suspense } from "react";
 import Link from "next/link";
 import {
-  Gauge, ListChecks, Route, BarChart3, ClipboardCheck, ArrowLeft, Sparkles, Layers, Scale,
+  Gauge, ListChecks, Route, BarChart3, ClipboardCheck, ArrowLeft, Layers, Scale,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -16,10 +16,12 @@ import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import BenchmarkStrip from "@/components/results/BenchmarkStrip";
 import SourceBadge from "@/components/shared/SourceBadge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
-import AiDisclosure from "@/components/shared/AiDisclosure";
+import NarrativeCard from "@/components/results/NarrativeCard";
+import KeyTerms from "@/components/shared/KeyTerms";
 import HowItWorks from "@/components/shared/HowItWorks";
 import NextSteps from "@/components/shared/NextSteps";
-import GlossaryTerm from "@/components/shared/GlossaryTerm";
+import { useNarrative } from "@/lib/useNarrative";
+import { allMaturityFrameworks } from "@/data/maturity";
 import { totalEnforcementCases, enforcementBenchmarks } from "@/lib/enforcement/select";
 import { scoreMaturity } from "@/data/scoring/maturity-scoring";
 import { MATURITY_LABEL, MATURITY_ORDER, CONTROL_AREA_LABEL } from "@/data/maturity/types";
@@ -54,8 +56,6 @@ function LevelScale({ current, target }: { current: MaturityLevel; target: Matur
 
 function MaturityResults() {
   const searchParams = useSearchParams();
-  const [narrative, setNarrative] = useState<string | null>(null);
-  const [narrativeLoading, setNarrativeLoading] = useState(false);
 
   const answers = useMemo(() => ({
     area: searchParams.get("area") as ControlArea,
@@ -68,26 +68,18 @@ function MaturityResults() {
     return scoreMaturity(answers);
   }, [answers]);
 
-  useEffect(() => {
-    if (!result) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- start loading state before the async narrative fetch
-    setNarrativeLoading(true);
-    fetch("/api/maturity/narrative", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        area: answers.area,
-        title: result.framework.title,
-        currentLevel: answers.currentLevel,
-        targetLevel: answers.targetLevel,
-        gapLevels: result.gapLevels,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => setNarrative(data.narrative || null))
-      .catch(() => setNarrative(null))
-      .finally(() => setNarrativeLoading(false));
-  }, [result, answers]);
+  const { narrative, loading: narrativeLoading } = useNarrative(
+    "/api/maturity/narrative",
+    result
+      ? {
+          area: answers.area,
+          title: result.framework.title,
+          currentLevel: answers.currentLevel,
+          targetLevel: answers.targetLevel,
+          gapLevels: result.gapLevels,
+        }
+      : null
+  );
 
   if (!result) {
     return (
@@ -145,51 +137,25 @@ function MaturityResults() {
         title="How the maturity assessment works"
         steps={[
           { title: "Deterministic gap", body: "Your current and target levels map to a fixed score, and the gap drives the roadmap. The same inputs always give the same result; no AI is involved." },
-          { title: "Levels and remediation from the framework", body: "Level descriptors, remediation actions and owners come from the control-area framework, mapped to JMLSG and FCA guidance." },
+          { title: "Levels and remediation from the framework", body: "Level descriptors, remediation actions and owners come from the control-area framework, mapped to JMLSG, FCA and (for sanctions) OFSI guidance." },
           { title: "AI-assisted summary", body: "Maturity Intelligence is written by an AI model from your levels; it explains the gap and does not add new facts. It is not legal advice." },
           { title: "Real enforcement", body: "The Evidence tab maps this area to real FCA enforcement cases, including the controls that would have caught each failure." },
         ]}
         provenance={[
-          { label: "Control areas", value: "6 frameworks" },
+          { label: "Control areas", value: `${allMaturityFrameworks.length} frameworks` },
           { label: "Enforcement cases", value: `${totalEnforcementCases} FCA fines` },
           { label: "Scoring", value: "Deterministic, level-based" },
-          { label: "Frameworks", value: "JMLSG, FCA" },
+          { label: "Frameworks", value: "JMLSG, FCA, OFSI" },
         ]}
         lastUpdated={enforcementBenchmarks.generatedAt}
       />
 
       <BenchmarkStrip />
 
-      {/* Key terms */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-        <span className="font-medium text-foreground">Key terms:</span>
-        <GlossaryTerm term="three lines of defence" />
-        <GlossaryTerm term="MLRO" />
-        <GlossaryTerm term="transaction monitoring" />
-        <GlossaryTerm term="risk-based approach" />
-      </div>
+      <KeyTerms terms={["three lines of defence", "MLRO", "transaction monitoring", "risk-based approach"]} />
 
       {/* Maturity Intelligence (AI-assisted, distinguished from cited fact) */}
-      {(narrativeLoading || narrative) && (
-        <div className="rounded-2xl border-l-2 border-accent/40 bg-accent/[0.03] p-6 mb-8">
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <h3 className="text-sm font-semibold text-foreground">Maturity Intelligence</h3>
-            <AiDisclosure />
-          </div>
-          {narrativeLoading ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-text-muted">Generating intelligence...</span>
-            </div>
-          ) : (
-            <>
-              <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
-              <p className="mt-3 text-[11px] text-text-muted/70">AI-assisted summary of the deterministic result. Not legal advice; verify against the cited sources.</p>
-            </>
-          )}
-        </div>
-      )}
+      <NarrativeCard heading="Maturity Intelligence" narrative={narrative} loading={narrativeLoading} />
 
       <ResultTabs
         tabs={[

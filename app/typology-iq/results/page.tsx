@@ -1,11 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState, useEffect, Suspense } from "react";
+import { useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, Cpu, GitBranch, ClipboardCheck, BarChart3,
-  ArrowLeft, Sparkles, BookOpen, ChevronDown, ChevronUp, Link2, Layers, Scale,
+  ArrowLeft, BookOpen, ChevronDown, ChevronUp, Link2, Layers, Scale,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -16,10 +16,12 @@ import EvidencePanel from "@/components/results/EvidencePanel";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import MatchExplanation from "@/components/results/MatchExplanation";
 import BenchmarkStrip from "@/components/results/BenchmarkStrip";
-import AiDisclosure from "@/components/shared/AiDisclosure";
-import GlossaryTerm from "@/components/shared/GlossaryTerm";
+import NarrativeCard from "@/components/results/NarrativeCard";
+import KeyTerms from "@/components/shared/KeyTerms";
 import HowItWorks from "@/components/shared/HowItWorks";
 import NextSteps from "@/components/shared/NextSteps";
+import { useNarrative } from "@/lib/useNarrative";
+import { allTypologies } from "@/data/typologies";
 import { totalEnforcementCases, enforcementBenchmarks } from "@/lib/enforcement/select";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
@@ -33,8 +35,6 @@ import type { FirmType, ProductType, CustomerType, RiskTheme, SourceOrg } from "
 
 function TypologyResults() {
   const searchParams = useSearchParams();
-  const [narrative, setNarrative] = useState<string | null>(null);
-  const [narrativeLoading, setNarrativeLoading] = useState(false);
   const [showAllDetection, setShowAllDetection] = useState(false);
   const [showAllWorkflow, setShowAllWorkflow] = useState(false);
 
@@ -66,29 +66,21 @@ function TypologyResults() {
     return getRelatedTypologies(answers, result.typology.slug, 4);
   }, [answers, result]);
 
-  useEffect(() => {
-    if (!result) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- start loading state before the async narrative fetch
-    setNarrativeLoading(true);
-    fetch("/api/typology/narrative", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        typologyTitle: result.typology.title,
-        typologyDescription: result.typology.description,
-        controlObjective: result.typology.controlObjective,
-        firmTypes: answers.firmTypes,
-        products: answers.products,
-        customerTypes: answers.customerTypes,
-        riskThemes: answers.riskThemes,
-        score: result.score,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => setNarrative(data.narrative || null))
-      .catch(() => setNarrative(null))
-      .finally(() => setNarrativeLoading(false));
-  }, [result, answers]);
+  const { narrative, loading: narrativeLoading } = useNarrative(
+    "/api/typology/narrative",
+    result
+      ? {
+          typologyTitle: result.typology.title,
+          typologyDescription: result.typology.description,
+          controlObjective: result.typology.controlObjective,
+          firmTypes: answers.firmTypes,
+          products: answers.products,
+          customerTypes: answers.customerTypes,
+          riskThemes: answers.riskThemes,
+          score: result.score,
+        }
+      : null
+  );
 
   if (!result) {
     return (
@@ -154,7 +146,7 @@ function TypologyResults() {
           { title: "Real enforcement", body: "The Evidence tab maps the risk to real FCA enforcement cases, including the controls that would have caught each failure." },
         ]}
         provenance={[
-          { label: "Typologies", value: "15, framework-aligned" },
+          { label: "Typologies", value: `${allTypologies.length}, framework-aligned` },
           { label: "Enforcement cases", value: `${totalEnforcementCases} FCA fines` },
           { label: "Scoring", value: "Deterministic, weighted" },
           { label: "Frameworks", value: "FATF, Wolfsberg, FCA, JMLSG" },
@@ -257,41 +249,18 @@ function TypologyResults() {
       </div>
 
       {/* Key terms (inline glossary) */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-        <span className="font-medium text-foreground">Key terms:</span>
-        <GlossaryTerm term="CDD" />
-        <GlossaryTerm term="EDD" />
-        <GlossaryTerm term="beneficial owner" />
-        <GlossaryTerm term="SAR" />
-        <GlossaryTerm term="transaction monitoring" />
-      </div>
+      <KeyTerms terms={["CDD", "EDD", "beneficial owner", "SAR", "transaction monitoring"]} />
 
       {/* Why this matched (deterministic explainability) */}
       <MatchExplanation answers={answers} result={result} />
 
-      {/* Risk Intelligence (AI-assisted narrative, clearly distinguished from cited fact) */}
-      {(narrativeLoading || narrative) && (
-        <div className="rounded-2xl border-l-2 border-accent/40 bg-accent/[0.03] p-6 mb-8">
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <h3 className="text-sm font-semibold text-foreground">Risk Intelligence</h3>
-            <AiDisclosure />
-          </div>
-          {narrativeLoading ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-text-muted">Generating intelligence...</span>
-            </div>
-          ) : (
-            <>
-              <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
-              <p className="mt-3 text-[11px] text-text-muted/70">
-                AI-assisted summary from your selections and the cited typology. Not legal advice; verify against the cited sources.
-              </p>
-            </>
-          )}
-        </div>
-      )}
+      {/* Risk Intelligence (AI-assisted narrative, distinguished from cited fact) */}
+      <NarrativeCard
+        heading="Risk Intelligence"
+        narrative={narrative}
+        loading={narrativeLoading}
+        scoringNote="In TypologyIQ the weights are firm type 30, product 25, customer 20, risk theme 25."
+      />
 
       {/* Tabbed results: Controls · Evidence · Benchmarks */}
       <ResultTabs

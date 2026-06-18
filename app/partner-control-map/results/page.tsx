@@ -1,11 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState, useEffect, Suspense } from "react";
+import { useMemo, Suspense } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, Users, Database, ClipboardCheck, FileText,
-  ArrowLeft, Sparkles, ShieldAlert, CheckCircle, XCircle, Layers, Scale, BarChart3,
+  ArrowLeft, ShieldAlert, CheckCircle, XCircle, Layers, Scale, BarChart3,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -19,10 +19,12 @@ import RiskRatingBadge from "@/components/shared/RiskRatingBadge";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
-import AiDisclosure from "@/components/shared/AiDisclosure";
+import NarrativeCard from "@/components/results/NarrativeCard";
+import KeyTerms from "@/components/shared/KeyTerms";
 import HowItWorks from "@/components/shared/HowItWorks";
 import NextSteps from "@/components/shared/NextSteps";
-import GlossaryTerm from "@/components/shared/GlossaryTerm";
+import { useNarrative } from "@/lib/useNarrative";
+import { allPartnerFlows } from "@/data/partner-flows";
 import { totalEnforcementCases, enforcementBenchmarks } from "@/lib/enforcement/select";
 import { scorePartnerRisk } from "@/data/scoring/partner-scoring";
 import type { Actor, ControlOwnership, SourceOrg } from "@/data/partner-flows/types";
@@ -43,8 +45,6 @@ const actorLabels: Record<Actor, string> = {
 
 function PartnerResults() {
   const searchParams = useSearchParams();
-  const [narrative, setNarrative] = useState<string | null>(null);
-  const [narrativeLoading, setNarrativeLoading] = useState(false);
 
   const answers = useMemo(() => {
     let controlOverrides: Record<string, ControlOwnership> = {};
@@ -66,28 +66,21 @@ function PartnerResults() {
     return scorePartnerRisk(answers);
   }, [answers]);
 
-  useEffect(() => {
-    if (!result) return;
-    setNarrativeLoading(true);
-    fetch("/api/partner/narrative", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        flowTitle: result.flow.title,
-        flowDescription: result.flow.description,
-        riskScore: result.riskScore,
-        riskRating: result.riskRating,
-        gapControls: result.gapControls,
-        missingDataFields: result.missingDataFields,
-        controlSummary: result.controlSummary,
-        modelType: answers.modelType,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => setNarrative(data.narrative || null))
-      .catch(() => setNarrative(null))
-      .finally(() => setNarrativeLoading(false));
-  }, [result, answers.modelType]);
+  const { narrative, loading: narrativeLoading } = useNarrative(
+    "/api/partner/narrative",
+    result
+      ? {
+          flowTitle: result.flow.title,
+          flowDescription: result.flow.description,
+          riskScore: result.riskScore,
+          riskRating: result.riskRating,
+          gapControls: result.gapControls,
+          missingDataFields: result.missingDataFields,
+          controlSummary: result.controlSummary,
+          modelType: answers.modelType,
+        }
+      : null
+  );
 
   if (!result) {
     return (
@@ -176,7 +169,7 @@ function PartnerResults() {
           { title: "Real enforcement", body: "The Evidence tab maps these risks to real FCA enforcement cases, including the controls that would have caught each failure." },
         ]}
         provenance={[
-          { label: "Partner flows", value: "5 templated flows" },
+          { label: "Partner flows", value: `${allPartnerFlows.length} templated flows` },
           { label: "Enforcement cases", value: `${totalEnforcementCases} FCA fines` },
           { label: "Scoring", value: "Deterministic, weighted" },
           { label: "Frameworks", value: "Wolfsberg, FATF, FCA, JMLSG" },
@@ -186,36 +179,10 @@ function PartnerResults() {
 
       <BenchmarkStrip />
 
-      {/* Key terms */}
-      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-        <span className="font-medium text-foreground">Key terms:</span>
-        <GlossaryTerm term="correspondent banking" />
-        <GlossaryTerm term="CDD" />
-        <GlossaryTerm term="transaction monitoring" />
-        <GlossaryTerm term="three lines of defence" />
-      </div>
+      <KeyTerms terms={["correspondent banking", "CDD", "transaction monitoring", "three lines of defence"]} />
 
       {/* Flow Intelligence (AI-assisted, distinguished from cited fact) */}
-      {(narrativeLoading || narrative) && (
-        <div className="rounded-2xl border-l-2 border-accent/40 bg-accent/[0.03] p-6 mb-8">
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <h3 className="text-sm font-semibold text-foreground">Flow Intelligence</h3>
-            <AiDisclosure />
-          </div>
-          {narrativeLoading ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-text-muted">Generating intelligence...</span>
-            </div>
-          ) : (
-            <>
-              <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
-              <p className="mt-3 text-[11px] text-text-muted/70">AI-assisted summary of the deterministic result. Not legal advice; verify against the cited sources.</p>
-            </>
-          )}
-        </div>
-      )}
+      <NarrativeCard heading="Flow Intelligence" narrative={narrative} loading={narrativeLoading} />
 
       {/* Tabbed results: Controls · Evidence · Benchmarks */}
       <ResultTabs

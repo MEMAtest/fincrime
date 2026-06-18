@@ -11,8 +11,14 @@ import { GLOSSARY_BY_KEY } from "@/data/glossary";
  */
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// Short or ambiguous keys are excluded from the AUTO-linker because they over-match
+// ordinary prose (e.g. "tm", "pf", "sof", "sow"); explicit <GlossaryTerm> still
+// resolves every term and alias.
+const AUTOLINK_DENY = new Set(["sof", "sow", "rba", "str"]);
 // Longest keys first so multi-word terms win over their substrings.
-const KEYS = Object.keys(GLOSSARY_BY_KEY).sort((a, b) => b.length - a.length);
+const KEYS = Object.keys(GLOSSARY_BY_KEY)
+  .filter((k) => k.length >= 3 && !AUTOLINK_DENY.has(k))
+  .sort((a, b) => b.length - a.length);
 const PATTERN = KEYS.length ? new RegExp(`\\b(${KEYS.map(escapeRe).join("|")})\\b`, "gi") : null;
 
 export default function GlossaryText({ children }: { children: string }) {

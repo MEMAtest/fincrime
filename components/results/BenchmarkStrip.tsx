@@ -1,15 +1,14 @@
 import { benchmarksForFirmType, fmtGbp } from "@/lib/enforcement/select";
-import type { FirmType } from "@/data/typologies/types";
 
 /**
  * A thin headline strip of enforcement KPIs, shown at the top of results pages so
  * the credibility numbers are visible without opening the Benchmarks tab.
  */
-export default function BenchmarkStrip({ firmFilter = "all" }: { firmFilter?: FirmType | "all" }) {
-  const b = benchmarksForFirmType(firmFilter);
+export default function BenchmarkStrip() {
+  const b = benchmarksForFirmType("all");
   if (b.totalCases === 0) return null;
   const kpis = [
-    { label: "FCA enforcement cases", value: String(b.totalCases) },
+    { label: "Enforcement cases", value: String(b.totalCases) },
     { label: "Total penalties", value: fmtGbp(b.fineStats.totalGbp) },
     { label: "Median fine", value: fmtGbp(b.fineStats.medianGbp) },
     { label: "Largest", value: fmtGbp(b.fineStats.maxGbp) },

@@ -22,15 +22,13 @@ export default function HowItWorks({
   steps,
   provenance,
   lastUpdated,
-  defaultOpen = false,
 }: {
   title?: string;
   steps: Step[];
   provenance?: Provenance[];
   lastUpdated?: string;
-  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(false);
   return (
     <div className="glass-card rounded-2xl mb-8 overflow-hidden">
       <button
