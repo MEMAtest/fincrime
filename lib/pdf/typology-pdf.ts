@@ -79,14 +79,20 @@ export function generateTypologyPDF(data: TypologyPDFData): Buffer {
   // @ts-expect-error jspdf-autotable adds lastAutoTable
   y = doc.lastAutoTable.finalY + 10;
 
-  // Risk Overview
+  // Risk Intelligence (AI-assisted narrative)
   if (narrative) {
     y = checkPageBreak(doc, y, 50);
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(MEMA_COLORS.text);
-    doc.text("Risk Overview", 20, y);
-    y += 7;
+    doc.text("Risk Intelligence", 20, y);
+    y += 5;
+
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(120, 120, 120);
+    doc.text("AI-assisted summary of the deterministic result. Not legal advice; verify against the cited sources.", 20, y);
+    y += 6;
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");

@@ -5,7 +5,7 @@ import { useMemo, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, Cpu, GitBranch, ClipboardCheck, BarChart3,
-  ArrowLeft, FileText, BookOpen, ChevronDown, ChevronUp, Link2, Layers, Scale,
+  ArrowLeft, Sparkles, BookOpen, ChevronDown, ChevronUp, Link2, Layers, Scale,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -14,12 +14,14 @@ import ResultsGrid from "@/components/results/ResultsGrid";
 import ResultTabs from "@/components/results/ResultTabs";
 import EvidencePanel from "@/components/results/EvidencePanel";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
+import MatchExplanation from "@/components/results/MatchExplanation";
+import AiDisclosure from "@/components/shared/AiDisclosure";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
 import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
-import { getBestMatch, getTopMatches, getRelatedTypologies } from "@/data/scoring/typology-scoring";
+import { getBestMatch, getTopMatches, getRelatedTypologies, explainMatch } from "@/data/scoring/typology-scoring";
 import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL, RISK_THEME_LABEL } from "@/data/typologies/labels";
 import { parseListParam } from "@/lib/list-params";
 import type { FirmType, ProductType, CustomerType, RiskTheme, SourceOrg } from "@/data/typologies/types";
@@ -106,6 +108,19 @@ function TypologyResults() {
       default: return "default" as const;
     }
   };
+
+  // Pivot: re-run results keeping firm/product/customer but focusing on one theme,
+  // so a runner-up's risk theme becomes the lead.
+  const pivotHref = (theme: RiskTheme) => {
+    const p = new URLSearchParams();
+    if (answers.firmTypes.length) p.set("firmType", answers.firmTypes.join(","));
+    if (answers.products.length) p.set("product", answers.products.join(","));
+    if (answers.customerTypes.length) p.set("customerType", answers.customerTypes.join(","));
+    p.set("riskThemes", theme);
+    return `/typology-iq/results?${p.toString()}`;
+  };
+  const matchedDims = (m: typeof result) =>
+    explainMatch(answers, m).filter((d) => d.matched).map((d) => d.label);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -216,20 +231,29 @@ function TypologyResults() {
         </div>
       </div>
 
-      {/* Risk Overview (formerly AI Narrative) */}
+      {/* Why this matched (deterministic explainability) */}
+      <MatchExplanation answers={answers} result={result} />
+
+      {/* Risk Intelligence (AI-assisted narrative, clearly distinguished from cited fact) */}
       {(narrativeLoading || narrative) && (
-        <div className="glass-card rounded-2xl p-6 mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <FileText className="h-4 w-4 text-accent" />
-            <h3 className="text-sm font-semibold text-foreground">Risk Overview</h3>
+        <div className="rounded-2xl border-l-2 border-accent/40 bg-accent/[0.03] p-6 mb-8">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <Sparkles className="h-4 w-4 text-accent" />
+            <h3 className="text-sm font-semibold text-foreground">Risk Intelligence</h3>
+            <AiDisclosure />
           </div>
           {narrativeLoading ? (
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-text-muted">Generating risk overview...</span>
+              <span className="text-sm text-text-muted">Generating intelligence...</span>
             </div>
           ) : (
-            <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
+            <>
+              <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
+              <p className="mt-3 text-[11px] text-text-muted/70">
+                AI-assisted summary from your selections and the cited typology. Not legal advice; verify against the cited sources.
+              </p>
+            </>
           )}
         </div>
       )}
@@ -371,7 +395,11 @@ function TypologyResults() {
             {relatedTypologies.map((match) => {
               const cfg = THEME_CONFIG[match.typology.riskTheme];
               return (
-                <div key={match.typology.slug} className="glass-card rounded-xl p-4 flex items-start gap-3">
+                <Link
+                  key={match.typology.slug}
+                  href={pivotHref(match.typology.riskTheme)}
+                  className="glass-card rounded-xl p-4 flex items-start gap-3 hover:border-accent/40 transition-colors"
+                >
                   <div className="shrink-0">
                     <RiskThemeIcon riskTheme={match.typology.riskTheme} size="sm" animated={false} />
                   </div>
@@ -387,14 +415,11 @@ function TypologyResults() {
                     <p className="text-xs text-text-muted line-clamp-2 mb-2">
                       {match.typology.description}
                     </p>
-                    <span
-                      className="inline-block text-[10px] uppercase tracking-wider font-medium"
-                      style={{ color: cfg.primary }}
-                    >
-                      {cfg.label}
-                    </span>
+                    <p className="text-[11px] text-text-muted mb-1.5">
+                      Shares the <span style={{ color: cfg.primary }}>{cfg.label}</span> theme you selected. Click to focus on it.
+                    </p>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -409,21 +434,31 @@ function TypologyResults() {
             Other Potential Matches
           </h3>
           <div className="grid sm:grid-cols-2 gap-4">
-            {topMatches.slice(1).map((match) => (
-              <div key={match.typology.slug} className="glass-card rounded-xl p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="text-sm font-medium text-foreground">
-                    {match.typology.title}
-                  </h4>
-                  <span className="text-sm font-mono text-text-muted">
-                    {match.score}/100
-                  </span>
-                </div>
-                <p className="text-xs text-text-muted line-clamp-2">
-                  {match.typology.description}
-                </p>
-              </div>
-            ))}
+            {topMatches.slice(1).map((match) => {
+              const dims = matchedDims(match);
+              return (
+                <Link
+                  key={match.typology.slug}
+                  href={pivotHref(match.typology.riskTheme)}
+                  className="glass-card rounded-xl p-4 block hover:border-accent/40 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="text-sm font-medium text-foreground">
+                      {match.typology.title}
+                    </h4>
+                    <span className="text-sm font-mono text-text-muted">
+                      {match.score}/100
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-muted line-clamp-2 mb-1.5">
+                    {match.typology.description}
+                  </p>
+                  <p className="text-[11px] text-text-muted">
+                    {dims.length > 0 ? `Matches on ${dims.join(", ")}.` : "Lower overlap with your selection."}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}

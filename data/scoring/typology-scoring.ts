@@ -1,5 +1,6 @@
 import type { Typology, FirmType, ProductType, CustomerType, RiskTheme } from "../typologies/types";
 import { allTypologies } from "../typologies";
+import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL, RISK_THEME_LABEL } from "../typologies/labels";
 
 export interface TypologyAnswers {
   firmTypes: FirmType[];
@@ -109,4 +110,35 @@ export function getRelatedTypologies(
   return scoreTypologies(answers)
     .filter((m) => m.typology.slug !== bestSlug && themes.includes(m.typology.riskTheme))
     .slice(0, count);
+}
+
+/** A single scored dimension explained in plain terms (which of the user's selections hit). */
+export interface MatchDimension {
+  key: "firmType" | "product" | "customerType" | "riskTheme";
+  label: string;
+  points: number;
+  max: number;
+  matched: boolean;
+  /** Human labels of the user's selected values that this typology applies to. */
+  matchedValues: string[];
+}
+
+/**
+ * Explain WHY a typology matched, derived entirely from the deterministic score
+ * and the typology's applicability arrays. No new data; same numbers as the score.
+ */
+export function explainMatch(answers: TypologyAnswers, score: TypologyScore): MatchDimension[] {
+  const t = score.typology;
+  const inter = <T extends string>(selected: T[], applicable: T[]): T[] =>
+    selected.filter((v) => applicable.includes(v));
+  const firm = inter(answers.firmTypes, t.applicableFirmTypes);
+  const product = inter(answers.products, t.applicableProducts);
+  const customer = inter(answers.customerTypes, t.applicableCustomerTypes);
+  const theme = answers.riskThemes.includes(t.riskTheme) ? [t.riskTheme] : [];
+  return [
+    { key: "firmType", label: "Firm Type", points: score.breakdown.firmTypeScore, max: WEIGHTS.firmType, matched: firm.length > 0, matchedValues: firm.map((v) => FIRM_TYPE_LABEL[v] ?? v) },
+    { key: "product", label: "Product", points: score.breakdown.productScore, max: WEIGHTS.product, matched: product.length > 0, matchedValues: product.map((v) => PRODUCT_LABEL[v] ?? v) },
+    { key: "customerType", label: "Customer", points: score.breakdown.customerTypeScore, max: WEIGHTS.customerType, matched: customer.length > 0, matchedValues: customer.map((v) => CUSTOMER_LABEL[v] ?? v) },
+    { key: "riskTheme", label: "Risk Theme", points: score.breakdown.riskThemeScore, max: WEIGHTS.riskTheme, matched: theme.length > 0, matchedValues: theme.map((v) => RISK_THEME_LABEL[v] ?? v) },
+  ];
 }
