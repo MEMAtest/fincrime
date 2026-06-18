@@ -5,7 +5,7 @@ import { useMemo, useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, SlidersHorizontal, Cpu, GitBranch, BarChart3,
-  ClipboardCheck, ArrowLeft, FileText, Layers, Scale,
+  ClipboardCheck, ArrowLeft, Sparkles, Layers, Scale,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -17,6 +17,11 @@ import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
+import AiDisclosure from "@/components/shared/AiDisclosure";
+import HowItWorks from "@/components/shared/HowItWorks";
+import NextSteps from "@/components/shared/NextSteps";
+import GlossaryTerm from "@/components/shared/GlossaryTerm";
+import { totalEnforcementCases, enforcementBenchmarks } from "@/lib/enforcement/select";
 import { getBestScreeningMatch } from "@/data/scoring/screening-scoring";
 import { SCREENING_CATEGORY_LABEL, SCREENING_TRIGGER_LABEL } from "@/data/screening/types";
 import type { ScreeningCategory, ScreeningTrigger } from "@/data/screening/types";
@@ -40,6 +45,7 @@ function ScreeningResults() {
 
   useEffect(() => {
     if (!result) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- start loading state before the async narrative fetch
     setNarrativeLoading(true);
     fetch("/api/screening/narrative", {
       method: "POST",
@@ -109,19 +115,51 @@ function ScreeningResults() {
         </div>
       </div>
 
+      {/* How it works (collapsed) */}
+      <HowItWorks
+        title="How the Screening Control Designer works"
+        steps={[
+          { title: "Deterministic match", body: "Your screening type, firm type and trigger select the best-fit control by a fixed weighted score. The same inputs always give the same result; no AI is involved." },
+          { title: "Cited configuration", body: "The matching configuration, detection logic and workflow map to authoritative sources (OFSI, JMLSG, FCA, Wolfsberg). Open any source badge to read and copy the reference." },
+          { title: "AI-assisted summary", body: "Screening Intelligence is written by an AI model from your selections; it explains the recommended control and does not add new facts. It is not legal advice." },
+          { title: "Real enforcement", body: "The Evidence tab maps the risk to real FCA enforcement cases, including the controls that would have caught each failure." },
+        ]}
+        provenance={[
+          { label: "Screening controls", value: "5 categories" },
+          { label: "Enforcement cases", value: `${totalEnforcementCases} FCA fines` },
+          { label: "Scoring", value: "Deterministic, weighted" },
+          { label: "Frameworks", value: "OFSI, JMLSG, FCA, Wolfsberg" },
+        ]}
+        lastUpdated={enforcementBenchmarks.generatedAt}
+      />
+
+      {/* Key terms */}
+      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+        <span className="font-medium text-foreground">Key terms:</span>
+        <GlossaryTerm term="sanctions screening" />
+        <GlossaryTerm term="PEP" />
+        <GlossaryTerm term="EDD" />
+        <GlossaryTerm term="red-flag indicator" />
+      </div>
+
+      {/* Screening Intelligence (AI-assisted, distinguished from cited fact) */}
       {(narrativeLoading || narrative) && (
-        <div className="glass-card rounded-2xl p-6 mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <FileText className="h-4 w-4 text-accent" />
-            <h3 className="text-sm font-semibold text-foreground">Design Overview</h3>
+        <div className="rounded-2xl border-l-2 border-accent/40 bg-accent/[0.03] p-6 mb-8">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <Sparkles className="h-4 w-4 text-accent" />
+            <h3 className="text-sm font-semibold text-foreground">Screening Intelligence</h3>
+            <AiDisclosure />
           </div>
           {narrativeLoading ? (
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-text-muted">Generating overview...</span>
+              <span className="text-sm text-text-muted">Generating intelligence...</span>
             </div>
           ) : (
-            <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
+            <>
+              <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
+              <p className="mt-3 text-[11px] text-text-muted/70">AI-assisted summary of the deterministic result. Not legal advice; verify against the cited sources.</p>
+            </>
           )}
         </div>
       )}
@@ -242,6 +280,14 @@ function ScreeningResults() {
             icon: BarChart3,
             content: <BenchmarksPanel />,
           },
+        ]}
+      />
+
+      <NextSteps
+        items={[
+          { title: "Map AML typologies to controls", body: "See which typologies apply to your firm and the detection controls.", href: "/typology-iq", icon: Scale },
+          { title: "Browse the Controls Library", body: "Controls grouped by risk theme, mapped to real enforcement.", href: "/controls", icon: Layers },
+          { title: "Check KYC requirements", body: "What to collect by entity type and jurisdiction, each cited.", href: "/kyc-requirements", icon: ClipboardCheck },
         ]}
       />
     </div>

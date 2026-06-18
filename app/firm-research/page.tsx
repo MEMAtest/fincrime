@@ -6,6 +6,7 @@ import { Search, Sparkles, ArrowRight, AlertCircle, Building2 } from "lucide-rea
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
+import AiDisclosure from "@/components/shared/AiDisclosure";
 import type { RiskTheme, FirmType, ProductType, CustomerType } from "@/data/typologies/types";
 
 interface FirmResearchResult {
@@ -202,9 +203,13 @@ export default function FirmResearchPage() {
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="h-4 w-4 text-accent" />
                 <h2 className="text-sm font-semibold text-foreground">Risk Summary</h2>
-                {result.source === "fallback" && (
+                {result.source === "fallback" ? (
                   <span className="ml-auto text-[10px] uppercase tracking-wider text-text-muted">
                     Rules-based
+                  </span>
+                ) : (
+                  <span className="ml-auto">
+                    <AiDisclosure />
                   </span>
                 )}
               </div>

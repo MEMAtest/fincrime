@@ -18,6 +18,11 @@ import RiskRatingBadge from "@/components/shared/RiskRatingBadge";
 import SourceBadge from "@/components/shared/SourceBadge";
 import Badge from "@/components/ui/Badge";
 import PDFExportButton from "@/components/shared/PDFExportButton";
+import AiDisclosure from "@/components/shared/AiDisclosure";
+import HowItWorks from "@/components/shared/HowItWorks";
+import NextSteps from "@/components/shared/NextSteps";
+import GlossaryTerm from "@/components/shared/GlossaryTerm";
+import { totalEnforcementCases, enforcementBenchmarks } from "@/lib/enforcement/select";
 import { scorePartnerRisk } from "@/data/scoring/partner-scoring";
 import type { Actor, ControlOwnership, SourceOrg } from "@/data/partner-flows/types";
 import type { RiskTheme } from "@/data/typologies/types";
@@ -160,20 +165,51 @@ function PartnerResults() {
         </div>
       </div>
 
-      {/* AI Narrative */}
+      {/* How it works (collapsed) */}
+      <HowItWorks
+        title="How PartnerControlMap works"
+        steps={[
+          { title: "Deterministic risk score", body: "The score is computed from your control ownership and data gaps: unowned controls and missing data fields add the most, weighted for flow complexity and the number of actors. No AI is involved." },
+          { title: "RACI and governance from the flow", body: "The RACI matrix, pre-launch conditions and governance pack come from the selected flow template, mapped to Wolfsberg, FATF and FCA guidance." },
+          { title: "AI-assisted summary", body: "Flow Intelligence is written by an AI model from your configuration; it explains the result and does not add new facts. It is not legal advice." },
+          { title: "Real enforcement", body: "The Evidence tab maps these risks to real FCA enforcement cases, including the controls that would have caught each failure." },
+        ]}
+        provenance={[
+          { label: "Partner flows", value: "5 templated flows" },
+          { label: "Enforcement cases", value: `${totalEnforcementCases} FCA fines` },
+          { label: "Scoring", value: "Deterministic, weighted" },
+          { label: "Frameworks", value: "Wolfsberg, FATF, FCA, JMLSG" },
+        ]}
+        lastUpdated={enforcementBenchmarks.generatedAt}
+      />
+
+      {/* Key terms */}
+      <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+        <span className="font-medium text-foreground">Key terms:</span>
+        <GlossaryTerm term="correspondent banking" />
+        <GlossaryTerm term="CDD" />
+        <GlossaryTerm term="transaction monitoring" />
+        <GlossaryTerm term="three lines of defence" />
+      </div>
+
+      {/* Flow Intelligence (AI-assisted, distinguished from cited fact) */}
       {(narrativeLoading || narrative) && (
-        <div className="glass-card rounded-2xl p-6 mb-8">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="rounded-2xl border-l-2 border-accent/40 bg-accent/[0.03] p-6 mb-8">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <Sparkles className="h-4 w-4 text-accent" />
-            <h3 className="text-sm font-semibold text-foreground">AI Narrative Summary</h3>
+            <h3 className="text-sm font-semibold text-foreground">Flow Intelligence</h3>
+            <AiDisclosure />
           </div>
           {narrativeLoading ? (
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <span className="text-sm text-text-muted">Generating narrative...</span>
+              <span className="text-sm text-text-muted">Generating intelligence...</span>
             </div>
           ) : (
-            <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
+            <>
+              <p className="text-sm text-text-muted leading-relaxed">{narrative}</p>
+              <p className="mt-3 text-[11px] text-text-muted/70">AI-assisted summary of the deterministic result. Not legal advice; verify against the cited sources.</p>
+            </>
           )}
         </div>
       )}
@@ -356,6 +392,14 @@ function PartnerResults() {
             icon: BarChart3,
             content: <BenchmarksPanel />,
           },
+        ]}
+      />
+
+      <NextSteps
+        items={[
+          { title: "Map AML typologies to controls", body: "See which typologies apply to your firm and the detection controls.", href: "/typology-iq", icon: Scale },
+          { title: "Browse the Controls Library", body: "Controls grouped by risk theme, mapped to real enforcement.", href: "/controls", icon: Layers },
+          { title: "Check KYC requirements", body: "What to collect by entity type and jurisdiction, each cited.", href: "/kyc-requirements", icon: ClipboardCheck },
         ]}
       />
     </div>
