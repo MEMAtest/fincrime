@@ -78,7 +78,7 @@ export default function TypologyListPage() {
     fetch("/api/typology/list")
       .then((r) => r.json())
       .then((data) => {
-        setTypologies(data.typologies);
+        setTypologies(Array.isArray(data?.typologies) ? data.typologies : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -187,7 +187,7 @@ export default function TypologyListPage() {
                 key={t.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05, duration: 0.35, ease: "easeOut" }}
+                transition={{ delay: Math.min(i, 12) * 0.04, duration: 0.35, ease: "easeOut" }}
               >
                 <Link
                   href={`/typology-iq/t/${t.slug}`}
@@ -231,7 +231,7 @@ export default function TypologyListPage() {
 
         {!loading && filtered.length === 0 && (
           <div className="text-center py-20 text-text-muted">
-            No typologies found for this filter.
+            No typologies match. Try a different search term or risk theme.
           </div>
         )}
       </main>

@@ -381,7 +381,10 @@ const insurance: FirmProfile = {
     "Claims handling and settlement",
     "Distribution through brokers and intermediaries",
   ],
-  products: ["lending", "cross_border_payments"],
+  // No ProductType in the shared enum maps cleanly to insurance products; the
+  // typical services above carry the description, and the Products chips are
+  // hidden when this is empty rather than showing a misleading payments label.
+  products: [],
   primaryCustomers: ["individuals", "high_net_worth", "corporates"],
   illustrativeExamples: [
     { name: "Aviva", note: "Life, pensions, investments and general insurance." },
@@ -431,8 +434,3 @@ export const FIRM_TYPE_ORDER: FirmType[] = [
   "insurance",
 ];
 
-export const ALL_FIRM_PROFILES: FirmProfile[] = FIRM_TYPE_ORDER.map((ft) => FIRM_PROFILES[ft]);
-
-export function firmProfileFor(firmType: FirmType): FirmProfile {
-  return FIRM_PROFILES[firmType];
-}

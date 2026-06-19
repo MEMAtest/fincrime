@@ -35,7 +35,10 @@ export const FIRM_TYPE_TAGS: FirmTypeTag[] = [
   // neobank lens so the digital-bank archetype shows its own enforcement. These
   // merge with the existing "bank" tag rather than replacing it.
   { firm: "Starling Bank Limited", year: 2024, aliases: ["Starling Bank", "Starling"], firmTypes: ["neobank"] },
-  { firm: "Monzo", year: 2024, aliases: ["Monzo Bank", "Monzo Bank Limited"], firmTypes: ["neobank"] },
+  // Monzo's FCA action is not in the current monetary-fines snapshot, so this
+  // tag is inert for now; it activates automatically when the dataset refresh
+  // adds Monzo, without needing to remember to re-add it.
+  { firm: "Monzo Bank Limited", year: 2025, aliases: ["Monzo", "Monzo Bank"], firmTypes: ["neobank"] },
 ];
 
 const tagIndex: Record<string, FirmType[]> = {};

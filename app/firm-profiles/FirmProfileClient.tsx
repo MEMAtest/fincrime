@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Scale, ShieldCheck, UserCheck, Search, ClipboardCheck, Users, Building2,
   Landmark, Flame, Layers, ArrowUpRight,
@@ -19,11 +20,12 @@ import {
   FIRM_PROFILES, FIRM_TYPE_ORDER, RISK_LEVEL_LABEL, RISK_LEVEL_WEIGHT, FIRM_PROFILE_DISCLAIMER,
 } from "@/data/firm-profiles";
 import {
-  benchmarksForFirmType, countCasesForFirmType, totalEnforcementCases, enforcementBenchmarks,
+  countCasesForFirmType, totalEnforcementCases, enforcementBenchmarks,
 } from "@/lib/enforcement/select";
 import type { FirmType, RiskTheme } from "@/data/typologies/types";
 
 export default function FirmProfileClient({ initialType }: { initialType: FirmType }) {
+  const router = useRouter();
   const [activeType, setActiveType] = useState<FirmType>(initialType);
   const [themeFilter, setThemeFilter] = useState<RiskTheme | null>(null);
 
@@ -47,14 +49,11 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
   const shownTypologies = themeFilter ? applicable.filter((t) => t.riskTheme === themeFilter) : applicable;
   const riskThemes = profile.inherentRisks.map((r) => r.theme);
   const firmCaseCount = countCasesForFirmType(activeType);
-  const firmBenchmarks = benchmarksForFirmType(activeType);
 
   const switchTo = (ft: FirmType) => {
     setActiveType(ft);
     setThemeFilter(null);
-    if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", `/firm-profiles?type=${ft}`);
-    }
+    router.replace(`/firm-profiles?type=${ft}`, { scroll: false });
   };
 
   return (
@@ -123,16 +122,18 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
             </ul>
           </div>
           <div className="space-y-4">
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">Products</p>
-              <div className="flex flex-wrap gap-1.5">
-                {profile.products.map((p) => (
-                  <span key={p} className="inline-flex items-center px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.03] text-[11px] text-foreground">
-                    {PRODUCT_LABEL[p]}
-                  </span>
-                ))}
+            {profile.products.length > 0 && (
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">Products</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.products.map((p) => (
+                    <span key={p} className="inline-flex items-center px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.03] text-[11px] text-foreground">
+                      {PRODUCT_LABEL[p]}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             <div>
               <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">Primary customers</p>
               <div className="flex flex-wrap gap-1.5">
@@ -169,7 +170,7 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
         <Stat label="Inherent risk themes" value={String(profile.inherentRisks.length)} />
         <Stat label="FCA cases (this firm type)" value={firmCaseCount > 0 ? String(firmCaseCount) : "see themes"} />
       </div>
-      {firmBenchmarks.totalCases > 0 ? (
+      {firmCaseCount > 0 ? (
         <BenchmarkStrip firmFilter={activeType} />
       ) : (
         <div className="glass-card rounded-2xl p-4 mb-8 text-sm text-text-muted">
@@ -287,10 +288,10 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
               <div className="space-y-4">
                 <p className="text-sm text-text-muted">
                   {firmCaseCount > 0
-                    ? `${firmCaseCount} FCA enforcement ${firmCaseCount === 1 ? "case is" : "cases are"} tagged to a ${label}. The cases below are drawn from this firm type's inherent risk themes, with what would have caught each one.`
-                    : `The cases below are drawn from this firm type's inherent risk themes, with what would have caught each one.`}
+                    ? `${firmCaseCount} FCA enforcement ${firmCaseCount === 1 ? "case is" : "cases are"} tagged directly to a ${label}. The cases below span this firm type's inherent risk themes; where we have a breakdown, each shows the controls that would have caught it.`
+                    : `Real FCA cases across this firm type's inherent risk themes; where we have a breakdown, each shows the controls that would have caught it.`}
                 </p>
-                <EvidencePanel themes={riskThemes} />
+                <EvidencePanel key={activeType} themes={riskThemes} />
               </div>
             ),
           },
