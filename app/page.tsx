@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   ArrowRight, ScanSearch, Activity, Database, Network, FileCheck,
   ClipboardCheck, Sparkles, Search, GitBranch, EyeOff, Gauge, Library,
-  Check, ArrowUpRight, MessageSquare, Globe2,
+  Check, ArrowUpRight, MessageSquare, Globe2, Building2,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -42,6 +42,7 @@ const TOOLKIT: CellDef[] = [
   { code: "T-05", icon: Gauge, title: "Controls Maturity", text: "Assess a control area against a 5-level model and get a remediation roadmap.", href: "/controls-maturity" },
   { code: "T-06", icon: Library, title: "Controls Library", text: "Browse controls by risk theme and firm type, mapped to real enforcement.", href: "/controls" },
   { code: "T-07", icon: Globe2, title: "KYC Requirements Matrix", text: "CDD requirements by entity type and jurisdiction, cited to the rules, across UK, US, EU, Singapore and Hong Kong.", href: "/kyc-requirements" },
+  { code: "T-08", icon: Building2, title: "Firm Profiles", text: "Pick a firm archetype (neobank, EMI, bank, crypto) to see its services, ranked inherent risks, applicable typologies and real enforcement.", href: "/firm-profiles" },
 ];
 
 function Cell({ c }: { c: CellDef }) {

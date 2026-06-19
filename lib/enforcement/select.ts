@@ -1,10 +1,23 @@
 import { enforcementCases } from "@/data/enforcement/cases";
 import { enforcementBenchmarks } from "@/data/enforcement/benchmarks";
+import { firmTypeTagsFor } from "@/data/enforcement/firm-tags";
 import type { EnforcementCase, EnforcementBenchmarks } from "@/data/enforcement/types";
 import type { RiskTheme, FirmType } from "@/data/typologies/types";
 
 export { enforcementBenchmarks };
 export const totalEnforcementCases = enforcementCases.length;
+
+/**
+ * Firm types for a case: the generated tags merged with the hand-authored
+ * `firm-tags` sidecar (the generator only classifies a subset, mostly banks).
+ * Use this everywhere instead of `case.firmTypes` so per-firm-type views are
+ * honest without ever hand-editing the generated `cases.ts`.
+ */
+export function effectiveFirmTypes(c: EnforcementCase): FirmType[] {
+  const extra = firmTypeTagsFor(c.firm, c.year);
+  if (!extra.length) return c.firmTypes;
+  return Array.from(new Set<FirmType>([...c.firmTypes, ...extra]));
+}
 
 /** Compact GBP formatter shared across the evidence and benchmarks panels. */
 export function fmtGbp(n: number): string {
@@ -45,7 +58,7 @@ function median(nums: number[]): number {
 export function benchmarksForFirmType(firm: FirmType | "all"): EnforcementBenchmarks {
   if (firm === "all") return enforcementBenchmarks;
 
-  const cases = enforcementCases.filter((c) => c.firmTypes.includes(firm));
+  const cases = enforcementCases.filter((c) => effectiveFirmTypes(c).includes(firm));
 
   const themeCounts = new Map<RiskTheme, number>();
   const yearAgg = new Map<number, { count: number; totalGbp: number }>();
@@ -109,7 +122,12 @@ export function casesForThemes(themes: RiskTheme[], limit = 6): EnforcementCase[
 
 /** Cases applicable to a firm type (falls back to all when unclassified). */
 export function casesForFirmType(firmType: FirmType, limit = 6): EnforcementCase[] {
-  const direct = enforcementCases.filter((c) => c.firmTypes.includes(firmType));
+  const direct = enforcementCases.filter((c) => effectiveFirmTypes(c).includes(firmType));
   const list = direct.length ? direct : enforcementCases;
   return [...list].sort(byAmount).slice(0, limit);
+}
+
+/** How many cases are tagged to a firm type (no fallback, so counts move honestly). */
+export function countCasesForFirmType(firmType: FirmType): number {
+  return enforcementCases.filter((c) => effectiveFirmTypes(c).includes(firmType)).length;
 }

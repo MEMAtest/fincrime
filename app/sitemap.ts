@@ -17,6 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page("", 1),
     page("/typology-iq", 0.9),
     page("/typology-iq/list", 0.8),
+    page("/firm-profiles", 0.9),
     page("/partner-control-map", 0.9),
     page("/controls", 0.9),
     page("/kyc-requirements", 0.9),

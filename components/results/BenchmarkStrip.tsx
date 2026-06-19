@@ -1,11 +1,14 @@
 import { benchmarksForFirmType, fmtGbp } from "@/lib/enforcement/select";
+import type { FirmType } from "@/data/typologies/types";
 
 /**
  * A thin headline strip of enforcement KPIs, shown at the top of results pages so
- * the credibility numbers are visible without opening the Benchmarks tab.
+ * the credibility numbers are visible without opening the Benchmarks tab. Pass a
+ * `firmFilter` to scope the numbers to a single firm type (e.g. the firm-profile
+ * dashboard); omit it for the full FCA dataset.
  */
-export default function BenchmarkStrip() {
-  const b = benchmarksForFirmType("all");
+export default function BenchmarkStrip({ firmFilter = "all" }: { firmFilter?: FirmType | "all" }) {
+  const b = benchmarksForFirmType(firmFilter);
   if (b.totalCases === 0) return null;
   const kpis = [
     { label: "Enforcement cases", value: String(b.totalCases) },
