@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology23: Typology = {
+  id: 23,
+  slug: "third-party-round-tripping",
+  title: "Third-Party Round-Tripping",
+  riskTheme: "money_laundering",
+  description:
+    "Funds are moved out of an entity to related parties, intermediaries or offshore vehicles and then cycled back, often disguised as loans, capital injections, invoice settlements or consultancy fees. The circular flow manufactures an appearance of legitimate revenue or financing while obscuring the original source and ownership of the funds.",
+  applicableFirmTypes: ["bank", "emi", "pi"],
+  applicableProducts: ["cross_border_payments", "domestic_payments", "trade_finance", "fx_transfers"],
+  applicableCustomerTypes: ["smes", "corporates", "agents_intermediaries"],
+  controlObjective:
+    "Identify circular fund flows between related or connected parties that return value to its origin, distinguishing genuine intercompany financing from layering designed to legitimise illicit proceeds.",
+  dataRequired: [
+    "Counterparty identities and beneficial ownership across linked accounts",
+    "Transaction narratives and stated purpose (loan, invoice, dividend, capital)",
+    "Timing and sequencing of outbound and inbound flows between connected parties",
+    "Net economic effect over a rolling window (whether funds substantially return to origin)",
+    "Corporate structure, common directors, addresses and shared control indicators",
+    "Loan agreements, invoices and supporting documentation for stated purposes",
+    "Use of offshore or shell intermediary jurisdictions",
+    "Historical baseline of legitimate intercompany activity",
+  ],
+  detectionLogic: [
+    {
+      id: "RTR-23-R1",
+      name: "Closed-loop value return",
+      logic: "Outbound transfers to connected parties are substantially returned to the originating account within a rolling window, producing near-zero net flow with material gross turnover",
+      threshold: "Funds returned within 30 days, net flow <10% of gross, gross > £50k",
+      priority: "high",
+    },
+    {
+      id: "RTR-23-R2",
+      name: "Round-trip via offshore intermediary",
+      logic: "Value routed out to an offshore or shell intermediary and credited back from a different but connected entity, with mismatched or vague transaction narratives",
+      threshold: "Out-and-back via 1+ offshore intermediary, connected return party",
+      priority: "high",
+    },
+    {
+      id: "RTR-23-R3",
+      name: "Disguised inter-party loan recycling",
+      logic: "Repeated 'loan' or 'capital injection' inflows from a party that recently received outbound 'repayment' or 'fee' payments of similar value, with no genuine financing terms evidenced",
+      threshold: "2+ reciprocal loan/fee cycles between same parties / 90 days",
+      priority: "medium",
+    },
+    {
+      id: "RTR-23-R4",
+      name: "Synthetic turnover inconsistent with operations",
+      logic: "Account turnover from circular related-party flows is disproportionate to declared trading activity, headcount or filed accounts, inflating apparent revenue",
+      threshold: "Related-party circular turnover > 3x declared annual revenue",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Flow Reconstruction",
+      description: "Map the outbound and inbound legs between connected parties. Confirm whether funds returned to origin and over what period. Document narratives and stated purposes.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Connected Party and Documentation Review",
+      description: "Establish relationships between counterparties using beneficial ownership, shared directors and addresses. Request and assess loan agreements, invoices or capital documentation.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Economic Substance Assessment",
+      description: "Assess whether the flows have genuine economic substance or exist primarily to recycle value. Compare circular turnover against declared operations and filed accounts.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Suspicion Assessment",
+      description: "MLRO determines whether the round-tripping evidences layering of illicit proceeds, tax evasion or other predicate offences, and whether grounds for suspicion exist.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Reporting and Control Response",
+      description: "If confirmed, file a SAR, review connected accounts, consider EDD or exit, and apply enhanced monitoring. If benign, document the financing rationale and refine rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Round-tripping alert volume", target: "Monitor trend", description: "Monthly count of circular related-party flow alerts" },
+    { name: "True positive rate", target: ">20%", description: "Proportion of alerts confirmed as illegitimate round-tripping" },
+    { name: "Beneficial ownership resolution rate", target: ">90%", description: "Share of alerts where connected-party ownership was fully established" },
+    { name: "EDD escalation rate", target: "Monitor trend", description: "Proportion of confirmed cases escalated to enhanced due diligence or exit" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Connected-party and beneficial ownership data quality reviewed", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-02", item: "Circular flow and net-flow detection logic validated", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Offshore intermediary jurisdiction risk ratings reviewed", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-04", item: "Corporate customer EDD and documentation standards reviewed", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-05", item: "Round-tripping detection effectiveness and SAR outcomes reported", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 24", title: "Transparency of Legal Persons", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "JMLSG", reference: "Part I, Chapter 5", title: "Customer Due Diligence", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "reg.33 EDD", title: "Enhanced Customer Due Diligence", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/33" },
+  ],
+};

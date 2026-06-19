@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology29: Typology = {
+  id: 29,
+  slug: "crowdfunding-social-media-tf",
+  title: "Crowdfunding & Social-Media Terrorist Financing",
+  riskTheme: "terrorist_financing",
+  description:
+    "Small-value online fundraising and crypto donations solicited via social media or crowdfunding pages, where many micro-transfers aggregate to a high-risk recipient or onward conduit. Individual amounts stay low to avoid scrutiny while the aggregate funds proscribed activity.",
+  applicableFirmTypes: ["emi", "pi", "neobank", "crypto"],
+  applicableProducts: ["e_money_accounts", "domestic_payments", "cross_border_payments", "crypto_exchange"],
+  applicableCustomerTypes: ["individuals", "non_profit"],
+  controlObjective:
+    "Detect aggregation of small-value online donations and crypto micro-transfers from dispersed senders into high-risk recipients linked to terrorist financing.",
+  dataRequired: [
+    "Inbound micro-transfer amounts, frequency, and unique sender count",
+    "Sender geographic and channel dispersion",
+    "Crypto deposit addresses and on-chain attribution",
+    "Linked social-media or crowdfunding identifiers where available",
+    "Recipient onward transfer destinations and timing",
+    "Payment reference text and campaign descriptors",
+    "Device and IP signals across inbound senders",
+    "Recipient profile, declared income, and account purpose",
+  ],
+  detectionLogic: [
+    {
+      id: "CFT-29-R1",
+      name: "Micro-transfer aggregation",
+      logic: "Many low-value inbound transfers from a large number of unique senders aggregating to a material total into a single recipient over a short window",
+      threshold: "30+ unique senders, individual <£50, aggregate >£2k / 7 days",
+      priority: "high",
+    },
+    {
+      id: "CFT-29-R2",
+      name: "Crypto donation inflow clustering",
+      logic: "Multiple small crypto deposits from dispersed or newly created addresses into a recipient that rapidly off-ramps to fiat or onward transfers",
+      threshold: "10+ small crypto deposits then >70% off-ramped within 48 hours",
+      priority: "high",
+    },
+    {
+      id: "CFT-29-R3",
+      name: "High-risk onward conduit",
+      logic: "Aggregated donations transferred onward to a high-risk jurisdiction, flagged counterparty, or party with adverse TF associations",
+      threshold: "Any onward transfer to flagged TF-linked counterparty",
+      priority: "critical",
+    },
+    {
+      id: "CFT-29-R4",
+      name: "Campaign reference anomaly",
+      logic: "Inbound payment references or campaign descriptors containing emotive crisis or solidarity language inconsistent with the recipient's declared profile",
+      threshold: "Recurring flagged narrative terms across 5+ inbound transfers",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Aggregation Triage",
+      description: "Confirm the inbound aggregation pattern: unique sender count, value distribution, channel mix, and total accumulated. Capture crypto deposit attribution where relevant.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Recipient and Onward Review",
+      description: "Review recipient profile, declared income, and onward transfer destinations. Screen onward counterparties against sanctions and proscribed-group lists.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "TF Linkage Assessment",
+      description: "Assess whether the campaign or recipient links to high-risk geographies, proscribed groups, or known TF narratives. Correlate device, IP, and reference signals across senders.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Determination",
+      description: "MLRO assesses grounds for suspicion of terrorist financing. Considers aggregation intent, onward conduit risk, and NCA reporting obligations.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: file SAR, restrict or freeze the recipient, and preserve evidence. If benign: document the legitimate fundraising rationale and tune aggregation thresholds.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Aggregation alert volume", target: "Monitor trend", description: "Monthly count of micro-transfer aggregation alerts" },
+    { name: "Crypto inflow attribution coverage", target: ">90%", description: "Proportion of flagged crypto inflows with on-chain attribution applied" },
+    { name: "True positive rate", target: ">15%", description: "Proportion of crowdfunding TF alerts escalated as genuine concern" },
+    { name: "Time to detection", target: "<24 hours", description: "Average time from aggregation threshold breach to alert generation" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Micro-transfer aggregation rules reviewed and recalibrated", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Crypto on-chain analytics provider coverage validated", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-03", item: "Proscribed-group and TF narrative term lists kept current", frequency: "Ongoing", owner: "Financial Crime Systems" },
+    { id: "GOV-04", item: "Crowdfunding TF detection effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-05", item: "Rule tuning based on SAR feedback and emerging TF typologies", frequency: "Semi-annual", owner: "Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 5", title: "Terrorist Financing Offence", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 15", title: "New Technologies / Virtual Assets", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 16", title: "Wire Transfers", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+  ],
+};

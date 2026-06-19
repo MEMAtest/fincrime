@@ -13,6 +13,25 @@ import { typology12 } from "./typology-12";
 import { typology13 } from "./typology-13";
 import { typology14 } from "./typology-14";
 import { typology15 } from "./typology-15";
+import { typology16 } from "./typology-16";
+import { typology17 } from "./typology-17";
+import { typology18 } from "./typology-18";
+import { typology19 } from "./typology-19";
+import { typology20 } from "./typology-20";
+import { typology21 } from "./typology-21";
+import { typology22 } from "./typology-22";
+import { typology23 } from "./typology-23";
+import { typology24 } from "./typology-24";
+import { typology25 } from "./typology-25";
+import { typology26 } from "./typology-26";
+import { typology27 } from "./typology-27";
+import { typology28 } from "./typology-28";
+import { typology29 } from "./typology-29";
+import { typology30 } from "./typology-30";
+import { typology31 } from "./typology-31";
+import { typology32 } from "./typology-32";
+import { typology33 } from "./typology-33";
+import { typology34 } from "./typology-34";
 import type { Typology } from "./types";
 
 export const allTypologies: Typology[] = [
@@ -31,6 +50,25 @@ export const allTypologies: Typology[] = [
   typology13,
   typology14,
   typology15,
+  typology16,
+  typology17,
+  typology18,
+  typology19,
+  typology20,
+  typology21,
+  typology22,
+  typology23,
+  typology24,
+  typology25,
+  typology26,
+  typology27,
+  typology28,
+  typology29,
+  typology30,
+  typology31,
+  typology32,
+  typology33,
+  typology34,
 ];
 
 export function getTypologyBySlug(slug: string): Typology | undefined {

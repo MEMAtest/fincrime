@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology20: Typology = {
+  id: 20,
+  slug: "bec-invoice-redirection",
+  title: "Business Email Compromise & Invoice Redirection",
+  riskTheme: "fraud",
+  description:
+    "Business email compromise and mandate or invoice redirection fraud. Attackers impersonate suppliers, executives, or counterparties to redirect legitimate payments to fraudster-controlled accounts using altered bank details, often followed by rapid layering through mule accounts to extract funds.",
+  applicableFirmTypes: ["bank", "emi", "pi", "neobank"],
+  applicableProducts: ["domestic_payments", "cross_border_payments", "fx_transfers", "e_money_accounts"],
+  applicableCustomerTypes: ["corporates", "smes", "individuals", "agents_intermediaries"],
+  controlObjective:
+    "Detect and disrupt invoice and mandate redirection driven by business email compromise, including payments to newly amended beneficiary details and the receipt and onward layering of fraud proceeds through mule accounts.",
+  dataRequired: [
+    "Beneficiary bank details and recent changes to existing payees",
+    "Payment instruction channel and any change in usual instruction source",
+    "Payer and supplier relationship and historical payment pattern",
+    "Confirmation of Payee (name and account) match result",
+    "Receiving account age, profile, and prior activity",
+    "Speed and pattern of onward transfers from the receiving account",
+    "Device, IP, and email-origin indicators where available",
+    "Beneficiary jurisdiction and cross-border routing",
+  ],
+  detectionLogic: [
+    {
+      id: "BEC-20-R1",
+      name: "Payment to recently amended beneficiary",
+      logic: "Payment to a known supplier or payee whose bank details were changed within the last 14 days, where the new account differs from the established relationship history",
+      threshold: "Beneficiary details changed < 14 days before payment",
+      priority: "critical",
+    },
+    {
+      id: "BEC-20-R2",
+      name: "Confirmation of Payee mismatch on high-value payment",
+      logic: "High-value payment proceeds despite a Confirmation of Payee name mismatch or close-match warning being returned",
+      threshold: "CoP no-match or close-match on payment > £5k",
+      priority: "high",
+    },
+    {
+      id: "BEC-20-R3",
+      name: "Mule receipt and rapid layering",
+      logic: "Receiving account takes in a large single inflow then disperses it across multiple onward transfers or cash-out channels within a short window",
+      threshold: "Inflow > £10k then 3+ onward transfers within 24 hours",
+      priority: "high",
+    },
+    {
+      id: "BEC-20-R4",
+      name: "First payment to new beneficiary inconsistent with profile",
+      logic: "First-ever payment to a new beneficiary that is materially larger than the customer's typical payment and routed to a recently opened receiving account",
+      threshold: "First payment > 3x customer norm to account < 90 days old",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Instruction and Beneficiary Review",
+      description: "Confirm the payment instruction channel, any recent beneficiary detail change, and Confirmation of Payee result. Capture redirection and mismatch indicators.",
+      sla: "1 hour",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Out-of-Band Verification",
+      description: "Where redirection is suspected, trigger or confirm out-of-band verification of the amended bank details with the genuine supplier or payer using previously held contact data.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 3,
+      title: "Receiving Account and Layering Analysis",
+      description: "Assess the receiving account profile, age, and onward-flow behaviour for mule indicators. Identify dispersal patterns and cross-border legs for recall potential.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO and Recovery Decision",
+      description: "MLRO assesses fraud likelihood and reporting obligations. Coordinate payment hold, recall, and freezing of any mule receiving accounts where the firm holds them.",
+      sla: "48 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: hold or recall payment, freeze mule accounts, file SAR, and reimburse per APP scam rules where applicable. If benign: document verification and refine beneficiary-change rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Beneficiary-change alert rate", target: "100%", description: "Proportion of payments to recently amended beneficiaries subject to additional verification" },
+    { name: "Pre-settlement interception rate", target: ">70%", description: "Proportion of confirmed redirection payments held before funds leave the firm" },
+    { name: "Funds recovery rate", target: "Monitor trend", description: "Proportion of fraudulent payment value recovered or recalled" },
+    { name: "Time to verification", target: "<4 hours", description: "Average time from redirection flag to completed out-of-band verification" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Beneficiary-change and CoP-mismatch rules reviewed and tuned", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Out-of-band verification procedures tested for redirection cases", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-03", item: "Mule-account detection and freezing controls validated", frequency: "Semi-annual", owner: "Financial Crime" },
+    { id: "GOV-04", item: "Payment recall and APP reimbursement processes operating effectively", frequency: "Ongoing", owner: "Compliance" },
+    { id: "GOV-05", item: "BEC and redirection loss and recovery metrics reported to management", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "FATF", reference: "Recommendation 16", title: "Wire Transfers", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+  ],
+};

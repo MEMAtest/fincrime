@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology25: Typology = {
+  id: 25,
+  slug: "real-estate-high-value-goods-integration",
+  title: "Real Estate & High-Value Goods Integration",
+  riskTheme: "money_laundering",
+  description:
+    "Criminal proceeds are integrated by acquiring property, art, jewellery, watches, vehicles and other high-value goods, frequently through third parties, nominees or corporate vehicles. Rapid resale, undervaluation and quick refinancing convert and clean value while distancing it from its illicit origin.",
+  applicableFirmTypes: ["bank", "wealth_manager", "emi"],
+  applicableProducts: ["cross_border_payments", "domestic_payments", "fx_transfers", "lending"],
+  applicableCustomerTypes: ["high_net_worth", "corporates", "politically_exposed"],
+  controlObjective:
+    "Identify payments funding the purchase or rapid resale of real estate and high-value goods that are inconsistent with the customer's profile or made through third parties, indicating integration of illicit proceeds.",
+  dataRequired: [
+    "Payment amounts and counterparties (estate agents, conveyancers, dealers, auction houses)",
+    "Source of funds and source of wealth evidence",
+    "Whether the purchaser of record differs from the funding party (third-party or nominee purchase)",
+    "Holding period between acquisition and resale",
+    "Purchase versus declared or market valuation (undervaluation or overvaluation)",
+    "Use of corporate vehicles, trusts or offshore structures in ownership",
+    "PEP and adverse media status of the customer and connected parties",
+    "Lending or refinancing requests secured against recently acquired assets",
+  ],
+  detectionLogic: [
+    {
+      id: "REI-25-R1",
+      name: "High-value asset purchase beyond profile",
+      logic: "Payment to a conveyancer, dealer or auction house for a high-value asset that materially exceeds the customer's documented source of wealth or expected activity",
+      threshold: "Single asset payment > 2x documented source of wealth capacity",
+      priority: "high",
+    },
+    {
+      id: "REI-25-R2",
+      name: "Third-party or nominee funding",
+      logic: "Funds for an asset acquisition originate from a party other than the legal purchaser, or the purchase is routed through a corporate vehicle or trust with opaque ownership",
+      threshold: "Funder != purchaser of record, or opaque vehicle in ownership chain",
+      priority: "critical",
+    },
+    {
+      id: "REI-25-R3",
+      name: "Rapid resale flipping",
+      logic: "Asset acquired and resold within a short holding period with no value-adding activity, particularly where resale proceeds are dispersed to multiple or overseas parties",
+      threshold: "Resale within 6 months, proceeds dispersed to 2+ parties",
+      priority: "high",
+    },
+    {
+      id: "REI-25-R4",
+      name: "Refinance of recently acquired asset",
+      logic: "Lending or equity-release request secured against an asset acquired with cash or unverified funds within the prior 12 months, extracting clean financed value",
+      threshold: "Refinance request < 12 months after unverified-funds acquisition",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Transaction Triage",
+      description: "Confirm the payment relates to real estate or a high-value good. Identify the asset, counterparty, purchaser of record and funding party. Document amounts and timing.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Source of Funds and Ownership Review",
+      description: "Review source of funds and source of wealth evidence, ownership structure, and any third-party or nominee involvement. Check PEP and adverse media status.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Consistency and Resale Assessment",
+      description: "Assess whether the acquisition fits the customer's profile, whether valuation is consistent with market, and whether resale or refinance patterns indicate integration.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Suspicion Assessment",
+      description: "MLRO assesses grounds for suspicion, considering PEP exposure and the use of opaque structures, and whether a defence is needed before facilitating onward movement.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Reporting and Control Response",
+      description: "If confirmed, file a SAR, consider DAML, apply EDD and enhanced monitoring, and review connected accounts. If benign, document source of wealth rationale and refine rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "High-value asset alert volume", target: "Monitor trend", description: "Monthly count of real estate and high-value goods alerts" },
+    { name: "True positive rate", target: ">20%", description: "Proportion of alerts confirmed as suspected integration" },
+    { name: "Source of wealth evidence rate", target: "100%", description: "High-value asset cases with documented and verified source of wealth" },
+    { name: "Third-party purchase detection rate", target: "Monitor trend", description: "Share of confirmed cases involving a funder distinct from the purchaser of record" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Source of wealth and source of funds standards for HNW clients reviewed", frequency: "Annual", owner: "MLRO" },
+    { id: "GOV-02", item: "High-value asset and third-party funding detection rules validated", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "PEP and complex ownership structure portfolio reviewed", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-04", item: "EDD procedures for high-value and PEP transactions reviewed", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-05", item: "Integration typology detection effectiveness and SAR outcomes reported", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 22", title: "DNFBPs Customer Due Diligence", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 24", title: "Transparency of Legal Persons", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "JMLSG", reference: "Part I, Chapter 5", title: "Customer Due Diligence", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "reg.33 EDD", title: "Enhanced Customer Due Diligence", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/33" },
+  ],
+};

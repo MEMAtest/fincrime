@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology28: Typology = {
+  id: 28,
+  slug: "npo-charity-diversion",
+  title: "NPO & Charity Diversion",
+  riskTheme: "terrorist_financing",
+  description:
+    "Funds raised or held by a non-profit or charity are diverted to conflict zones, proscribed groups, or unintended high-risk parties. Indicators include donation washing through legitimate-looking causes and a mismatch between the charity's stated purpose and the geography or nature of its outbound transfers.",
+  applicableFirmTypes: ["bank", "emi", "pi", "msb"],
+  applicableProducts: ["cross_border_payments", "domestic_payments", "remittance", "e_money_accounts"],
+  applicableCustomerTypes: ["non_profit", "individuals"],
+  controlObjective:
+    "Detect diversion of charitable or non-profit funds to conflict zones, sanctioned parties, or destinations inconsistent with the organisation's declared charitable purpose.",
+  dataRequired: [
+    "Registered charitable purpose and stated areas of operation",
+    "Beneficiary countries and counterparties for outbound transfers",
+    "Donation inflow patterns (volume, frequency, donor concentration)",
+    "Onward distribution destinations and field-partner details",
+    "Charity registration status and governance structure",
+    "Cash deposit and withdrawal activity",
+    "Proximity of transfer destinations to conflict or high-risk zones",
+    "Trustee and signatory information",
+  ],
+  detectionLogic: [
+    {
+      id: "NPO-28-R1",
+      name: "Transfers to conflict-zone geographies",
+      logic: "Outbound transfers from an NPO account to or adjacent to designated conflict zones or high-risk jurisdictions not listed in the charity's declared operating areas",
+      threshold: "Any transfer to conflict-adjacent geography outside declared areas",
+      priority: "critical",
+    },
+    {
+      id: "NPO-28-R2",
+      name: "Purpose-to-flow mismatch",
+      logic: "Outbound payment narrative or beneficiary type inconsistent with the registered charitable purpose (e.g., education charity sending funds to unrelated intermediaries)",
+      threshold: "Beneficiary category mismatch on 2+ transfers in 30 days",
+      priority: "high",
+    },
+    {
+      id: "NPO-28-R3",
+      name: "Rapid pass-through of donations",
+      logic: "Donation inflows withdrawn or transferred onward within 72 hours leaving minimal residual balance, suggesting conduit behaviour",
+      threshold: ">80% of inflows moved out within 72 hours",
+      priority: "high",
+    },
+    {
+      id: "NPO-28-R4",
+      name: "Cash-intensive collection anomaly",
+      logic: "High-value or high-frequency cash deposits inconsistent with the declared fundraising model or geographic donor base",
+      threshold: "Cash deposits >£5k/week or +200% above NPO baseline",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Flow and Purpose Triage",
+      description: "Map the flagged transfers against the charity's registered purpose and declared operating areas. Document destination geographies, beneficiaries, and donation source patterns.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Charity Verification",
+      description: "Confirm charity registration, trustee details, and field-partner legitimacy. Screen beneficiaries and intermediaries against sanctions and proscribed-group lists.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Diversion Risk Assessment",
+      description: "Assess whether the flows indicate diversion: conflict-zone proximity, pass-through behaviour, beneficiary mismatch, or links to high-risk parties. Gather any supporting documentation from the customer.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Determination",
+      description: "MLRO assesses grounds for suspicion of terrorist financing or diversion. Considers TF exposure, NCA reporting obligations, and whether activity warrants restriction pending review.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: file SAR, apply account restrictions, and consider exit. If benign: document the charitable rationale and refine NPO-specific monitoring to reduce false positives.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "NPO diversion alert volume", target: "Monitor trend", description: "Monthly count of charity diversion alerts" },
+    { name: "Conflict-zone exposure rate", target: "0 undocumented", description: "Proportion of NPO outbound flows to conflict-adjacent geographies lacking documented justification" },
+    { name: "True positive rate", target: ">20%", description: "Proportion of NPO diversion alerts escalated as genuine TF concern" },
+    { name: "EDD coverage for high-risk NPOs", target: "100%", description: "High-risk non-profit customers with completed enhanced due diligence" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "High-risk NPO portfolio reviewed and risk-rated", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-02", item: "Conflict-zone and proscribed-group screening lists kept current", frequency: "Ongoing", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "NPO charitable-purpose data validated against registry", frequency: "Annual", owner: "Onboarding / KYC" },
+    { id: "GOV-04", item: "NPO monitoring rule effectiveness reported", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-05", item: "EDD applied to NPOs operating in or near conflict zones", frequency: "Ongoing", owner: "L2 / EDD Team" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 8", title: "Non-Profit Organisations", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 5", title: "Terrorist Financing Offence", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "JMLSG", reference: "Part II", title: "Sectoral Guidance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "reg.33", title: "Enhanced Customer Due Diligence", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/33" },
+  ],
+};

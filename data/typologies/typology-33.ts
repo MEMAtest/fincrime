@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology33: Typology = {
+  id: 33,
+  slug: "loan-advance-fee-fraud",
+  title: "Loan & Advance-Fee Fraud",
+  riskTheme: "fraud",
+  description:
+    "First-party loan fraud, loan stacking across lenders, synthetic-identity applications, and advance-fee scams where a borrower pays an upfront fee for a loan that never materialises. Indicators include fabricated or inflated income, rapid multi-lender applications, and identity inconsistencies.",
+  applicableFirmTypes: ["bank", "neobank", "emi"],
+  applicableProducts: ["lending", "domestic_payments", "e_money_accounts"],
+  applicableCustomerTypes: ["individuals", "smes"],
+  controlObjective:
+    "Detect fraudulent loan applications, loan stacking, synthetic identities, and advance-fee scam flows to prevent credit losses and laundering of scam proceeds.",
+  dataRequired: [
+    "Application data (declared income, employment, affordability)",
+    "Identity verification and document authenticity results",
+    "Cross-lender application velocity signals where available",
+    "Device, IP, and application metadata",
+    "Bank-statement and income-corroboration data",
+    "Disbursement destination and post-funding behaviour",
+    "Inbound advance-fee payment patterns and references",
+    "Synthetic-identity indicators (thin file, mismatched data points)",
+  ],
+  detectionLogic: [
+    {
+      id: "LAF-33-R1",
+      name: "Loan stacking velocity",
+      logic: "Multiple loan applications or drawdowns across lenders or products within a short window relative to declared affordability",
+      threshold: "3+ loan applications within 14 days exceeding affordability",
+      priority: "high",
+    },
+    {
+      id: "LAF-33-R2",
+      name: "Synthetic-identity indicators",
+      logic: "Application identity shows thin-file, mismatched, or recently fabricated data points across name, date of birth, address, and credit footprint",
+      threshold: "2+ synthetic-identity flags on a single application",
+      priority: "high",
+    },
+    {
+      id: "LAF-33-R3",
+      name: "Income inconsistent with statements",
+      logic: "Declared income materially exceeds corroborating bank-statement inflows or shows fabricated salary credits",
+      threshold: "Declared income >150% of corroborated inflows",
+      priority: "medium",
+    },
+    {
+      id: "LAF-33-R4",
+      name: "Advance-fee inbound pattern",
+      logic: "Account receiving multiple small inbound payments referencing loan, release, or processing fees from dispersed individuals, with rapid onward movement",
+      threshold: "5+ fee-referenced inbound payments / 30 days then onward transfer",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Application and Pattern Triage",
+      description: "Review the flagged application or account. Document stacking velocity, identity flags, income corroboration gaps, and any advance-fee inbound pattern.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Identity and Affordability Review",
+      description: "Re-verify identity and document authenticity. Corroborate income and affordability against statement data and screen for synthetic-identity indicators.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Fraud Assessment",
+      description: "Assess whether the case indicates first-party fraud, synthetic identity, or an advance-fee scam. Trace disbursement or onward flows and identify victims or mule links.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO and Credit-Risk Determination",
+      description: "MLRO and credit-risk function decide on declining, recalling, or restricting funds, assess laundering exposure, and confirm SAR obligations.",
+      sla: "72 hours",
+      responsible: "MLRO / Credit Risk",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: decline or recall, restrict the account, file SAR, and report scam beneficiaries. If benign: document corroborated affordability and refine fraud rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Loan fraud alert volume", target: "Monitor trend", description: "Monthly count of loan and advance-fee fraud alerts" },
+    { name: "Pre-disbursement interception rate", target: ">60%", description: "Proportion of fraudulent loans stopped before funds are released" },
+    { name: "Synthetic-identity detection rate", target: "Monitor trend", description: "Proportion of applications flagged with synthetic-identity indicators" },
+    { name: "True positive rate", target: ">25%", description: "Proportion of loan fraud alerts confirmed as fraudulent" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Identity verification and synthetic-identity models reviewed", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Affordability and income-corroboration rules validated", frequency: "Semi-annual", owner: "Credit Risk" },
+    { id: "GOV-03", item: "Loan-stacking and cross-lender signal coverage assessed", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-04", item: "Loan fraud detection and loss effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-05", item: "Advance-fee scam intelligence reviewed and rules tuned", frequency: "Ongoing", owner: "Fraud Ops" },
+  ],
+  sources: [
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part I, Chapter 5", title: "Customer Due Diligence", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "reg.28", title: "Customer Due Diligence Measures", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/28" },
+  ],
+};

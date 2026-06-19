@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology19: Typology = {
+  id: 19,
+  slug: "single-premium-policy-laundering",
+  title: "Single-Premium Policy Laundering",
+  riskTheme: "money_laundering",
+  description:
+    "Laundering through life and investment insurance products. Illicit funds are placed via large single-premium policies or overpayments, then withdrawn as clean funds through early surrender, partial withdrawals, or refunds of overpaid premiums, often shortly after inception and at the cost of surrender penalties.",
+  applicableFirmTypes: ["insurance", "wealth_manager", "bank"],
+  applicableProducts: ["e_money_accounts", "fx_transfers", "cross_border_payments", "lending"],
+  applicableCustomerTypes: ["individuals", "high_net_worth", "corporates", "politically_exposed"],
+  controlObjective:
+    "Detect the use of single-premium and investment-linked insurance policies to place and extract illicit funds, including early surrender, premium overpayment and refund, and changes of beneficiary or assignee inconsistent with legitimate planning.",
+  dataRequired: [
+    "Premium type (single, regular) and amount relative to customer profile",
+    "Policy inception, surrender, and withdrawal timing",
+    "Source of funds for the premium payment",
+    "Overpayment and refund amounts and destination accounts",
+    "Beneficiary and assignment changes after inception",
+    "Surrender penalties accepted relative to recovered value",
+    "Funding and refund payment methods and jurisdictions",
+    "Customer declared investment objective and risk profile",
+  ],
+  detectionLogic: [
+    {
+      id: "SPP-19-R1",
+      name: "Early surrender at a loss",
+      logic: "Single-premium policy surrendered within 12 months of inception accepting material surrender penalties inconsistent with rational investment behaviour",
+      threshold: "Surrender < 12 months, penalty accepted > 5% of value",
+      priority: "high",
+    },
+    {
+      id: "SPP-19-R2",
+      name: "Premium overpayment and refund",
+      logic: "Premium materially overpaid then refunded to an account or party different from the original funding source",
+      threshold: "Overpayment > £10k refunded to third-party or new account",
+      priority: "critical",
+    },
+    {
+      id: "SPP-19-R3",
+      name: "Single premium inconsistent with profile",
+      logic: "Single-premium amount materially exceeds the customer's declared income, wealth, or stated investment objective without corroborated source of funds",
+      threshold: "Premium > 3x declared annual income, SoF undocumented",
+      priority: "high",
+    },
+    {
+      id: "SPP-19-R4",
+      name: "Post-inception beneficiary or assignment change",
+      logic: "Change of beneficiary or assignment of the policy to a third party shortly after inception, followed by surrender or withdrawal benefiting that party",
+      threshold: "Assignment within 90 days then withdrawal to assignee",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Policy Activity Review",
+      description: "Confirm premium type, inception and surrender or withdrawal timing, and any overpayment or assignment activity. Capture early-surrender and refund-mismatch indicators.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Source and Destination Reconciliation",
+      description: "Reconcile premium funding source against refund or surrender destination. Identify third-party funding, mismatched refund accounts, and cross-border legs.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Rationale and Profile Assessment",
+      description: "Assess whether the policy use is consistent with the customer's stated investment objective and profile. Evaluate whether accepted penalties indicate fund-cleaning rather than investment intent.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Decision",
+      description: "MLRO assesses whether the activity constitutes placement and extraction of illicit funds. Confirm source-of-funds adequacy and any PEP or high-risk factors.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If suspicious: hold surrender or refund where permitted, file SAR, and escalate for relationship review. If benign: document source-of-funds rationale and refine early-surrender rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Early-surrender alert volume", target: "Monitor trend", description: "Monthly count of early-surrender and overpayment-refund alerts" },
+    { name: "Source of funds coverage", target: ">95%", description: "Proportion of large single-premium policies with documented and corroborated source of funds" },
+    { name: "Alert true positive rate", target: ">20%", description: "Proportion of policy-laundering alerts confirmed as warranting SAR or escalation" },
+    { name: "Refund destination match rate", target: ">98%", description: "Proportion of premium refunds returned to the original verified funding source" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Single-premium and surrender detection rules reviewed and updated", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Refund-to-source controls validated across product lines", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-03", item: "Source-of-funds standards applied consistently to large premiums", frequency: "Ongoing", owner: "Compliance" },
+    { id: "GOV-04", item: "Beneficiary and assignment change monitoring tested", frequency: "Semi-annual", owner: "Financial Crime" },
+    { id: "GOV-05", item: "Policy-laundering alert outcomes reported to senior management", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 10", title: "Customer Due Diligence", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "JMLSG", reference: "Part II", title: "Sectoral Guidance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "reg.28 CDD", title: "Customer Due Diligence Measures", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/28" },
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+  ],
+};

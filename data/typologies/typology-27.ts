@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology27: Typology = {
+  id: 27,
+  slug: "money-mule-herding-recruitment",
+  title: "Money-Mule Herding & Recruitment",
+  riskTheme: "money_laundering",
+  description:
+    "Networks recruit individuals, often students, job-seekers and the financially vulnerable, to open or hand over accounts that receive and forward illicit funds. A controlling herder coordinates many newly-opened accounts that share common funders or beneficiaries, rapidly moving proceeds of fraud and other crime while distancing the controllers from the money.",
+  applicableFirmTypes: ["bank", "emi", "pi", "neobank"],
+  applicableProducts: ["domestic_payments", "e_money_accounts", "cross_border_payments", "card_issuing"],
+  applicableCustomerTypes: ["individuals"],
+  controlObjective:
+    "Detect mule accounts and the herder networks controlling them by identifying newly-opened accounts exhibiting rapid receive-and-forward behaviour with shared funders, beneficiaries, devices or control signals.",
+  dataRequired: [
+    "Account age and onboarding details (device, IP, contact details)",
+    "Inbound credits, sources and the proportion forwarded onward",
+    "Time between inbound credit and onward transfer",
+    "Shared funders or beneficiaries across multiple accounts",
+    "Shared device IDs, IP addresses, phone numbers or addresses across accounts",
+    "Customer profile (age, declared occupation, expected activity) versus observed flows",
+    "Fraud reports, chargebacks or law-enforcement requests linked to inbound funds",
+    "Dormancy followed by sudden high-velocity activity",
+  ],
+  detectionLogic: [
+    {
+      id: "MUL-27-R1",
+      name: "New account rapid receive-and-forward",
+      logic: "Recently opened account receives inbound credits and forwards the large majority onward within a short window, retaining little balance",
+      threshold: "Account < 90 days old, >80% of credits forwarded within 24hrs",
+      priority: "critical",
+    },
+    {
+      id: "MUL-27-R2",
+      name: "Shared funder or beneficiary cluster",
+      logic: "Multiple distinct accounts receive from a common funder or pay out to a common beneficiary, indicating a coordinated herder-controlled network",
+      threshold: "3+ accounts sharing a common funder or beneficiary / 30 days",
+      priority: "high",
+    },
+    {
+      id: "MUL-27-R3",
+      name: "Shared device or onboarding fingerprint",
+      logic: "Multiple accounts share device IDs, IP addresses, phone numbers or addresses at onboarding or transaction time, suggesting common control",
+      threshold: "2+ accounts sharing device, IP or contact identifier",
+      priority: "high",
+    },
+    {
+      id: "MUL-27-R4",
+      name: "Activity inconsistent with customer profile",
+      logic: "Inbound volumes far exceed a young or low-income customer's declared means, or a dormant account suddenly exhibits high-velocity inbound-and-forward flows",
+      threshold: "Inbound > 5x declared income, or dormancy >90 days then high-velocity flows",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Mule Indicator Triage",
+      description: "Confirm receive-and-forward behaviour on a recently opened account. Document account age, inbound sources, forwarding ratio and timing, and check for inbound fraud reports.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Customer and Network Review",
+      description: "Review the customer profile against observed flows. Identify shared funders, beneficiaries, devices and contact details linking the account to other accounts.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Network Mapping",
+      description: "Map the suspected herder network across the book using shared identifiers and flow relationships. Identify controller accounts and the scale of the cluster.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Decision",
+      description: "MLRO assesses grounds for suspicion, determines whether to restrict accounts and seek a defence before any return of funds, and considers coordinated action across the network.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Reporting and Control Response",
+      description: "If confirmed, file SARs, restrict or close mule accounts, action linked accounts together, and feed indicators back to onboarding and fraud controls. Provide vulnerable-customer support where recruited unwittingly.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Mule alert volume", target: "Monitor trend", description: "Monthly count of money-mule receive-and-forward alerts" },
+    { name: "True positive rate", target: ">30%", description: "Proportion of mule alerts confirmed as mule activity" },
+    { name: "Network linkage rate", target: ">60%", description: "Share of confirmed mules linked to a wider network via shared identifiers" },
+    { name: "Time to account restriction", target: "<24 hours", description: "Average time from confirmed mule indicators to account restriction" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Onboarding controls and device-fingerprint coverage reviewed", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Receive-and-forward and network-linkage rules validated and tuned", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Mule indicators reconciled with fraud and CIFAS / industry intelligence", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-04", item: "Vulnerable-customer and recruited-mule treatment procedures reviewed", frequency: "Annual", owner: "MLRO" },
+    { id: "GOV-05", item: "Mule detection effectiveness and SAR outcomes reported", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 10", title: "Customer Due Diligence", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "Wolfsberg", reference: "Wolfsberg TM 2023", title: "Transaction Monitoring Principles", url: "https://wolfsberg-group.org/resources/transaction-monitoring/144" },
+  ],
+};

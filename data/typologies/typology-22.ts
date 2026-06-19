@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology22: Typology = {
+  id: 22,
+  slug: "cuckoo-smurfing",
+  title: "Cuckoo Smurfing",
+  riskTheme: "money_laundering",
+  description:
+    "Illicit value is settled by injecting structured cash or third-party deposits into the accounts of unwitting beneficiaries who are expecting a legitimate inbound payment (often an overseas remittance or invoice settlement). The expected funds are diverted abroad while the beneficiary receives dirty cash domestically, breaking the audit trail between the criminal source and the funds.",
+  applicableFirmTypes: ["bank", "emi", "pi", "msb", "neobank"],
+  applicableProducts: ["remittance", "cross_border_payments", "domestic_payments", "e_money_accounts"],
+  applicableCustomerTypes: ["individuals", "smes", "agents_intermediaries"],
+  controlObjective:
+    "Detect accounts receiving structured third-party deposits that substitute for an expected legitimate inbound payment, identifying both unwitting beneficiaries and the controllers diverting value overseas.",
+  dataRequired: [
+    "Inbound credit amounts, channels (cash deposit, faster payment, internal transfer) and timestamps",
+    "Depositor identity versus expected remitter or payer name",
+    "Geographic location of cash deposits relative to account holder's home branch or region",
+    "Expected remittance corridors and historical inbound payment patterns",
+    "Beneficiary declared activity and source of expected funds",
+    "Linkage between cash-deposit clusters and same-day outbound overseas transfers across the book",
+    "Number of distinct depositors funding a single beneficiary account",
+    "Customer awareness signals (queries about missing overseas payments)",
+  ],
+  detectionLogic: [
+    {
+      id: "CUK-22-R1",
+      name: "Third-party structured cash into expecting account",
+      logic: "Account expecting an overseas remittance receives 3+ cash deposits from unrelated third parties summing to the expected amount within 72 hours, each below the cash reporting threshold",
+      threshold: "3+ third-party cash deposits, each 80-99% of threshold, summing to expected inbound / 72hrs",
+      priority: "critical",
+    },
+    {
+      id: "CUK-22-R2",
+      name: "Depositor-beneficiary name mismatch on remittance corridor",
+      logic: "Inbound cash or transfer credited where depositor name has no documented relationship to beneficiary, on a customer flagged to a high-volume remittance corridor",
+      threshold: "Depositor != expected remitter, 2+ unrelated depositors / 30 days",
+      priority: "high",
+    },
+    {
+      id: "CUK-22-R3",
+      name: "Geographic dispersion of cash deposits",
+      logic: "Cash deposits into a single account originate from 3+ distinct branches or ATMs in different regions within a short window, inconsistent with the account holder's location",
+      threshold: "3+ deposit locations >50 miles apart / 7 days",
+      priority: "high",
+    },
+    {
+      id: "CUK-22-R4",
+      name: "Offsetting overseas outflow correlation",
+      logic: "Cluster of inbound third-party cash to beneficiaries coincides with same-day or next-day outbound overseas transfers of matching aggregate value from a separate controller account",
+      threshold: "Inbound cash cluster matched to outbound overseas value within 24hrs (±10%)",
+      priority: "high",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Deposit Pattern Triage",
+      description: "Confirm the inbound credits are third-party cash deposits rather than expected remitter funds. Document depositor identities, deposit locations, amounts and timing against the cash reporting threshold.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Beneficiary Context Review",
+      description: "Review the beneficiary's profile, declared activity and any expected overseas payment. Assess whether the customer is likely an unwitting recipient or a knowing participant.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Network and Corridor Analysis",
+      description: "Map depositors, deposit locations and any correlated overseas outflows across the book. Identify whether multiple beneficiaries share common depositors or controller accounts.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Suspicion Assessment",
+      description: "MLRO assesses grounds for suspicion, distinguishing unwitting beneficiaries from controllers. Determine whether to seek a defence against money laundering (DAML) before allowing onward movement.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Reporting and Control Response",
+      description: "If confirmed, file a SAR, consider DAML, restrict onward overseas transfers and review related controller accounts. Update typology rules and corridor risk ratings.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Cuckoo smurfing alert volume", target: "Monitor trend", description: "Monthly count of third-party cash-into-expecting-account alerts" },
+    { name: "True positive rate", target: ">20%", description: "Proportion of alerts confirmed as cuckoo smurfing or linked structuring" },
+    { name: "Controller linkage rate", target: ">50%", description: "Share of confirmed cases where an offsetting overseas controller account was identified" },
+    { name: "DAML usage on confirmed cases", target: "100%", description: "Confirmed cases where a defence was sought before onward movement, where applicable" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "High-risk remittance corridors and expected-inbound profiles reviewed", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-02", item: "Third-party cash deposit detection rules validated and tuned", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Inbound-to-outbound correlation logic tested across the book", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-04", item: "Unwitting-beneficiary handling and customer treatment procedures reviewed", frequency: "Annual", owner: "MLRO" },
+    { id: "GOV-05", item: "Cuckoo smurfing detection effectiveness and SAR outcomes reported", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 16", title: "Wire Transfers", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "MLR 2017", title: "Money Laundering Regulations 2017", url: "https://www.legislation.gov.uk/uksi/2017/692/contents" },
+  ],
+};

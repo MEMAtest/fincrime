@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology17: Typology = {
+  id: 17,
+  slug: "bribery-facilitation-payments",
+  title: "Bribery & Facilitation Payments",
+  riskTheme: "bribery_corruption",
+  description:
+    "Corporate bribery and facilitation payments disguised as legitimate business spend. Common forms include inflated or fictitious consultancy and intermediary fees, round-sum payments to agents in high-risk jurisdictions, and success fees that lack commercial substance and are used to channel improper payments to officials or counterparties.",
+  applicableFirmTypes: ["bank", "emi", "pi", "wealth_manager"],
+  applicableProducts: ["cross_border_payments", "fx_transfers", "domestic_payments", "trade_finance"],
+  applicableCustomerTypes: ["corporates", "smes", "agents_intermediaries", "high_net_worth"],
+  controlObjective:
+    "Detect payments to intermediaries, consultants, and agents that lack commercial rationale or proportionality and may constitute bribery or facilitation payments, including those structured to obscure the ultimate recipient.",
+  dataRequired: [
+    "Payment purpose, narrative, and supporting documentation",
+    "Counterparty type (agent, consultant, intermediary) and registration",
+    "Payment jurisdiction and corruption-risk rating of recipient location",
+    "Contract value versus services rendered (proportionality)",
+    "Round-sum and success-fee payment indicators",
+    "Beneficial ownership of recipient consultancy or intermediary entities",
+    "Customer sector exposure (extractives, construction, defence, public contracts)",
+    "Historical payment baseline to the same counterparty",
+  ],
+  detectionLogic: [
+    {
+      id: "BRB-17-R1",
+      name: "Round-sum consultancy payments to high-risk jurisdictions",
+      logic: "Round-sum payments (no pence, exact thousands) to a consultancy or intermediary in a high corruption-risk jurisdiction with a generic or absent service description",
+      threshold: "Round-sum > £25k, high-risk jurisdiction, vague narrative",
+      priority: "high",
+    },
+    {
+      id: "BRB-17-R2",
+      name: "Disproportionate intermediary or success fee",
+      logic: "Agent or success fee exceeding 5% of the underlying contract value, or where fee growth is inconsistent with the documented scope of services",
+      threshold: "Fee > 5% of contract value or unexplained step-up",
+      priority: "high",
+    },
+    {
+      id: "BRB-17-R3",
+      name: "Payment to newly formed or unverifiable intermediary",
+      logic: "Material payment to a consultancy or agent incorporated within the last 12 months, with no verifiable trading history or beneficial owner linked to a public official",
+      threshold: "Recipient < 12 months old, payment > £10k, BO opacity",
+      priority: "medium",
+    },
+    {
+      id: "BRB-17-R4",
+      name: "Onward channelling to public-official-linked party",
+      logic: "Funds received by an intermediary are rapidly on-paid to a party linked to a government contract counterparty or public official",
+      threshold: "Onward transfer within 14 days to official-linked party",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Payment Rationale Review",
+      description: "Confirm the stated purpose of the payment, the counterparty type, and the recipient jurisdiction. Capture round-sum, success-fee, and vague-narrative indicators.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Proportionality and Substance Check",
+      description: "Assess whether the fee is proportionate to documented services and the underlying contract. Request supporting contracts, deliverables, and invoices where substance is unclear.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Recipient and Onward-Flow Analysis",
+      description: "Verify beneficial ownership of the intermediary. Trace onward flows for channelling to officials or contract counterparties. Run adverse media and sanctions screening.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Decision",
+      description: "MLRO assesses whether the payment is consistent with bribery or a facilitation payment. Consider sector exposure, ABC red flags, and the customer's own anti-bribery controls.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If suspicious: file SAR, escalate for relationship and product review, and consider restricting future intermediary payments. If benign: document substance evidence and refine narrative-screening rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Intermediary payment review rate", target: "100%", description: "Proportion of flagged high-risk intermediary payments reviewed within SLA" },
+    { name: "ABC alert true positive rate", target: ">15%", description: "Proportion of bribery and facilitation alerts confirmed as warranting SAR or escalation" },
+    { name: "Proportionality documentation coverage", target: ">90%", description: "Proportion of high-value intermediary payments with substantiating contract and deliverable evidence" },
+    { name: "High-risk jurisdiction screening coverage", target: "100%", description: "Proportion of payments to high corruption-risk jurisdictions subject to enhanced narrative screening" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Corruption-risk jurisdiction and sector ratings reviewed and updated", frequency: "Quarterly", owner: "Financial Crime" },
+    { id: "GOV-02", item: "Intermediary and consultancy payment rules tuned against ABC typologies", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Round-sum and success-fee detection effectiveness validated", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-04", item: "Proportionality evidence standards applied consistently to agent payments", frequency: "Ongoing", owner: "Compliance" },
+    { id: "GOV-05", item: "Bribery and corruption alert outcomes reported to senior management", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "Wolfsberg", reference: "Wolfsberg ABC", title: "Anti-Bribery & Corruption Guidance", url: "https://www.wolfsberg-principles.com/" },
+    { org: "FATF", reference: "Recommendation 12", title: "Politically Exposed Persons", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+  ],
+};

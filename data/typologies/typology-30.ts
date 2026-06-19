@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology30: Typology = {
+  id: 30,
+  slug: "front-company-bo-obfuscation",
+  title: "Front Companies & Beneficial-Ownership Obfuscation",
+  riskTheme: "sanctions_evasion",
+  description:
+    "Layered shell or front companies and nominee directors used to conceal a sanctioned or designated person in control of an account or flow. Jurisdiction hopping and opaque ownership chains break the link between the visible customer and the true beneficial owner to evade sanctions screening.",
+  applicableFirmTypes: ["bank", "emi", "pi"],
+  applicableProducts: ["cross_border_payments", "trade_finance", "fx_transfers", "domestic_payments"],
+  applicableCustomerTypes: ["corporates", "smes", "agents_intermediaries"],
+  controlObjective:
+    "Detect use of front companies, nominees, and layered ownership structures to obscure a sanctioned or designated beneficial owner and evade financial sanctions controls.",
+  dataRequired: [
+    "Beneficial ownership chain and ultimate controllers",
+    "Director and shareholder nominee indicators",
+    "Company incorporation jurisdictions and dates",
+    "Registered address and corporate-services-provider clustering",
+    "Counterparty network and connected-party links",
+    "Sanctions and designated-person screening results across the ownership chain",
+    "Recent changes to ownership, directors, or signatories",
+    "Transaction counterparties and originating/beneficiary geographies",
+  ],
+  detectionLogic: [
+    {
+      id: "FCO-30-R1",
+      name: "Ownership chain links to designated party",
+      logic: "Any node in the beneficial-ownership or connected-party chain matches or closely resembles a sanctioned or designated person or entity",
+      threshold: "Any chain-wide screening match (including fuzzy) to designated party",
+      priority: "critical",
+    },
+    {
+      id: "FCO-30-R2",
+      name: "Opaque layered structure",
+      logic: "Ownership traced through 3+ corporate layers across multiple secrecy or high-risk jurisdictions with no clear commercial rationale",
+      threshold: "3+ ownership layers across 2+ high-risk jurisdictions",
+      priority: "high",
+    },
+    {
+      id: "FCO-30-R3",
+      name: "Nominee and address clustering",
+      logic: "Shared nominee directors, mass-registration agents, or a single registered address across multiple otherwise unconnected customer entities",
+      threshold: "Same nominee or address across 3+ unrelated entities",
+      priority: "high",
+    },
+    {
+      id: "FCO-30-R4",
+      name: "Ownership change followed by flow shift",
+      logic: "Recent change of beneficial owner, director, or signatory followed by a material shift in counterparties or destination geographies",
+      threshold: "Ownership change + >50% counterparty change within 60 days",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Structure Triage",
+      description: "Map the beneficial-ownership chain and connected parties. Document layering, jurisdictions, nominee indicators, and any registered-address clustering.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Chain-Wide Screening",
+      description: "Screen every identified node, controller, and counterparty against sanctions and designated-person lists, including fuzzy and alias matching. Verify ownership against registries.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Obfuscation Assessment",
+      description: "Assess whether the structure is designed to conceal a designated controller: commercial rationale for layering, jurisdiction choices, nominee use, and timing of ownership changes.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO and Sanctions Determination",
+      description: "MLRO and sanctions function assess potential sanctions exposure, OFSI reporting obligations, and whether the relationship must be frozen or restricted pending resolution.",
+      sla: "72 hours",
+      responsible: "MLRO / Sanctions Officer",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: freeze or block, report to OFSI, file SAR, and consider exit. If benign: document verified ownership and rationale, and refine connected-party screening.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Obfuscation alert volume", target: "Monitor trend", description: "Monthly count of front-company and BO obfuscation alerts" },
+    { name: "Beneficial-ownership verification coverage", target: "100%", description: "Corporate customers with verified ultimate beneficial owner on file" },
+    { name: "Chain-wide screening coverage", target: "100%", description: "Proportion of flagged structures with full ownership-chain sanctions screening" },
+    { name: "True positive rate", target: ">20%", description: "Proportion of obfuscation alerts confirmed as concealment risk" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Beneficial-ownership data refreshed and validated against registries", frequency: "Annual", owner: "Onboarding / KYC" },
+    { id: "GOV-02", item: "Sanctions and designated-person lists kept current across screening engine", frequency: "Ongoing", owner: "Sanctions Officer" },
+    { id: "GOV-03", item: "Connected-party and nominee clustering detection validated", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-04", item: "High-risk corporate structures reviewed and risk-rated", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-05", item: "Sanctions-evasion detection effectiveness reported", frequency: "Quarterly", owner: "Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 24", title: "Transparency of Legal Persons", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "OFSI", reference: "OFSI", title: "Financial Sanctions Guidance", url: "https://www.gov.uk/government/organisations/office-of-financial-sanctions-implementation" },
+    { org: "FCA", reference: "FG/18/5 Chapter 7", title: "Financial Sanctions", url: "https://www.handbook.fca.org.uk/handbook/FCG/7/" },
+    { org: "MLR", reference: "reg.33", title: "Enhanced Customer Due Diligence", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/33" },
+    { org: "Wolfsberg", reference: "Wolfsberg Principles", title: "Principles & Standards", url: "https://www.wolfsberg-principles.com/" },
+  ],
+};

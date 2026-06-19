@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology31: Typology = {
+  id: 31,
+  slug: "mixer-peel-chain-laundering",
+  title: "Crypto Mixer & Peel-Chain Laundering",
+  riskTheme: "money_laundering",
+  description:
+    "Use of mixers and tumblers, peel chains, chain-hopping across assets, and privacy coins to break the on-chain link between illicit proceeds and the eventual fiat off-ramp. Layering obscures provenance before value re-enters the regulated financial system.",
+  applicableFirmTypes: ["crypto", "bank", "emi"],
+  applicableProducts: ["crypto_exchange", "cross_border_payments", "e_money_accounts"],
+  applicableCustomerTypes: ["individuals", "smes"],
+  controlObjective:
+    "Detect laundering of crypto proceeds through mixers, peel chains, chain-hopping, and privacy coins ahead of a fiat off-ramp, and break the obfuscation before value re-enters the firm.",
+  dataRequired: [
+    "On-chain deposit and withdrawal addresses with attribution",
+    "Mixer, tumbler, and privacy-protocol interaction flags",
+    "Source-of-funds hop count and intermediary address depth",
+    "Privacy-coin involvement (Monero, Zcash shielded transfers)",
+    "Cross-asset chain-hopping events",
+    "Fiat off-ramp amounts, timing, and destination accounts",
+    "Customer declared activity and crypto experience profile",
+    "Counterparty and exchange-of-origin risk ratings",
+  ],
+  detectionLogic: [
+    {
+      id: "MIX-31-R1",
+      name: "Direct mixer or tumbler exposure",
+      logic: "Deposit funds with on-chain attribution showing direct or one-hop exposure to a known mixer, tumbler, or sanctioned privacy service",
+      threshold: "Any direct or one-hop mixer/tumbler attribution",
+      priority: "critical",
+    },
+    {
+      id: "MIX-31-R2",
+      name: "Peel-chain layering",
+      logic: "Incoming value traced through a sequence of addresses each peeling off a small portion to a new address, consistent with peel-chain obfuscation before deposit",
+      threshold: "5+ sequential peel hops within source-of-funds trace",
+      priority: "high",
+    },
+    {
+      id: "MIX-31-R3",
+      name: "Chain-hopping then rapid off-ramp",
+      logic: "Funds converted across 2+ assets or chains shortly before a fiat off-ramp with minimal holding period, suggesting layering rather than investment",
+      threshold: "2+ asset conversions then off-ramp within 24 hours",
+      priority: "high",
+    },
+    {
+      id: "MIX-31-R4",
+      name: "Privacy-coin deposit anomaly",
+      logic: "Privacy-coin deposits inconsistent with the customer's declared activity or profile, converted promptly to transparent assets or fiat",
+      threshold: "Privacy-coin deposit >£1k outside declared profile",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "On-Chain Triage",
+      description: "Run on-chain attribution on the flagged deposit. Document mixer exposure, hop depth, peel-chain structure, chain-hopping, and privacy-coin involvement.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Source-of-Funds Review",
+      description: "Request and assess source-of-funds evidence. Compare on-chain provenance against the customer's declared activity and the origin-exchange risk rating.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Layering Assessment",
+      description: "Assess whether the on-chain behaviour indicates deliberate obfuscation: mixer use, peel chains, chain-hopping intent, and off-ramp timing relative to layering.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Determination",
+      description: "MLRO assesses grounds for suspicion of money laundering, considering attribution confidence, off-ramp exposure, and NCA reporting obligations.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: file SAR, restrict the off-ramp, freeze withdrawals, and consider exit. If benign: document the verified provenance and refine attribution and off-ramp rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Mixer-exposure alert volume", target: "Monitor trend", description: "Monthly count of mixer and peel-chain alerts" },
+    { name: "On-chain attribution coverage", target: ">95%", description: "Proportion of crypto deposits with attribution applied before off-ramp" },
+    { name: "True positive rate", target: ">30%", description: "Proportion of mixer/peel-chain alerts confirmed as laundering risk" },
+    { name: "Off-ramp interdiction time", target: "<4 hours", description: "Average time from critical mixer alert to off-ramp restriction" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "On-chain analytics provider attribution coverage validated", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Mixer, tumbler, and sanctioned-protocol lists kept current", frequency: "Ongoing", owner: "Sanctions Officer" },
+    { id: "GOV-03", item: "Privacy-coin and chain-hopping policy reviewed", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-04", item: "Crypto laundering detection effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-05", item: "Rule tuning based on SAR feedback and emerging crypto typologies", frequency: "Semi-annual", owner: "Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 15", title: "New Technologies / Virtual Assets", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 10", title: "Customer Due Diligence", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part II", title: "Sectoral Guidance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "Wolfsberg", reference: "Wolfsberg Principles", title: "Principles & Standards", url: "https://www.wolfsberg-principles.com/" },
+  ],
+};

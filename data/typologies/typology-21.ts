@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology21: Typology = {
+  id: 21,
+  slug: "romance-investment-scams",
+  title: "Romance & Investment Scams",
+  riskTheme: "fraud",
+  description:
+    "Romance and investment scams, including pig-butchering, where victims are manipulated over time into sending payments to scam-controlled bank accounts or crypto wallets. Payments are often escalating, made to fake investment platforms, and rapidly layered or converted to crypto by the receiving network.",
+  applicableFirmTypes: ["bank", "emi", "pi", "neobank", "crypto"],
+  applicableProducts: ["domestic_payments", "cross_border_payments", "fx_transfers", "crypto_exchange", "e_money_accounts"],
+  applicableCustomerTypes: ["individuals", "high_net_worth", "smes", "agents_intermediaries"],
+  controlObjective:
+    "Identify customers being defrauded through romance and fake-investment scams and disrupt payments to scam-controlled accounts and crypto platforms, while detecting the receiving accounts used to collect and launder victim funds.",
+  dataRequired: [
+    "Customer payment history and deviation from normal behaviour",
+    "Beneficiary type (new payee, crypto exchange, overseas account)",
+    "Escalating payment sequence and frequency to the same beneficiary",
+    "Customer-stated payment purpose and intervention responses",
+    "Receiving account or wallet age, profile, and reuse across victims",
+    "Crypto on-ramp activity and rapid conversion patterns",
+    "Customer vulnerability and demographic risk indicators",
+    "Device, channel, and remote-access or coaching indicators",
+  ],
+  detectionLogic: [
+    {
+      id: "RIS-21-R1",
+      name: "Escalating payments to a new beneficiary",
+      logic: "Sequence of increasing payments to the same new beneficiary over a short period, inconsistent with the customer's established payment behaviour",
+      threshold: "3+ rising payments to new payee within 30 days",
+      priority: "high",
+    },
+    {
+      id: "RIS-21-R2",
+      name: "First-time crypto on-ramp by atypical customer",
+      logic: "First or rapidly escalating payments to a crypto exchange by a customer with no prior crypto activity, particularly where account drawdown or new lending funds the payments",
+      threshold: "New crypto on-ramp > £2k with no prior crypto history",
+      priority: "high",
+    },
+    {
+      id: "RIS-21-R3",
+      name: "Drawdown to fund external investment payments",
+      logic: "Savings depletion, loan drawdown, or asset liquidation immediately preceding payments to an investment platform or overseas individual",
+      threshold: "Drawdown then onward investment payment within 7 days",
+      priority: "medium",
+    },
+    {
+      id: "RIS-21-R4",
+      name: "Mule receiving account collecting multiple victims",
+      logic: "Receiving account or wallet aggregates inflows from multiple unrelated payers then rapidly disperses or converts to crypto, indicating a scam collection point",
+      threshold: "Inflows from 3+ unrelated payers then dispersal within 48 hours",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Payment and Pattern Review",
+      description: "Confirm the payment sequence, beneficiary type, and deviation from the customer's normal behaviour. Capture escalation, crypto on-ramp, and drawdown indicators.",
+      sla: "1 hour",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Customer Intervention",
+      description: "Conduct a scam-focused intervention with the customer using effective challenge questions. Probe for coaching, secrecy, romance context, and promised investment returns.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 3,
+      title: "Receiving Network Analysis",
+      description: "Assess the receiving account or wallet for mule and multi-victim collection indicators. Trace dispersal and crypto conversion for recall and intelligence purposes.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO and Vulnerability Decision",
+      description: "MLRO assesses scam likelihood, victim vulnerability, and reporting obligations. Coordinate payment hold, account freezing where held, and reimbursement assessment.",
+      sla: "48 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: hold or recall payment, freeze mule accounts, file SAR, apply APP reimbursement where applicable, and signpost victim support. If benign: document intervention and refine escalation rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Scam intervention rate", target: "100%", description: "Proportion of high-risk scam-pattern payments receiving a customer intervention before release" },
+    { name: "Pre-payment interception rate", target: ">60%", description: "Proportion of confirmed scam payments stopped before funds leave the firm" },
+    { name: "Mule-account detection true positive rate", target: ">30%", description: "Proportion of multi-victim receiving-account alerts confirmed as scam collection points" },
+    { name: "Time to intervention", target: "<4 hours", description: "Average time from scam-pattern flag to completed customer intervention" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Romance and investment scam detection rules reviewed and tuned", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Customer intervention scripts and effectiveness validated", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-03", item: "Crypto on-ramp and mule-account controls tested across channels", frequency: "Semi-annual", owner: "Financial Crime" },
+    { id: "GOV-04", item: "Vulnerable-customer handling and APP reimbursement operating effectively", frequency: "Ongoing", owner: "Compliance" },
+    { id: "GOV-05", item: "Scam loss, interception, and recovery metrics reported to management", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "FATF", reference: "Recommendation 16", title: "Wire Transfers", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+  ],
+};

@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology18: Typology = {
+  id: 18,
+  slug: "insurance-claims-fraud",
+  title: "Insurance & Claims Fraud",
+  riskTheme: "fraud",
+  description:
+    "Fraudulent insurance claims including staged or fabricated losses, inflated or exaggerated claim values, duplicate claims across insurers, and organised claims rings operating across multiple policyholders. Proceeds are extracted as claim settlements and may be laundered through linked bank accounts.",
+  applicableFirmTypes: ["insurance", "bank"],
+  applicableProducts: ["domestic_payments", "lending", "card_issuing"],
+  applicableCustomerTypes: ["individuals", "smes", "corporates", "agents_intermediaries"],
+  controlObjective:
+    "Detect fraudulent and exaggerated insurance claims, including staged losses, duplicate submissions, and organised ring activity, and prevent settlement of illegitimate claims and the laundering of resulting proceeds.",
+  dataRequired: [
+    "Policy inception date relative to claim date",
+    "Claim type, value, and supporting loss documentation",
+    "Claimant, beneficiary, and third-party (garage, contractor, medical) details",
+    "Shared identifiers across claims (bank account, address, phone, IP, device)",
+    "Claims history and prior loss frequency per claimant",
+    "Settlement payment destination and rapid onward movement",
+    "Linkages between claimants, witnesses, and service providers",
+    "Adverse data and known-fraud network indicators",
+  ],
+  detectionLogic: [
+    {
+      id: "INS-18-R1",
+      name: "Early claim after policy inception",
+      logic: "Claim submitted within 60 days of policy inception or a recent material cover increase, with a high claim-to-premium ratio",
+      threshold: "Claim < 60 days from inception, claim/premium > 20x",
+      priority: "high",
+    },
+    {
+      id: "INS-18-R2",
+      name: "Shared-identifier claims ring",
+      logic: "3+ otherwise unrelated claims sharing a settlement bank account, address, contact number, or device within a rolling 6 months",
+      threshold: "3+ claims sharing 1+ identifier / 6 months",
+      priority: "critical",
+    },
+    {
+      id: "INS-18-R3",
+      name: "Duplicate or multi-insurer claim",
+      logic: "Same loss event or near-identical loss documentation submitted to multiple insurers, or claimed twice under linked policies",
+      threshold: "Matching loss across 2+ policies or insurers",
+      priority: "high",
+    },
+    {
+      id: "INS-18-R4",
+      name: "Settlement pass-through pattern",
+      logic: "Claim settlement received then transferred onward in full within 48 hours, or split and dispersed across multiple accounts shortly after receipt",
+      threshold: "Onward transfer of settlement within 48 hours",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Claim Validation",
+      description: "Confirm policy status, inception timing, and the loss documentation. Capture early-claim, high-ratio, and missing-evidence indicators.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Network and Duplicate Check",
+      description: "Cross-reference shared identifiers across claimants, beneficiaries, and service providers. Check for duplicate submissions and links to known fraud networks.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Loss and Settlement Analysis",
+      description: "Assess loss plausibility, claim valuation, and settlement destination. Trace onward movement of any settlement and identify dispersal patterns.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO and SIU Decision",
+      description: "MLRO and the special investigations unit assess whether the claim is fraudulent or part of an organised ring. Determine reporting and settlement-hold requirements.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: decline or hold settlement, file SAR, refer to industry fraud bureaus, and update network intelligence. If benign: document validation rationale and refine ring-detection rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Fraud claim detection rate", target: "Monitor trend", description: "Monthly count of claims flagged as suspected fraud" },
+    { name: "Ring-detection true positive rate", target: ">30%", description: "Proportion of shared-identifier ring alerts confirmed as organised fraud" },
+    { name: "Pre-settlement interception rate", target: ">85%", description: "Proportion of confirmed fraudulent claims intercepted before payout" },
+    { name: "Time to claim review", target: "<48 hours", description: "Average time from claim flag to completed first-line review" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Claims fraud indicators and ring-detection rules reviewed and updated", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Shared-identifier matching validated for accuracy and coverage", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-03", item: "Industry fraud bureau data feeds maintained and reconciled", frequency: "Ongoing", owner: "SIU / Financial Crime" },
+    { id: "GOV-04", item: "Settlement-hold and decline controls tested end to end", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-05", item: "Claims fraud outcomes and loss avoidance reported to management", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "JMLSG", reference: "Part II", title: "Sectoral Guidance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+  ],
+};

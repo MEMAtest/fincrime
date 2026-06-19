@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology24: Typology = {
+  id: 24,
+  slug: "cash-intensive-business-integration",
+  title: "Cash-Intensive Business Integration",
+  riskTheme: "money_laundering",
+  description:
+    "Illicit cash is commingled with the legitimate takings of cash-intensive businesses such as restaurants, takeaways, retail outlets, car washes and barbers. Inflated banked cash is presented as trading revenue, integrating criminal proceeds into the financial system under the cover of an ostensibly genuine business.",
+  applicableFirmTypes: ["bank", "msb"],
+  applicableProducts: ["domestic_payments", "e_money_accounts", "card_issuing"],
+  applicableCustomerTypes: ["smes", "corporates"],
+  controlObjective:
+    "Detect cash-intensive business accounts whose banked cash is inconsistent with declared turnover, sector benchmarks or card-to-cash ratios, indicating integration of illicit proceeds.",
+  dataRequired: [
+    "Cash deposit volumes, frequency and denominations",
+    "Declared turnover and the business sector / SIC code",
+    "Card acquiring or electronic takings for the same business (cash-to-card ratio)",
+    "Sector benchmarks for typical cash share of revenue",
+    "Deposit timing relative to trading hours and seasonality",
+    "VAT, payroll and outgoing supplier payments consistent with stated activity",
+    "Number of staff and premises versus implied trading volume",
+    "Historical baseline of banked cash for the account",
+  ],
+  detectionLogic: [
+    {
+      id: "CIB-24-R1",
+      name: "Banked cash exceeds declared turnover",
+      logic: "Rolling banked cash over a period materially exceeds the customer's declared annual turnover or onboarding expectation for the business",
+      threshold: "Banked cash > 130% of declared turnover (annualised)",
+      priority: "high",
+    },
+    {
+      id: "CIB-24-R2",
+      name: "Cash-to-card ratio anomaly for sector",
+      logic: "Cash share of total takings is far above the expected sector benchmark, or cash rises while card takings remain flat or fall",
+      threshold: "Cash > 80% of takings where sector benchmark < 50%",
+      priority: "high",
+    },
+    {
+      id: "CIB-24-R3",
+      name: "Deposits inconsistent with trading pattern",
+      logic: "Cash deposited outside trading hours, on closed days, or in even round-number lodgements inconsistent with genuine till takings and seasonality",
+      threshold: "3+ off-pattern or round-number deposits / month",
+      priority: "medium",
+    },
+    {
+      id: "CIB-24-R4",
+      name: "Rapid pass-through of banked cash",
+      logic: "Banked cash is swiftly moved out to third parties, related entities or overseas with minimal genuine business expenditure such as payroll or suppliers",
+      threshold: ">70% of cash credits withdrawn or transferred within 5 days, low operating outflows",
+      priority: "critical",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Cash Profile Triage",
+      description: "Quantify banked cash over the period and compare with declared turnover and onboarding expectations. Assess cash-to-card ratio and deposit timing.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Business Verification",
+      description: "Review the business profile, sector benchmark, premises, staffing and outgoing payments. Request VAT returns, accounts or evidence of trading where appropriate.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Consistency Assessment",
+      description: "Assess whether banked cash and outflows are consistent with a genuine business of the stated size, or whether takings appear inflated by commingled cash.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Suspicion Assessment",
+      description: "MLRO determines whether discrepancies amount to grounds for suspicion of integration of illicit proceeds, and whether further information or account action is required.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Reporting and Control Response",
+      description: "If confirmed, file a SAR, apply enhanced monitoring or cash deposit limits, and consider EDD or exit. If benign, document the trading rationale and refine benchmarks.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Cash-intensive business alert volume", target: "Monitor trend", description: "Monthly count of cash inconsistency alerts on cash-intensive accounts" },
+    { name: "True positive rate", target: ">20%", description: "Proportion of alerts confirmed as suspected integration" },
+    { name: "Turnover verification coverage", target: "100%", description: "Confirmed cases where declared turnover was independently corroborated or challenged" },
+    { name: "Time to detection", target: "<30 days", description: "Average time from anomalous cash trend to alert generation" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Sector cash benchmarks and turnover expectations reviewed", frequency: "Annual", owner: "MLRO" },
+    { id: "GOV-02", item: "Cash deposit and cash-to-card detection rules validated", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "High-risk cash-intensive sector portfolio reviewed", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-04", item: "Cash handling and deposit limit policies reviewed", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-05", item: "Cash-intensive business detection effectiveness and SAR outcomes reported", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 10", title: "Customer Due Diligence", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part II", title: "Sectoral Guidance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "reg.28 CDD", title: "Customer Due Diligence Measures", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/28" },
+  ],
+};

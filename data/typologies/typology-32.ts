@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology32: Typology = {
+  id: 32,
+  slug: "account-takeover-fraud",
+  title: "Account Takeover Fraud",
+  riskTheme: "fraud",
+  description:
+    "A fraudster gains control of a genuine customer's account through credential theft, phishing, or SIM-swap, then changes device, contact, or beneficiary details before rapidly draining funds to mule accounts. Speed and post-compromise profile changes distinguish takeover from normal customer behaviour.",
+  applicableFirmTypes: ["bank", "emi", "pi", "neobank"],
+  applicableProducts: ["domestic_payments", "e_money_accounts", "cross_border_payments", "card_issuing"],
+  applicableCustomerTypes: ["individuals", "smes"],
+  controlObjective:
+    "Detect unauthorised account takeover by identifying anomalous device, credential, and profile changes followed by rapid outflows to mule accounts, and intervene before funds are lost.",
+  dataRequired: [
+    "Device fingerprint and login history",
+    "IP address, geolocation, and session anomalies",
+    "Credential reset and authentication event logs",
+    "SIM-swap and phone-number change signals",
+    "Beneficiary, payee, and contact-detail change events",
+    "Outbound payment amounts, timing, and destinations",
+    "Customer behavioural baseline (typical payees, amounts, hours)",
+    "Beneficiary account risk indicators (mule flags, age, velocity)",
+  ],
+  detectionLogic: [
+    {
+      id: "ATO-32-R1",
+      name: "New device plus credential change plus payout",
+      logic: "Login from a new device or geography, followed by a credential or contact-detail change, then an outbound payment within a short window",
+      threshold: "New device + detail change + payout within 60 minutes",
+      priority: "critical",
+    },
+    {
+      id: "ATO-32-R2",
+      name: "Post-change beneficiary drain",
+      logic: "Newly added or amended beneficiary receiving a high proportion of the account balance shortly after the change",
+      threshold: "New payee receives >60% of balance within 2 hours of being added",
+      priority: "high",
+    },
+    {
+      id: "ATO-32-R3",
+      name: "SIM-swap proximate to activity",
+      logic: "Phone-number or SIM-swap signal closely preceding a login, authentication reset, or high-value payment",
+      threshold: "SIM-swap signal within 24 hours of payment or reset",
+      priority: "high",
+    },
+    {
+      id: "ATO-32-R4",
+      name: "Behavioural deviation burst",
+      logic: "Cluster of payments deviating from the customer's established payee, amount, or time-of-day baseline within a single session",
+      threshold: "3+ out-of-baseline payments in one session",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Compromise Triage",
+      description: "Confirm the takeover signal: device, IP, credential, SIM-swap, and detail-change events. Map the sequence and identify any outbound payments and beneficiaries.",
+      sla: "15 minutes",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Containment",
+      description: "Where indicators are strong, hold outbound payments, lock the session, and trigger step-up verification with the genuine customer through a known-good channel.",
+      sla: "1 hour",
+      responsible: "L1 Analyst / Fraud Ops",
+    },
+    {
+      step: 3,
+      title: "Customer Verification and Tracing",
+      description: "Verify with the genuine customer whether activity was authorised. Trace outbound funds, flag receiving accounts as potential mules, and attempt recall where funds have moved.",
+      sla: "4 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO and Fraud Determination",
+      description: "MLRO and fraud function confirm the takeover, assess loss and mule-network exposure, and determine SAR and reimbursement obligations.",
+      sla: "24 hours",
+      responsible: "MLRO / Fraud Lead",
+    },
+    {
+      step: 5,
+      title: "Remediation and Reporting",
+      description: "Restore secure access for the genuine customer, file SAR, report mule accounts, and feed device and beneficiary intelligence back into detection models.",
+      sla: "3 business days",
+      responsible: "MLRO / Fraud Ops",
+    },
+  ],
+  metrics: [
+    { name: "ATO alert volume", target: "Monitor trend", description: "Monthly count of account takeover alerts" },
+    { name: "Funds-held rate", target: ">70%", description: "Proportion of confirmed ATO outflows held or recovered before loss" },
+    { name: "Detection latency", target: "<15 minutes", description: "Average time from compromise signal to alert generation" },
+    { name: "Customer reimbursement accuracy", target: "100%", description: "Confirmed unauthorised takeovers reimbursed in line with policy" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Device, IP, and behavioural models reviewed and recalibrated", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "SIM-swap and telco signal feeds validated", frequency: "Semi-annual", owner: "Fraud Ops" },
+    { id: "GOV-03", item: "Step-up verification flows tested for ATO scenarios", frequency: "Semi-annual", owner: "Product / Fraud Ops" },
+    { id: "GOV-04", item: "ATO detection and loss-prevention effectiveness reported", frequency: "Quarterly", owner: "Fraud Lead" },
+    { id: "GOV-05", item: "Mule-account intelligence shared and rules tuned", frequency: "Ongoing", owner: "MLRO / Fraud Ops" },
+  ],
+  sources: [
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part I, Chapter 6", title: "Suspicious Activity Reporting", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "Wolfsberg", reference: "Wolfsberg Principles", title: "Principles & Standards", url: "https://www.wolfsberg-principles.com/" },
+  ],
+};

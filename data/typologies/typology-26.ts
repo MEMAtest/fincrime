@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology26: Typology = {
+  id: 26,
+  slug: "gambling-casino-laundering",
+  title: "Gambling & Casino Laundering",
+  riskTheme: "money_laundering",
+  description:
+    "Gambling accounts and casino activity are used to clean funds by depositing, placing minimal or offsetting bets, and withdrawing the balance as apparent winnings. Techniques include chip dumping between colluding players, deposit-then-cash-out with little genuine play, and using betting accounts as pass-through wallets to break the audit trail.",
+  applicableFirmTypes: ["bank", "emi", "pi", "msb"],
+  applicableProducts: ["domestic_payments", "e_money_accounts", "card_issuing", "cross_border_payments"],
+  applicableCustomerTypes: ["individuals", "smes"],
+  controlObjective:
+    "Detect payment activity to and from gambling operators that indicates funds are being passed through with minimal genuine play, returning value as apparent winnings to disguise its source.",
+  dataRequired: [
+    "Deposit and withdrawal flows to and from licensed and unlicensed gambling operators",
+    "Ratio of withdrawals to deposits and the staked-versus-deposited proportion where available",
+    "Time between deposit and subsequent withdrawal",
+    "Funding instruments used (cards, faster payments, e-money) and any third-party funding",
+    "Counterparty gambling operator identity and licensing jurisdiction",
+    "Customer declared income and expected gambling spend",
+    "Patterns of small offsetting or low-risk bets indicative of minimal play",
+    "Beneficiary of withdrawals versus the original depositor",
+  ],
+  detectionLogic: [
+    {
+      id: "GAM-26-R1",
+      name: "Deposit-and-withdraw with minimal play",
+      logic: "Funds deposited to a gambling operator are withdrawn shortly afterwards with little intervening activity, producing a high withdrawal-to-deposit ratio",
+      threshold: "Withdrawal within 72hrs, withdrawals > 85% of deposits / rolling 30 days",
+      priority: "high",
+    },
+    {
+      id: "GAM-26-R2",
+      name: "Gambling spend beyond declared means",
+      logic: "Aggregate gambling deposits materially exceed the customer's declared income or expected spend, particularly when funded from third parties",
+      threshold: "Monthly gambling deposits > 50% of declared monthly income, or third-party funded",
+      priority: "high",
+    },
+    {
+      id: "GAM-26-R3",
+      name: "Pass-through wallet behaviour",
+      logic: "Gambling or e-money account used primarily to receive funds and move them onward to different beneficiaries, with little or no genuine play activity",
+      threshold: ">80% of credits paid onward to 3+ beneficiaries / 30 days, minimal staking",
+      priority: "critical",
+    },
+    {
+      id: "GAM-26-R4",
+      name: "Unlicensed or high-risk operator exposure",
+      logic: "Repeated payments to or from gambling operators that are unlicensed in the customer's jurisdiction or based in high-risk locations",
+      threshold: "2+ transactions with unlicensed or high-risk-jurisdiction operator / 30 days",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Gambling Flow Triage",
+      description: "Confirm counterparties are gambling operators. Quantify deposits, withdrawals, the withdrawal-to-deposit ratio and timing. Identify funding instruments and any third-party funding.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Customer Context Review",
+      description: "Review declared income, expected gambling spend and prior behaviour. Assess operator licensing status and whether the account is acting as a pass-through.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Pattern Assessment",
+      description: "Assess whether activity reflects genuine play or layering through minimal-play deposit-and-cash-out, chip dumping or pass-through behaviour. Map onward beneficiaries.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Suspicion Assessment",
+      description: "MLRO determines whether activity amounts to grounds for suspicion of laundering through gambling, and whether account restrictions or reporting are warranted.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Reporting and Control Response",
+      description: "If confirmed, file a SAR, apply enhanced monitoring or restrictions on gambling-related flows, and review connected accounts. If benign, document rationale and refine rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Gambling laundering alert volume", target: "Monitor trend", description: "Monthly count of gambling pass-through and minimal-play alerts" },
+    { name: "True positive rate", target: ">20%", description: "Proportion of alerts confirmed as suspected laundering" },
+    { name: "Pass-through detection rate", target: "Monitor trend", description: "Share of confirmed cases exhibiting pass-through wallet behaviour" },
+    { name: "Time to detection", target: "<7 days", description: "Average time from anomalous gambling flow to alert generation" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Gambling operator counterparty and licensing reference data reviewed", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Gambling deposit, withdrawal-ratio and pass-through rules validated", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "High-risk and unlicensed operator exposure reviewed", frequency: "Quarterly", owner: "Compliance" },
+    { id: "GOV-04", item: "Gambling-related risk appetite and customer treatment policy reviewed", frequency: "Annual", owner: "MLRO" },
+    { id: "GOV-05", item: "Gambling typology detection effectiveness and SAR outcomes reported", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 22", title: "DNFBPs Customer Due Diligence", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 20", title: "Reporting of Suspicious Transactions", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FCA", reference: "FG/18/5 Chapter 6", title: "Transaction Monitoring", url: "https://www.handbook.fca.org.uk/handbook/FCG/6/" },
+    { org: "JMLSG", reference: "Part II", title: "Sectoral Guidance", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "MLR 2017", title: "Money Laundering Regulations 2017", url: "https://www.legislation.gov.uk/uksi/2017/692/contents" },
+  ],
+};

@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology34: Typology = {
+  id: 34,
+  slug: "dual-use-export-procurement-diversion",
+  title: "Dual-Use Export & Procurement Diversion",
+  riskTheme: "proliferation_financing",
+  description:
+    "Procurement of dual-use or export-controlled goods routed through intermediaries and transhipment hubs to evade export controls and proliferation sanctions. Front buyers, mismatched end-users, and circuitous shipping routes disguise the true destination of sensitive items.",
+  applicableFirmTypes: ["bank", "emi", "pi", "msb"],
+  applicableProducts: ["trade_finance", "cross_border_payments", "fx_transfers"],
+  applicableCustomerTypes: ["corporates", "smes", "agents_intermediaries"],
+  controlObjective:
+    "Detect financing of dual-use and controlled-goods procurement routed via intermediaries and transhipment hubs to evade export controls and proliferation-financing sanctions.",
+  dataRequired: [
+    "Goods description and dual-use or controlled-goods classification",
+    "End-user and end-use declarations",
+    "Shipping route, transhipment points, and consignee details",
+    "Counterparty network and intermediary relationships",
+    "Originating and beneficiary jurisdictions versus stated destination",
+    "Trade documentation (invoices, bills of lading, licences)",
+    "Sanctions and proliferation-list screening across all parties",
+    "Price and quantity reasonableness versus declared end-use",
+  ],
+  detectionLogic: [
+    {
+      id: "DUE-34-R1",
+      name: "Controlled-goods to high-risk destination",
+      logic: "Trade finance or payment for dual-use or export-controlled goods where the ultimate destination or end-user links to a proliferation-sensitive jurisdiction or party",
+      threshold: "Any controlled-goods flow to proliferation-sensitive end-user",
+      priority: "critical",
+    },
+    {
+      id: "DUE-34-R2",
+      name: "Transhipment route anomaly",
+      logic: "Shipping route uses circuitous transhipment through a hub inconsistent with a direct commercial route between the stated origin and destination",
+      threshold: "2+ unjustified transhipment hops versus direct route",
+      priority: "high",
+    },
+    {
+      id: "DUE-34-R3",
+      name: "Intermediary and end-user mismatch",
+      logic: "Buyer, consignee, or paying party differs from the declared end-user, or a front intermediary with no relevant trade history is interposed",
+      threshold: "End-user mismatch or new intermediary with no trade history",
+      priority: "high",
+    },
+    {
+      id: "DUE-34-R4",
+      name: "Price or quantity inconsistency",
+      logic: "Goods price or quantity materially inconsistent with declared end-use, suggesting concealment or over/under-invoicing tied to diversion",
+      threshold: "Price or quantity deviation >40% from end-use benchmark",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Trade and Goods Triage",
+      description: "Review the trade documentation. Classify the goods, document the declared end-user, shipping route, intermediaries, and any controlled or dual-use indicators.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Party and Route Screening",
+      description: "Screen all parties, consignees, and intermediaries against sanctions and proliferation lists. Assess transhipment routing and verify end-user and licence documentation.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Diversion Assessment",
+      description: "Assess whether the transaction indicates procurement diversion: end-user mismatch, transhipment anomaly, front intermediaries, and price or quantity inconsistency.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO and Sanctions Determination",
+      description: "MLRO and sanctions function assess proliferation-financing exposure, OFSI reporting obligations, and whether to block the transaction pending resolution.",
+      sla: "72 hours",
+      responsible: "MLRO / Sanctions Officer",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If confirmed: block or decline, report to OFSI, file SAR, and consider exit. If benign: document verified end-use and licences, and refine controlled-goods and route rules.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Diversion alert volume", target: "Monitor trend", description: "Monthly count of dual-use and procurement diversion alerts" },
+    { name: "Controlled-goods screening coverage", target: "100%", description: "Trade-finance flows screened for dual-use and controlled-goods classification" },
+    { name: "Party-screening completeness", target: "100%", description: "Proportion of flagged trades with all parties and intermediaries screened" },
+    { name: "True positive rate", target: ">15%", description: "Proportion of diversion alerts escalated as genuine proliferation concern" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Dual-use and controlled-goods classification lists kept current", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-02", item: "Proliferation and sanctions screening lists validated", frequency: "Ongoing", owner: "Sanctions Officer" },
+    { id: "GOV-03", item: "Transhipment and high-risk-route reference data reviewed", frequency: "Semi-annual", owner: "Trade Finance / Compliance" },
+    { id: "GOV-04", item: "Proliferation-financing detection effectiveness reported", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-05", item: "End-user verification and trade-documentation controls reviewed", frequency: "Semi-annual", owner: "Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 7", title: "Targeted Financial Sanctions (Proliferation)", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "OFSI", reference: "OFSI", title: "Financial Sanctions Guidance", url: "https://www.gov.uk/government/organisations/office-of-financial-sanctions-implementation" },
+    { org: "FCA", reference: "FG/18/5 Chapter 7", title: "Financial Sanctions", url: "https://www.handbook.fca.org.uk/handbook/FCG/7/" },
+    { org: "Wolfsberg", reference: "Wolfsberg Principles", title: "Principles & Standards", url: "https://www.wolfsberg-principles.com/" },
+    { org: "MLR", reference: "reg.33", title: "Enhanced Customer Due Diligence", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/33" },
+  ],
+};

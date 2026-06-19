@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { Search } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
@@ -71,6 +72,7 @@ export default function TypologyListPage() {
   const [typologies, setTypologies] = useState<TypologySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTheme, setActiveTheme] = useState<RiskTheme | null>(null);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     fetch("/api/typology/list")
@@ -82,10 +84,24 @@ export default function TypologyListPage() {
       .catch(() => setLoading(false));
   }, []);
 
-  const filtered = useMemo(
-    () => (activeTheme ? typologies.filter((t) => t.riskTheme === activeTheme) : typologies),
-    [typologies, activeTheme]
-  );
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return typologies.filter((t) => {
+      if (activeTheme && t.riskTheme !== activeTheme) return false;
+      if (!q) return true;
+      const haystack = [
+        t.title,
+        t.description,
+        RISK_THEME_LABELS[t.riskTheme],
+        ...t.applicableFirmTypes.map((v) => PILL_LABELS[v] ?? v),
+        ...t.applicableProducts.map((v) => PILL_LABELS[v] ?? v),
+        ...t.applicableCustomerTypes.map((v) => PILL_LABELS[v] ?? v),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [typologies, activeTheme, query]);
 
   return (
     <>
@@ -97,9 +113,25 @@ export default function TypologyListPage() {
             Typology Catalogue
           </h1>
           <p className="text-text-muted max-w-2xl mx-auto">
-            Browse all {typologies.length} financial crime typologies. Filter by
-            risk theme or click a card to launch the TypologyIQ wizard.
+            Browse all {typologies.length} financial crime typologies. Search or
+            filter by risk theme, then open a typology for its red flags,
+            detection logic, investigation workflow and cited sources.
           </p>
+        </div>
+
+        {/* search */}
+        <div className="max-w-xl mx-auto mb-8">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted pointer-events-none" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name, firm type, product or customer (e.g. neobank, mule, PEP)"
+              aria-label="Search typologies"
+              className="w-full pl-10 pr-4 py-2.5 rounded-full glass-card text-sm text-foreground placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
+            />
+          </div>
         </div>
 
         {/* risk theme filter tabs */}
@@ -158,7 +190,7 @@ export default function TypologyListPage() {
                 transition={{ delay: i * 0.05, duration: 0.35, ease: "easeOut" }}
               >
                 <Link
-                  href={`/typology-iq?riskThemes=${t.riskTheme}`}
+                  href={`/typology-iq/t/${t.slug}`}
                   className="block glass-card rounded-xl p-5 card-hover h-full"
                 >
                   {/* header row */}

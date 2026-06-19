@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology16: Typology = {
+  id: 16,
+  slug: "pep-grand-corruption-proceeds",
+  title: "PEP & Grand Corruption Proceeds",
+  riskTheme: "bribery_corruption",
+  description:
+    "Laundering the proceeds of grand corruption through or on behalf of politically exposed persons. Funds typically move through shell company layers, nominee arrangements, family members and close associates, and are placed into high-value assets such as real estate, luxury goods, and investment portfolios to obscure illicit origin.",
+  applicableFirmTypes: ["bank", "wealth_manager", "emi", "pi"],
+  applicableProducts: ["cross_border_payments", "fx_transfers", "e_money_accounts", "lending"],
+  applicableCustomerTypes: ["politically_exposed", "high_net_worth", "corporates", "individuals"],
+  controlObjective:
+    "Identify and scrutinise funds connected to PEPs, their family members, and close associates where transaction patterns, source of wealth, or ownership structures are inconsistent with legitimate office-derived income and may represent proceeds of corruption.",
+  dataRequired: [
+    "PEP status and category (domestic, foreign, international organisation)",
+    "Source of wealth and source of funds documentation",
+    "Beneficial ownership and control structures of connected entities",
+    "Family member and close associate (RCA) linkages",
+    "Declared income and public-office tenure versus asset values",
+    "Cross-border payment corridors and intermediary jurisdictions",
+    "High-value asset purchases (real estate, luxury, securities)",
+    "Adverse media and sanctions screening results",
+  ],
+  detectionLogic: [
+    {
+      id: "PEP-16-R1",
+      name: "Wealth inconsistent with declared office income",
+      logic: "Aggregate inflows or asset acquisitions over a rolling 12 months exceed 5x the PEP's declared or publicly known office-derived income with no documented alternative source of wealth",
+      threshold: "Inflows > 5x declared income / 12 months, SoW undocumented",
+      priority: "critical",
+    },
+    {
+      id: "PEP-16-R2",
+      name: "Shell layering through high-risk jurisdictions",
+      logic: "Funds routed through 2+ corporate or nominee layers where at least one entity is registered in a secrecy or high-risk jurisdiction before reaching a PEP-connected account",
+      threshold: "2+ corporate layers, 1+ high-risk jurisdiction",
+      priority: "high",
+    },
+    {
+      id: "PEP-16-R3",
+      name: "Proxy receipt via family or close associate",
+      logic: "Large inflows received by a known RCA (family member or close associate) that are rapidly transferred to or benefit a PEP, or fund assets used by the PEP",
+      threshold: "RCA inflow > £100k then onward to PEP within 30 days",
+      priority: "high",
+    },
+    {
+      id: "PEP-16-R4",
+      name: "High-value asset placement",
+      logic: "PEP-connected funds used to purchase real estate or luxury assets via cash-equivalent or single lump-sum settlement inconsistent with declared profile",
+      threshold: "Asset purchase > £250k, lump-sum, profile mismatch",
+      priority: "high",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "PEP Linkage Confirmation",
+      description: "Confirm PEP, RCA, or connected-entity status. Document the office held, jurisdiction, tenure, and the nature of the relationship to the transacting party.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Source of Wealth Reconciliation",
+      description: "Reconcile inflows and asset values against documented source of wealth and declared office income. Identify gaps, undocumented lump sums, and intermediary entities.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Ownership and Layering Analysis",
+      description: "Map beneficial ownership and control across connected entities. Identify shell layers, nominee arrangements, and high-risk jurisdiction exposure. Run adverse media and sanctions checks.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO and EDD Decision",
+      description: "MLRO assesses whether the pattern is consistent with proceeds of corruption. Confirm enhanced due diligence and senior management approval requirements are met for the PEP relationship.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "If suspicious: file SAR, escalate for relationship review and possible exit, and apply enhanced ongoing monitoring. If benign: document SoW rationale and retain senior approval evidence.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "PEP EDD completion rate", target: "100%", description: "Proportion of active PEP relationships with current enhanced due diligence and senior approval" },
+    { name: "Source of wealth coverage", target: ">95%", description: "Proportion of high-risk PEP relationships with documented and corroborated source of wealth" },
+    { name: "PEP alert true positive rate", target: ">20%", description: "Proportion of PEP-corruption alerts confirmed as warranting SAR or escalation" },
+    { name: "Time to EDD refresh", target: "<12 months", description: "Maximum interval between enhanced due diligence reviews for high-risk PEPs" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "PEP classification and RCA linkages reviewed and refreshed", frequency: "Quarterly", owner: "Financial Crime" },
+    { id: "GOV-02", item: "Senior management approval evidenced for all PEP relationships", frequency: "Ongoing", owner: "MLRO" },
+    { id: "GOV-03", item: "Source of wealth corroboration validated against independent sources", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-04", item: "PEP and corruption detection rules tuned against typology updates", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-05", item: "PEP portfolio risk and EDD coverage reported to the board", frequency: "Quarterly", owner: "MLRO" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 12", title: "Politically Exposed Persons", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "FATF", reference: "Recommendation 24", title: "Transparency of Legal Persons", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "MLR", reference: "reg.33 EDD", title: "Enhanced Customer Due Diligence", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/33" },
+    { org: "JMLSG", reference: "Part I, Chapter 5", title: "Customer Due Diligence", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "FCA", reference: "FCA Financial Crime Guide", title: "Financial Crime Guide", url: "https://www.handbook.fca.org.uk/handbook/FCG/" },
+  ],
+};
