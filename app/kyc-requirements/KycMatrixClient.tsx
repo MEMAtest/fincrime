@@ -216,8 +216,9 @@ export default function KycMatrixClient({
             </div>
           </div>
 
-          {/* Selector bar */}
-          <div className="glass-card rounded-2xl p-4 sm:p-5 mt-5 grid sm:grid-cols-3 gap-4 items-end">
+          {/* Selector bar (relative z-20 so the open dropdowns paint above the
+              glass-card summaries below, which each form their own stacking context) */}
+          <div className="relative z-20 glass-card rounded-2xl p-4 sm:p-5 mt-5 grid sm:grid-cols-3 gap-4 items-end">
             <MultiSelect label="Entity / Customer Type" icon={Building2} selected={ents}
               onChange={(v) => setDim("entity", v)} options={ENTITY_ORDER.map((e) => ({ value: e, label: ENTITY_LABEL[e] }))} />
             <MultiSelect label="Jurisdiction" icon={Globe2} selected={jurs}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, Sparkles, ArrowRight, AlertCircle, Building2 } from "lucide-react";
+import { Search, Sparkles, ArrowRight, ArrowUpRight, AlertCircle, Building2 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
@@ -251,11 +251,16 @@ export default function FirmResearchPage() {
                   {result.topTypologies.map((t) => {
                     const cfg = THEME_CONFIG[t.riskTheme];
                     return (
-                      <div key={t.slug} className="glass-card rounded-xl p-4 flex items-start gap-3">
+                      <Link
+                        key={t.slug}
+                        href={`/typology-iq/t/${t.slug}`}
+                        className="glass-card rounded-xl p-4 flex items-start gap-3 card-hover"
+                      >
                         <RiskThemeIcon riskTheme={t.riskTheme} size="sm" animated={false} />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground leading-tight">
-                            {t.title}
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground leading-tight flex items-center gap-1">
+                            <span className="truncate">{t.title}</span>
+                            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
                           </p>
                           <span
                             className="inline-block mt-1 text-[10px] uppercase tracking-wider font-medium"
@@ -264,7 +269,7 @@ export default function FirmResearchPage() {
                             {cfg.label}
                           </span>
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
