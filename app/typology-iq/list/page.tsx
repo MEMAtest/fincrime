@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
+import { RISK_THEME_LABEL } from "@/data/typologies/labels";
 import type { RiskTheme, FirmType, ProductType, CustomerType } from "@/data/typologies/types";
 
 interface TypologySummary {
@@ -29,16 +30,6 @@ const ALL_RISK_THEMES: RiskTheme[] = [
   "tax_evasion",
   "bribery_corruption",
 ];
-
-const RISK_THEME_LABELS: Record<RiskTheme, string> = {
-  fraud: "Fraud",
-  money_laundering: "Money Laundering",
-  sanctions_evasion: "Sanctions Evasion",
-  terrorist_financing: "Terrorist Financing",
-  proliferation_financing: "Proliferation Financing",
-  tax_evasion: "Tax Evasion",
-  bribery_corruption: "Bribery & Corruption",
-};
 
 const PILL_LABELS: Record<string, string> = {
   emi: "EMI",
@@ -92,7 +83,7 @@ export default function TypologyListPage() {
       const haystack = [
         t.title,
         t.description,
-        RISK_THEME_LABELS[t.riskTheme],
+        RISK_THEME_LABEL[t.riskTheme],
         ...t.applicableFirmTypes.map((v) => PILL_LABELS[v] ?? v),
         ...t.applicableProducts.map((v) => PILL_LABELS[v] ?? v),
         ...t.applicableCustomerTypes.map((v) => PILL_LABELS[v] ?? v),
@@ -162,7 +153,7 @@ export default function TypologyListPage() {
               }
             >
               <RiskThemeIcon riskTheme={theme} size="sm" animated={false} />
-              {RISK_THEME_LABELS[theme]}
+              {RISK_THEME_LABEL[theme]}
             </button>
           ))}
         </div>
@@ -207,7 +198,7 @@ export default function TypologyListPage() {
                           color: THEME_CONFIG[t.riskTheme].primary,
                         }}
                       >
-                        {RISK_THEME_LABELS[t.riskTheme]}
+                        {RISK_THEME_LABEL[t.riskTheme]}
                       </span>
                     </div>
                   </div>
