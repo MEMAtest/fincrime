@@ -225,7 +225,7 @@ export default function FirmResearchPage() {
               <h2 className="text-sm font-semibold text-foreground mb-3">
                 Suggested Risk Themes
               </h2>
-              <div className="grid sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {result.riskThemes.map((theme) => {
                   const cfg = THEME_CONFIG[theme];
                   return (
@@ -247,7 +247,7 @@ export default function FirmResearchPage() {
                 <h2 className="text-sm font-semibold text-foreground mb-3">
                   Likely Relevant Typologies
                 </h2>
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {result.topTypologies.map((t) => {
                     const cfg = THEME_CONFIG[t.riskTheme];
                     return (

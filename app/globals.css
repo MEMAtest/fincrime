@@ -412,6 +412,19 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 .theme-toggle:hover { border-color: var(--line-bright); color: var(--accent-bright); }
 .theme-toggle svg { width: 16px; height: 16px; }
 @media (max-width: 940px) { .nav-links { display: none; } }
+/* Header must fit narrow phones. Placed AFTER the base .nav/.brand rules so it
+   wins the cascade: drop the nowrap brand tagline, tighten the pill, and let the
+   brand name shrink/truncate so the brand + CTA can never force horizontal
+   scroll at any width. */
+@media (max-width: 560px) {
+  .nav-shell { padding: 12px 8px 0; }
+  .nav { gap: 8px; padding: 8px 9px; }
+  .brand { gap: 8px; min-width: 0; flex-shrink: 1; }
+  .brand-text { min-width: 0; }
+  .brand-text span { display: none; }
+  .brand-text b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+  .nav .btn-sm { padding-left: 10px; padding-right: 10px; }
+}
 
 /* textlink */
 .textlink { display: inline-flex; align-items: center; gap: 7px; color: var(--accent-bright); font-weight: 600; font-size: 14px; text-decoration: none; font-family: var(--font-text); }
