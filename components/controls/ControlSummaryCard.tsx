@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wrench, ShieldCheck, ScanSearch, Wrench as WrenchIcon } from "lucide-react";
+import { Wrench, ShieldCheck, ScanSearch } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import { CONTROL_CATEGORY_LABEL, CONTROL_TYPE_LABEL } from "@/data/controls";
 import type { Control } from "@/data/controls/types";
@@ -10,7 +10,7 @@ const typeVariant = (t: Control["controlType"]) =>
 const TYPE_ICON = {
   preventive: ShieldCheck,
   detective: ScanSearch,
-  corrective: WrenchIcon,
+  corrective: Wrench,
 } as const;
 
 /**

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ControlBuilderClient from "./ControlBuilderClient";
-import { getControlBySlug, controlsForCase, controlsForTypology } from "@/data/controls";
+import { getControlBySlug, controlsForCase, controlsForTypology, controlsForThemes } from "@/data/controls";
 import { getEnforcementCaseBySlug } from "@/lib/enforcement/case-slug";
 import { getTypologyBySlug } from "@/data/typologies";
 import { FIRM_TYPE_LABEL } from "@/data/typologies/labels";
@@ -35,7 +35,11 @@ export default async function ControlBuilderPage({ searchParams }: { searchParam
   if (from?.startsWith("case:")) {
     const cs = getEnforcementCaseBySlug(from.slice(5));
     if (cs) {
-      initialSlugs = controlsForCase(cs.firm, cs.year).map((c) => c.slug);
+      // Mirror the case page: fall back to theme-derived controls when no control
+      // is tagged directly to the case, so "Design all N" never opens empty.
+      const direct = controlsForCase(cs.firm, cs.year);
+      const list = direct.length ? direct : controlsForThemes(cs.riskThemes).slice(0, 6);
+      initialSlugs = list.map((c) => c.slug);
       contextLabel = `Designed from the ${cs.firm} (${cs.regulator} ${cs.year}, ${cs.fine}) enforcement case`;
     }
   } else if (from?.startsWith("typology:")) {

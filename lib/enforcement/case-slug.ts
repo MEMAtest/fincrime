@@ -8,20 +8,29 @@ import type { EnforcementCase } from "@/data/enforcement/types";
  * generated file is never hand-edited.
  */
 export function caseSlug(firm: string, year: number): string {
+  // Slugify the FULL firm name (no word truncation) so distinct firms never
+  // collapse to the same slug. Capped to keep URLs sane; full legal names are
+  // already unique per case.
   const base = firm
     .toLowerCase()
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .replace(/-+/g, "-")
-    .split("-")
-    .slice(0, 7)
-    .join("-");
+    .slice(0, 80)
+    .replace(/-+$/g, "");
   return `${base}-${year}`;
 }
 
 const bySlug = new Map<string, EnforcementCase>();
-for (const c of enforcementCases) bySlug.set(caseSlug(c.firm, c.year), c);
+for (const c of enforcementCases) {
+  const slug = caseSlug(c.firm, c.year);
+  if (bySlug.has(slug)) {
+    // Fail loud at module load if the generated dataset ever produces a slug
+    // collision (rather than silently dropping a case from the static routes).
+    throw new Error(`Duplicate enforcement case slug: ${slug}`);
+  }
+  bySlug.set(slug, c);
+}
 
 export const enforcementCaseSlugs: string[] = [...bySlug.keys()];
 

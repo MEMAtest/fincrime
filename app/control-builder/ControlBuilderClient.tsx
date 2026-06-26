@@ -11,7 +11,6 @@ import EditableControlCard, { defaultOverride } from "@/components/controls/Edit
 import {
   allControls, getControlBySlug, CONTROL_CATEGORY_ORDER, CONTROL_CATEGORY_LABEL,
 } from "@/data/controls";
-import { allTypologies } from "@/data/typologies";
 import type { ControlOverride } from "@/data/controls/types";
 import type { RiskTheme } from "@/data/typologies/types";
 
@@ -19,7 +18,9 @@ const ALL_THEMES: RiskTheme[] = [
   "money_laundering", "fraud", "sanctions_evasion", "terrorist_financing",
   "bribery_corruption", "proliferation_financing", "tax_evasion",
 ];
-const TOTAL_TYPOLOGIES = allTypologies.length;
+// Typologies that ANY control in the catalogue addresses (the honest denominator
+// for the coverage map: typologies no control maps to can never be "covered").
+const ADDRESSABLE_TYPOLOGIES = new Set(allControls.flatMap((c) => c.typologySlugs)).size;
 
 export default function ControlBuilderClient({
   initialSlugs,
@@ -51,7 +52,10 @@ export default function ControlBuilderClient({
     setOverrides((o) => { const n = { ...o }; delete n[slug]; return n; });
   };
 
-  const selectedControls = selected.map(getControlBySlug).filter(Boolean) as NonNullable<ReturnType<typeof getControlBySlug>>[];
+  const selectedControls = useMemo(
+    () => selected.map(getControlBySlug).filter(Boolean) as NonNullable<ReturnType<typeof getControlBySlug>>[],
+    [selected]
+  );
 
   const coverage = useMemo(() => {
     const themes = new Set<RiskTheme>();
@@ -128,7 +132,7 @@ export default function ControlBuilderClient({
           </div>
           <p className="text-xs text-text-muted mt-2">
             Covers <span className="text-foreground font-medium">{coverage.themes.size} of 7</span> risk themes and addresses{" "}
-            <span className="text-foreground font-medium">{coverage.typCount} of {TOTAL_TYPOLOGIES}</span> typologies.
+            <span className="text-foreground font-medium">{coverage.typCount} of {ADDRESSABLE_TYPOLOGIES}</span> typologies.
             {coverage.themes.size < 7 && selected.length > 0 ? " Add controls to close the remaining gaps." : ""}
           </p>
         </div>

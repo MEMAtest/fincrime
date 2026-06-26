@@ -14,7 +14,10 @@ interface ControlRegisterPDFData {
   context?: string;
 }
 
-const eff = (o: string | undefined, d: string) => (o && o.trim() ? o.trim() : d);
+// The builder pre-fills every editable field with its catalogue default, so an
+// override that is present but empty is a deliberate clear and must be honoured;
+// only a genuinely absent override falls back to the default.
+const eff = (o: string | undefined, d: string) => (o === undefined ? d : o.trim());
 
 export function generateControlRegisterPDF(data: ControlRegisterPDFData): Buffer {
   const doc = new jsPDF();
@@ -122,8 +125,11 @@ export function generateControlRegisterPDF(data: ControlRegisterPDFData): Buffer
     doc.setFontSize(7.5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(120, 120, 120);
-    doc.text(`Sources: ${c.sources.map((s) => `${s.org} ${s.reference}`).join("; ")}`, 20, y);
-    y += 9;
+    const srcText = `Sources: ${c.sources.map((s) => `${s.org} ${s.reference}`).join("; ")}`;
+    const srcLines = doc.splitTextToSize(srcText, 170);
+    y = checkPageBreak(doc, y, srcLines.length * 4 + 6);
+    doc.text(srcLines, 20, y);
+    y += srcLines.length * 4 + 5;
   });
 
   addFootersToAll(doc);

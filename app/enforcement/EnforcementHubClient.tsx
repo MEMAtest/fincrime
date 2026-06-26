@@ -7,7 +7,7 @@ import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import { RISK_THEME_LABEL, FIRM_TYPE_LABEL } from "@/data/typologies/labels";
 import { enforcementCases } from "@/data/enforcement/cases";
 import { lessonFor } from "@/data/enforcement/lessons";
-import { effectiveFirmTypes, enforcementBenchmarks, fmtGbp } from "@/lib/enforcement/select";
+import { effectiveFirmTypes, fmtGbp } from "@/lib/enforcement/select";
 import { caseSlug } from "@/lib/enforcement/case-slug";
 import { controlsForCase } from "@/data/controls";
 import type { RiskTheme, FirmType } from "@/data/typologies/types";
@@ -35,7 +35,20 @@ export default function EnforcementHubClient() {
     [theme, firm]
   );
 
-  const b = enforcementBenchmarks;
+  // KPIs reflect the active filter so the headline numbers move with the chips.
+  const kpis = useMemo(() => {
+    const amounts = cases.map((c) => c.amountGbp);
+    const total = amounts.reduce((s, n) => s + n, 0);
+    const sortedAmts = [...amounts].sort((a, b) => a - b);
+    const mid = Math.floor(sortedAmts.length / 2);
+    const median = sortedAmts.length === 0
+      ? 0
+      : sortedAmts.length % 2
+        ? sortedAmts[mid]
+        : Math.round((sortedAmts[mid - 1] + sortedAmts[mid]) / 2);
+    const max = amounts.length ? Math.max(...amounts) : 0;
+    return { count: cases.length, total, median, max };
+  }, [cases]);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -51,10 +64,10 @@ export default function EnforcementHubClient() {
       {/* KPI strip */}
       <div className="glass-card rounded-2xl p-4 mb-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Enforcement cases", value: String(b.totalCases) },
-          { label: "Total penalties", value: fmtGbp(b.fineStats.totalGbp) },
-          { label: "Median fine", value: fmtGbp(b.fineStats.medianGbp) },
-          { label: "Largest", value: fmtGbp(b.fineStats.maxGbp) },
+          { label: "Enforcement cases", value: String(kpis.count) },
+          { label: "Total penalties", value: fmtGbp(kpis.total) },
+          { label: "Median fine", value: fmtGbp(kpis.median) },
+          { label: "Largest", value: fmtGbp(kpis.max) },
         ].map((k) => (
           <div key={k.label} className="text-center">
             <div className="text-xl font-bold text-foreground tabular-nums">{k.value}</div>
