@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import ThemeToggle from "@/components/theme/ThemeToggle";
+import WorkflowBar from "@/components/workflow/WorkflowBar";
 
 export default function Header() {
   return (
-    <div className="nav-shell">
+    <>
+      <div className="nav-shell">
       <nav className="nav">
         <Link className="brand" href="/" aria-label="FinCrime Control Lab">
           <span className="brand-mark">
@@ -31,12 +33,14 @@ export default function Header() {
         </div>
 
         <div className="nav-cta">
-          <Link className="btn btn-primary btn-sm" href="/firm-research">
+          <Link className="btn btn-primary btn-sm" href="/start">
             Start free
           </Link>
           <ThemeToggle />
         </div>
       </nav>
-    </div>
+      </div>
+      <WorkflowBar />
+    </>
   );
 }

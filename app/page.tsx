@@ -11,6 +11,7 @@ import Footer from "@/components/layout/Footer";
 import Instrument from "@/components/field/Instrument";
 import { allTypologies } from "@/data/typologies";
 import { allPartnerFlows } from "@/data/partner-flows";
+import { STAGES } from "@/data/workflow";
 
 const TYPOLOGY_COUNT = allTypologies.length;
 const FLOW_COUNT = allPartnerFlows.length;
@@ -83,7 +84,7 @@ export default function HomePage() {
                 <div className="rail-row"><span className="node" /><span className="rl"><b>FATF, Wolfsberg &amp; FCA</b>-aligned frameworks</span></div>
               </div>
               <div className="hero-actions">
-                <Link className="btn btn-primary" href="/firm-research">Start free <span className="arrow"><ArrowRight /></span></Link>
+                <Link className="btn btn-primary" href="/start">Start free <span className="arrow"><ArrowRight /></span></Link>
                 <Link className="btn btn-ghost" href="/controls"><Library /> Explore controls</Link>
               </div>
               <div className="hero-note">
@@ -104,6 +105,25 @@ export default function HomePage() {
               <div className="readout r-bl"><span className="rk">Partner Flows</span><span className="rv">{FLOW_COUNT}</span><span className="pin" /></div>
               <div className="readout r-br"><span className="rk">Risk Themes</span><span className="rv">{RISK_THEME_COUNT}</span><span className="pin" /></div>
             </div>
+          </div>
+        </section>
+
+        {/* ============ JOURNEY STRIP ============ */}
+        <section className="wrap">
+          <div className="glass-card rounded-2xl p-3.5 sm:p-4 flex items-center justify-between gap-3 flex-wrap">
+            <span className="text-[11px] uppercase tracking-wider text-text-muted shrink-0">One workflow, four stages</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {STAGES.map((s, i) => (
+                <span key={s.id} className="inline-flex items-center gap-1.5">
+                  <Link href={s.primary} className="inline-flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-accent transition-colors">
+                    <span className="w-5 h-5 rounded-full bg-accent/10 text-accent text-[10px] font-bold flex items-center justify-center">{s.n}</span>
+                    {s.label}
+                  </Link>
+                  {i < STAGES.length - 1 && <ArrowRight className="h-3.5 w-3.5 text-text-muted/50" />}
+                </span>
+              ))}
+            </div>
+            <Link href="/start" className="btn btn-primary btn-sm shrink-0">See the path</Link>
           </div>
         </section>
 
@@ -222,8 +242,8 @@ export default function HomePage() {
         <section className="section wrap" id="toolkit">
           <div className="marker"><span className="tech"><span className="ix">06</span> THE TOOLKIT</span><span className="rule" /></div>
           <div className="section-head">
-            <h2>Six tools, <span className="accent">one control lab</span></h2>
-            <p className="sub">Free, deterministic, and grounded in real enforcement and authoritative frameworks.</p>
+            <h2>Every tool, <span className="accent">one workflow</span></h2>
+            <p className="sub">Each tool is a stage in one path: profile, risks and enforcement, build, then govern and export. Free, deterministic and grounded in real enforcement.</p>
           </div>
           <div className="toolkit-grid">
             {TOOLKIT.map((c) => <Cell key={c.code} c={c} />)}
@@ -239,7 +259,7 @@ export default function HomePage() {
             <h2>Start from the typology.<br />Work back to the <span className="accent">exact controls</span>.</h2>
             <p>Free, deterministic, and grounded in real enforcement. Design a control programme you can defend in front of any committee.</p>
             <div className="hero-actions" style={{ justifyContent: "center" }}>
-              <Link className="btn btn-primary" href="/firm-research">Start free <span className="arrow"><ArrowRight /></span></Link>
+              <Link className="btn btn-primary" href="/start">Start free <span className="arrow"><ArrowRight /></span></Link>
               <a className="btn btn-ghost" href="https://memaconsultants.com" target="_blank" rel="noopener noreferrer">Talk to a MEMA expert</a>
             </div>
           </div>

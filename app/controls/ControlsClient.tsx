@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowRight, ChevronDown, ChevronRight, AlertTriangle, Scale } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight, AlertTriangle, Scale, Wrench } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
@@ -213,6 +213,15 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
                 risk theme, filtered by firm type and framework, and mapped to
                 real enforcement actions.
               </p>
+              <p className="mt-3 text-sm text-text-muted max-w-2xl mx-auto">
+                This is the reference catalogue. To adapt controls to your firm and export a register, use the{" "}
+                <Link href="/control-builder" className="text-accent hover:underline">Control Builder</Link>.
+              </p>
+              <div className="mt-5 flex justify-center">
+                <Link href="/control-builder" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent text-white font-medium text-sm hover:bg-accent-hover transition-colors">
+                  <Wrench className="h-4 w-4" /> Build a control register
+                </Link>
+              </div>
             </div>
           </div>
         </section>

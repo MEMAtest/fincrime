@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Wrench, Plus, Check, Layers, ScanSearch, Scale, ListChecks } from "lucide-react";
+import { Wrench, Plus, Check, Layers, ScanSearch, Scale, ListChecks, UserCheck, GitBranch, Gauge } from "lucide-react";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import { RISK_THEME_LABEL } from "@/data/typologies/labels";
 import PDFExportButton from "@/components/shared/PDFExportButton";
+import NextSteps from "@/components/shared/NextSteps";
 import KeyTerms from "@/components/shared/KeyTerms";
 import EditableControlCard, { defaultOverride } from "@/components/controls/EditableControlCard";
 import {
@@ -206,6 +207,14 @@ export default function ControlBuilderClient({
           />
         </div>
       )}
+
+      <NextSteps
+        items={[
+          { title: "Check your KYC coverage", body: "Make sure your controls meet CDD requirements by entity type and jurisdiction.", href: "/kyc-requirements", icon: UserCheck },
+          { title: "Map partner controls", body: "If you use partners, define who owns each control across the payment flow.", href: "/partner-control-map", icon: GitBranch },
+          { title: "Assess your maturity", body: "Benchmark a control area against a 5-level model and get a remediation roadmap.", href: "/controls-maturity", icon: Gauge },
+        ]}
+      />
 
       <p className="mt-10 text-xs text-text-muted border-t border-surface-border pt-4 flex items-start gap-2">
         <Wrench className="h-3.5 w-3.5 mt-0.5 shrink-0" />

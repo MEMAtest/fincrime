@@ -23,26 +23,28 @@ export default function Footer() {
           </p>
         </div>
         <div className="fcol">
-          <h4>Tools</h4>
-          <Link href="/typology-iq">TypologyIQ</Link>
-          <Link href="/partner-control-map">PartnerControlMap</Link>
-          <Link href="/controls">Controls Library</Link>
-          <Link href="/kyc-requirements">KYC Matrix</Link>
-          <Link href="/firm-research">AI in Research</Link>
+          <h4>The workflow</h4>
+          <Link href="/start">Start here</Link>
+          <Link href="/firm-research">1 · Profile</Link>
+          <Link href="/typology-iq">2 · Risks &amp; enforcement</Link>
+          <Link href="/control-builder">3 · Build controls</Link>
+          <Link href="/kyc-requirements">4 · Govern &amp; export</Link>
         </div>
         <div className="fcol">
-          <h4>Frameworks</h4>
-          <Link href="/controls?framework=fatf">FATF</Link>
-          <Link href="/controls?framework=wolfsberg">Wolfsberg</Link>
-          <Link href="/controls?framework=fca">FCA</Link>
-          <Link href="/controls?framework=jmlsg">JMLSG</Link>
+          <h4>Tools</h4>
+          <Link href="/firm-profiles">Firm Profiles</Link>
+          <Link href="/enforcement">Enforcement</Link>
+          <Link href="/controls">Controls Library</Link>
+          <Link href="/screening-control-designer">Screening Designer</Link>
+          <Link href="/partner-control-map">PartnerControlMap</Link>
+          <Link href="/controls-maturity">Controls Maturity</Link>
         </div>
         <div className="fcol">
           <h4>Learn</h4>
           <Link href="/glossary">Glossary</Link>
           <Link href="/methodology">Methodology</Link>
+          <Link href="/controls">Browse by framework</Link>
           <a href="https://memaconsultants.com" target="_blank" rel="noopener noreferrer">Talk to MEMA</a>
-          <Link href="/firm-research">Get started</Link>
         </div>
       </div>
       <div className="footer-base">

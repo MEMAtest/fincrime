@@ -17,6 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     page("", 1),
+    page("/start", 0.9),
     page("/control-builder", 0.9),
     page("/enforcement", 0.9),
     page("/typology-iq", 0.9),
