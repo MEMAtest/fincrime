@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ControlBuilderClient from "./ControlBuilderClient";
-import { getControlBySlug, controlsForCase, controlsForTypology, controlsForThemes } from "@/data/controls";
+import { getControlBySlug, controlsForCase, controlsForTypology, controlsForThemes, starterControlsForFirmType } from "@/data/controls";
 import { getEnforcementCaseBySlug } from "@/lib/enforcement/case-slug";
 import { getTypologyBySlug } from "@/data/typologies";
 import { FIRM_TYPE_LABEL } from "@/data/typologies/labels";
@@ -56,7 +56,10 @@ export default async function ControlBuilderPage({ searchParams }: { searchParam
   }
 
   if (!initialSlugs.length && firmType && firmType in FIRM_TYPE_LABEL) {
-    contextLabel = `Building controls for a ${FIRM_TYPE_LABEL[firmType as FirmType]}`;
+    // Preload a balanced starter set for the firm type so the builder opens
+    // populated (not empty) from a firm-profile entry.
+    initialSlugs = starterControlsForFirmType(firmType as FirmType).map((c) => c.slug);
+    contextLabel = `A starter control set for a ${FIRM_TYPE_LABEL[firmType as FirmType]}. Adjust, add and remove to fit your firm.`;
   }
 
   // De-duplicate while preserving order.

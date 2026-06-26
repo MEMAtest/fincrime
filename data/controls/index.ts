@@ -39,6 +39,7 @@ import { control38 } from "./control-38";
 import { control39 } from "./control-39";
 import { control40 } from "./control-40";
 import { control41 } from "./control-41";
+import { FIRM_PROFILES } from "../firm-profiles";
 import type { Control, ControlCategory } from "./types";
 import type { FirmType, RiskTheme } from "../typologies/types";
 
@@ -96,6 +97,41 @@ export function controlsForCase(firm: string, year: number): Control[] {
 /** Controls applicable to a firm type. */
 export function controlsForFirmType(firmType: FirmType): Control[] {
   return allControls.filter((c) => c.applicableFirmTypes.includes(firmType));
+}
+
+/**
+ * A balanced starter register for a firm type: controls applicable to the firm
+ * that address its higher inherent risks, spread across control categories (one
+ * pass per category) so the builder opens populated rather than empty when
+ * entered from a firm profile. Fully editable by the user.
+ */
+export function starterControlsForFirmType(firmType: FirmType, limit = 8): Control[] {
+  const profile = FIRM_PROFILES[firmType];
+  const highThemes = new Set(
+    profile.inherentRisks
+      .filter((r) => r.level === "very_high" || r.level === "high")
+      .map((r) => r.theme)
+  );
+  const relevant = allControls.filter(
+    (c) => c.applicableFirmTypes.includes(firmType) && c.riskThemes.some((t) => highThemes.has(t))
+  );
+  const byCat = new Map<ControlCategory, Control[]>();
+  for (const cat of CONTROL_CATEGORY_ORDER) byCat.set(cat, []);
+  for (const c of relevant) byCat.get(c.category)?.push(c);
+
+  const out: Control[] = [];
+  for (let i = 0; out.length < limit; i++) {
+    let advanced = false;
+    for (const cat of CONTROL_CATEGORY_ORDER) {
+      const arr = byCat.get(cat);
+      if (arr && i < arr.length && out.length < limit) {
+        out.push(arr[i]);
+        advanced = true;
+      }
+    }
+    if (!advanced) break;
+  }
+  return out;
 }
 
 /** Controls addressing any of the given risk themes. */
