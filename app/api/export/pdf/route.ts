@@ -4,7 +4,10 @@ import { generatePartnerPDF } from "@/lib/pdf/partner-pdf";
 import { generateScreeningPDF } from "@/lib/pdf/screening-pdf";
 import { generateMaturityPDF } from "@/lib/pdf/maturity-pdf";
 import { generateKycPDF } from "@/lib/pdf/kyc-pdf";
+import { generateControlRegisterPDF } from "@/lib/pdf/control-register-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
+import { getControlBySlug } from "@/data/controls";
+import type { ControlOverride } from "@/data/controls/types";
 import { buildMergedRequirements } from "@/data/kyc/merge";
 import { coerceList } from "@/lib/list-params";
 import { ENTITY_ORDER, JURISDICTION_ORDER } from "@/data/kyc/types";
@@ -24,6 +27,7 @@ const MODULE_TITLE: Record<string, string> = {
   screening_controls: "Screening Control Designer",
   controls_maturity: "Controls Maturity Assessment",
   kyc_requirements: "KYC / CDD Requirements Matrix",
+  control_register: "Control Register",
 };
 
 export async function POST(request: NextRequest) {
@@ -157,6 +161,24 @@ export async function POST(request: NextRequest) {
         pdfBuffer = generateKycPDF({ entities, jurisdictions, risks: risksFinal, completed: safeCompleted, merged });
         filename = `MEMA-KYC-${nameBit}-${date}.pdf`;
       }
+    } else if (module === "control_register") {
+      const { controlSlugs, overrides, context } = assessmentData as {
+        controlSlugs?: string[];
+        overrides?: Record<string, ControlOverride>;
+        context?: string;
+      };
+      const slugs = Array.isArray(controlSlugs) ? controlSlugs.filter((s) => typeof s === "string") : [];
+      const entries = slugs
+        .map((slug) => {
+          const control = getControlBySlug(slug);
+          return control ? { control, override: overrides?.[slug] } : null;
+        })
+        .filter((e): e is NonNullable<typeof e> => e !== null);
+      if (entries.length === 0) {
+        return NextResponse.json({ error: "No controls selected" }, { status: 400 });
+      }
+      pdfBuffer = generateControlRegisterPDF({ entries, context: typeof context === "string" ? context : undefined });
+      filename = `MEMA-ControlRegister-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }

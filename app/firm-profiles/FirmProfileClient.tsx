@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Scale, ShieldCheck, UserCheck, Search, ClipboardCheck, Users, Building2,
-  Landmark, Flame, Layers, ArrowUpRight,
+  Landmark, Flame, Layers, ArrowUpRight, Wrench,
 } from "lucide-react";
 import ResultTabs from "@/components/results/ResultTabs";
 import EvidencePanel from "@/components/results/EvidencePanel";
@@ -376,6 +376,12 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
 
       <NextSteps
         items={[
+          {
+            title: "Build the controls",
+            body: `Adapt controls for a ${label} and export a register you can defend.`,
+            href: `/control-builder?firmType=${activeType}`,
+            icon: Wrench,
+          },
           {
             title: "Run this in TypologyIQ",
             body: `Score a ${label} against the library and build its control framework.`,

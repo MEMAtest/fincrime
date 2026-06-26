@@ -13,6 +13,7 @@ const MODULE_LABEL: Record<PDFModule, string> = {
   screening_controls: "ScreeningControlDesigner",
   controls_maturity: "ControlsMaturity",
   kyc_requirements: "KYCRequirements",
+  control_register: "ControlRegister",
 };
 
 interface LeadCaptureModalProps {

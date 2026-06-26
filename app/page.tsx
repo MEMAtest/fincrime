@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   ArrowRight, ScanSearch, Activity, Database, Network, FileCheck,
   ClipboardCheck, Sparkles, Search, GitBranch, EyeOff, Gauge, Library,
-  Check, ArrowUpRight, MessageSquare, Globe2, Building2,
+  Check, ArrowUpRight, MessageSquare, Globe2, Building2, Wrench, Scale,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -43,6 +43,8 @@ const TOOLKIT: CellDef[] = [
   { code: "T-06", icon: Library, title: "Controls Library", text: "Browse controls by risk theme and firm type, mapped to real enforcement.", href: "/controls" },
   { code: "T-07", icon: Globe2, title: "KYC Requirements Matrix", text: "CDD requirements by entity type and jurisdiction, cited to the rules, across UK, US, EU, Singapore and Hong Kong.", href: "/kyc-requirements" },
   { code: "T-08", icon: Building2, title: "Firm Profiles", text: "Pick a firm archetype (neobank, EMI, bank, crypto) to see its services, ranked inherent risks, applicable typologies and real enforcement.", href: "/firm-profiles" },
+  { code: "T-09", icon: Wrench, title: "Control Builder", text: "Adapt controls to your firm (thresholds, owners, systems) with guidance on what good looks like, then export a committee-ready register.", href: "/control-builder" },
+  { code: "T-10", icon: Scale, title: "Enforcement", text: "Real FCA fines broken down into what failed and the controls that would have caught it. Start a build from any case.", href: "/enforcement" },
 ];
 
 function Cell({ c }: { c: CellDef }) {

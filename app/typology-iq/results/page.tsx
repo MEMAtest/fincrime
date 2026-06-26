@@ -5,7 +5,7 @@ import { useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, Cpu, GitBranch, ClipboardCheck, BarChart3,
-  ArrowLeft, BookOpen, ChevronDown, ChevronUp, Link2, Layers, Scale,
+  ArrowLeft, BookOpen, ChevronDown, ChevronUp, Link2, Layers, Scale, Wrench,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -486,6 +486,7 @@ function TypologyResults() {
 
       <NextSteps
         items={[
+          { title: "Build these controls", body: "Adapt the controls for this typology to your firm and export a register.", href: `/control-builder?from=typology:${typology.slug}`, icon: Wrench },
           { title: "Browse the Controls Library", body: "See controls grouped by risk theme, filtered to your firm type.", href: `/controls?firmType=${answers.firmTypes[0]}`, icon: Layers },
           { title: "Map partner control ownership", body: "Define who owns each control across a partner payment flow (RACI).", href: "/partner-control-map", icon: GitBranch },
           { title: "Check KYC requirements", body: "What to collect by entity type and jurisdiction, each cited.", href: "/kyc-requirements", icon: ClipboardCheck },

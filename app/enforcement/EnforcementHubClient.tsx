@@ -1,0 +1,156 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowUpRight, ShieldCheck } from "lucide-react";
+import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
+import { RISK_THEME_LABEL, FIRM_TYPE_LABEL } from "@/data/typologies/labels";
+import { enforcementCases } from "@/data/enforcement/cases";
+import { lessonFor } from "@/data/enforcement/lessons";
+import { effectiveFirmTypes, enforcementBenchmarks, fmtGbp } from "@/lib/enforcement/select";
+import { caseSlug } from "@/lib/enforcement/case-slug";
+import { controlsForCase } from "@/data/controls";
+import type { RiskTheme, FirmType } from "@/data/typologies/types";
+
+const ALL_THEMES: RiskTheme[] = [
+  "money_laundering", "fraud", "sanctions_evasion", "terrorist_financing",
+  "bribery_corruption", "proliferation_financing", "tax_evasion",
+];
+
+const FIRM_FILTERS: FirmType[] = ["bank", "neobank", "wealth_manager", "insurance"];
+
+const sorted = [...enforcementCases].sort((a, b) => b.amountGbp - a.amountGbp);
+
+export default function EnforcementHubClient() {
+  const [theme, setTheme] = useState<RiskTheme | null>(null);
+  const [firm, setFirm] = useState<FirmType | null>(null);
+
+  const cases = useMemo(
+    () =>
+      sorted.filter((c) => {
+        if (theme && !c.riskThemes.includes(theme)) return false;
+        if (firm && !effectiveFirmTypes(c).includes(firm)) return false;
+        return true;
+      }),
+    [theme, firm]
+  );
+
+  const b = enforcementBenchmarks;
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="mb-6">
+        <p className="text-[11px] uppercase tracking-wider text-accent font-medium mb-1">Enforcement</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">What failed, and the controls that would have caught it</h1>
+        <p className="text-text-muted text-sm max-w-3xl mt-2 leading-relaxed">
+          Real FCA enforcement actions, each broken down into what went wrong and the financial crime controls
+          that would have prevented it. Open a case to see the controls, then design them for your firm.
+        </p>
+      </div>
+
+      {/* KPI strip */}
+      <div className="glass-card rounded-2xl p-4 mb-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Enforcement cases", value: String(b.totalCases) },
+          { label: "Total penalties", value: fmtGbp(b.fineStats.totalGbp) },
+          { label: "Median fine", value: fmtGbp(b.fineStats.medianGbp) },
+          { label: "Largest", value: fmtGbp(b.fineStats.maxGbp) },
+        ].map((k) => (
+          <div key={k.label} className="text-center">
+            <div className="text-xl font-bold text-foreground tabular-nums">{k.value}</div>
+            <div className="text-[11px] text-text-muted mt-0.5">{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Theme filter */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        <FilterChip active={theme === null} onClick={() => setTheme(null)}>All themes</FilterChip>
+        {ALL_THEMES.map((t) => {
+          const cfg = THEME_CONFIG[t];
+          const active = theme === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTheme(active ? null : t)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                active ? "text-white" : "glass-card text-text-muted hover:text-foreground"
+              }`}
+              style={active ? { backgroundColor: cfg.glow } : undefined}
+            >
+              <RiskThemeIcon riskTheme={t} size="sm" animated={false} /> {RISK_THEME_LABEL[t]}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Firm filter */}
+      <div className="flex flex-wrap gap-2 mb-8 items-center">
+        <span className="text-[11px] uppercase tracking-wider text-text-muted mr-1">Firm type</span>
+        <FilterChip active={firm === null} onClick={() => setFirm(null)}>All</FilterChip>
+        {FIRM_FILTERS.map((f) => (
+          <FilterChip key={f} active={firm === f} onClick={() => setFirm(firm === f ? null : f)}>
+            {FIRM_TYPE_LABEL[f]}
+          </FilterChip>
+        ))}
+      </div>
+
+      {/* Cases */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {cases.map((c) => {
+          const lesson = lessonFor(c.firm, c.year);
+          const nControls = controlsForCase(c.firm, c.year).length;
+          return (
+            <Link
+              key={`${c.firm}-${c.year}`}
+              href={`/enforcement/${caseSlug(c.firm, c.year)}`}
+              className="glass-card rounded-xl p-4 card-hover flex flex-col h-full"
+            >
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <h3 className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1">
+                  <span>{c.firm}</span>
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                </h3>
+                <span className="text-sm font-bold text-emerald-500 tabular-nums shrink-0">{c.fine}</span>
+              </div>
+              <p className="text-xs text-text-muted">{c.regulator} · {c.year}</p>
+              <div className="flex flex-wrap gap-1 my-2">
+                {c.riskThemes.map((t) => {
+                  const cfg = THEME_CONFIG[t];
+                  return (
+                    <span key={t} className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${cfg.glow}20`, color: cfg.primary }}>
+                      {RISK_THEME_LABEL[t]}
+                    </span>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-text-muted leading-relaxed line-clamp-3 flex-1">{lesson?.rootCause ?? c.summary}</p>
+              {nControls > 0 && (
+                <p className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-accent">
+                  <ShieldCheck className="h-3.5 w-3.5" /> {nControls} control{nControls === 1 ? "" : "s"} mapped
+                </p>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+
+      {cases.length === 0 && (
+        <div className="text-center py-20 text-text-muted">No cases match this filter.</div>
+      )}
+    </div>
+  );
+}
+
+function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
+        active ? "bg-accent text-white" : "glass-card text-text-muted hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}

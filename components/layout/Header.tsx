@@ -23,8 +23,9 @@ export default function Header() {
         <div className="nav-links">
           <Link href="/firm-research">AI in Research</Link>
           <Link href="/typology-iq">TypologyIQ</Link>
+          <Link href="/control-builder">Control Builder</Link>
+          <Link href="/enforcement">Enforcement</Link>
           <Link href="/firm-profiles">Firm Profiles</Link>
-          <Link href="/partner-control-map">PartnerControlMap</Link>
           <Link href="/controls">Controls</Link>
           <Link href="/kyc-requirements">KYC Matrix</Link>
         </div>

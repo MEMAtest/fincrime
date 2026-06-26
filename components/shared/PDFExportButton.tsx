@@ -10,7 +10,8 @@ export type PDFModule =
   | "partner_control_map"
   | "screening_controls"
   | "controls_maturity"
-  | "kyc_requirements";
+  | "kyc_requirements"
+  | "control_register";
 
 export type ExportFormat = "pdf" | "docx";
 
