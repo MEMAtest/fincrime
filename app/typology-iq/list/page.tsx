@@ -4,8 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import { RISK_THEME_LABEL } from "@/data/typologies/labels";
 import type { RiskTheme, FirmType, ProductType, CustomerType } from "@/data/typologies/types";
@@ -95,8 +94,7 @@ export default function TypologyListPage() {
   }, [typologies, activeTheme, query]);
 
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 py-10">
         {/* heading */}
         <div className="text-center mb-10">
@@ -226,8 +224,7 @@ export default function TypologyListPage() {
           </div>
         )}
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }
 

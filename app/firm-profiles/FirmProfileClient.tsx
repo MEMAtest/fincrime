@@ -14,6 +14,8 @@ import HowItWorks from "@/components/shared/HowItWorks";
 import KeyTerms from "@/components/shared/KeyTerms";
 import NextSteps from "@/components/shared/NextSteps";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
+import RiskThemeModal from "@/components/firm-profiles/RiskThemeModal";
+import TypologyDetailModal from "@/components/typologies/TypologyDetailModal";
 import { allTypologies } from "@/data/typologies";
 import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL, RISK_THEME_LABEL } from "@/data/typologies/labels";
 import {
@@ -28,6 +30,9 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
   const router = useRouter();
   const [activeType, setActiveType] = useState<FirmType>(initialType);
   const [themeFilter, setThemeFilter] = useState<RiskTheme | null>(null);
+  const [openRisk, setOpenRisk] = useState<RiskTheme | null>(null);
+  const [openTypology, setOpenTypology] = useState<string | null>(null);
+  const [showAllTypologies, setShowAllTypologies] = useState(false);
 
   const profile = FIRM_PROFILES[activeType];
   const label = FIRM_TYPE_LABEL[activeType];
@@ -47,12 +52,14 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
   }, [applicable, profile]);
 
   const shownTypologies = themeFilter ? applicable.filter((t) => t.riskTheme === themeFilter) : applicable;
+  const openRiskData = openRisk ? profile.inherentRisks.find((r) => r.theme === openRisk) : undefined;
   const riskThemes = profile.inherentRisks.map((r) => r.theme);
   const firmCaseCount = countCasesForFirmType(activeType);
 
   const switchTo = (ft: FirmType) => {
     setActiveType(ft);
     setThemeFilter(null);
+    setShowAllTypologies(false);
     router.replace(`/firm-profiles?type=${ft}`, { scroll: false });
   };
 
@@ -185,12 +192,16 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
           <Flame className="h-5 w-5 text-accent" />
           <h3 className="text-lg font-semibold text-foreground">Where the risk concentrates</h3>
         </div>
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {profile.inherentRisks.map((r) => {
             const cfg = THEME_CONFIG[r.theme];
             const w = RISK_LEVEL_WEIGHT[r.level];
             return (
-              <div key={r.theme} className="glass-card rounded-xl p-4">
+              <button
+                key={r.theme}
+                onClick={() => setOpenRisk(r.theme)}
+                className="text-left w-full glass-card rounded-xl p-4 card-hover cursor-pointer"
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <RiskThemeIcon riskTheme={r.theme} size="sm" animated={false} />
                   <span className="text-sm font-semibold text-foreground">{RISK_THEME_LABEL[r.theme]}</span>
@@ -205,7 +216,10 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
                   <div className="h-full rounded-full" style={{ width: `${w * 100}%`, backgroundColor: cfg.primary }} />
                 </div>
                 <p className="text-xs text-text-muted leading-relaxed">{r.rationale}</p>
-              </div>
+                <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-accent">
+                  View typologies and build controls <ArrowUpRight className="h-3 w-3" />
+                </span>
+              </button>
             );
           })}
         </div>
@@ -221,7 +235,7 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
         </div>
         <div className="flex flex-wrap gap-2 mb-4">
           <button
-            onClick={() => setThemeFilter(null)}
+            onClick={() => { setThemeFilter(null); setShowAllTypologies(false); }}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
               themeFilter === null ? "bg-accent text-white" : "glass-card text-text-muted hover:text-foreground"
             }`}
@@ -234,7 +248,7 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
             return (
               <button
                 key={theme}
-                onClick={() => setThemeFilter(active ? null : theme)}
+                onClick={() => { setThemeFilter(active ? null : theme); setShowAllTypologies(false); }}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
                   active ? "text-white" : "glass-card text-text-muted hover:text-foreground"
                 }`}
@@ -247,13 +261,13 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
           })}
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {shownTypologies.map((t) => {
+          {(showAllTypologies ? shownTypologies : shownTypologies.slice(0, 6)).map((t) => {
             const cfg = THEME_CONFIG[t.riskTheme];
             return (
-              <Link
+              <button
                 key={t.id}
-                href={`/typology-iq/t/${t.slug}`}
-                className="block glass-card rounded-xl p-4 card-hover h-full"
+                onClick={() => setOpenTypology(t.slug)}
+                className="text-left block glass-card rounded-xl p-4 card-hover h-full cursor-pointer"
               >
                 <div className="flex items-start gap-2.5 mb-2">
                   <RiskThemeIcon riskTheme={t.riskTheme} size="sm" animated={false} />
@@ -271,10 +285,18 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
                   </div>
                 </div>
                 <p className="text-xs text-text-muted leading-relaxed line-clamp-3">{t.description}</p>
-              </Link>
+              </button>
             );
           })}
         </div>
+        {shownTypologies.length > 6 && (
+          <button
+            onClick={() => setShowAllTypologies((v) => !v)}
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-hover transition-colors cursor-pointer"
+          >
+            {showAllTypologies ? "Show fewer" : `View all ${shownTypologies.length} typologies`}
+          </button>
+        )}
       </section>
 
       {/* Enforcement / KYC / Controls */}
@@ -402,6 +424,17 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
           },
         ]}
       />
+
+      <RiskThemeModal
+        theme={openRisk}
+        levelLabel={openRiskData ? RISK_LEVEL_LABEL[openRiskData.level] : undefined}
+        rationale={openRiskData?.rationale}
+        typologies={openRisk ? applicable.filter((t) => t.riskTheme === openRisk) : []}
+        buildHref={openRisk ? `/control-builder?from=theme:${openRisk}` : "/control-builder"}
+        onOpenTypology={(slug) => { setOpenRisk(null); setOpenTypology(slug); }}
+        onClose={() => setOpenRisk(null)}
+      />
+      <TypologyDetailModal slug={openTypology} onClose={() => setOpenTypology(null)} />
     </div>
   );
 }

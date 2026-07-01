@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import EnforcementHubClient from "./EnforcementHubClient";
 
 export const metadata: Metadata = {
@@ -11,12 +10,10 @@ export const metadata: Metadata = {
 
 export default function EnforcementPage() {
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <EnforcementHubClient />
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

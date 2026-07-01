@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Landmark, UserCheck, Activity, ShieldOff, FileText, GraduationCap, Gauge,
 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import WizardShell from "@/components/wizard/WizardShell";
 import WizardStep from "@/components/wizard/WizardStep";
 import OptionCard from "@/components/wizard/OptionCard";
@@ -133,14 +132,12 @@ function MaturityWizard() {
 
 export default function ControlsMaturityPage() {
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <Suspense fallback={<div className="text-center py-20 text-text-muted">Loading wizard...</div>}>
           <MaturityWizard />
         </Suspense>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

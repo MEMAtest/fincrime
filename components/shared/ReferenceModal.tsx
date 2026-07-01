@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Copy, Check, type LucideIcon } from "lucide-react";
+import { pushReferenceModal, popReferenceModal } from "@/lib/modal-registry";
 
 /**
  * The shared in-site reference modal (no link-out): a heading, optional icon /
@@ -44,7 +45,12 @@ export default function ReferenceModal({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Mark a reference modal as open so a DetailModal underneath ignores Escape.
+    pushReferenceModal();
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      popReferenceModal();
+    };
   }, [open, onClose]);
 
   if (!open || typeof document === "undefined") return null;

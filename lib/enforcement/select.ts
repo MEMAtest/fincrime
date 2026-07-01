@@ -19,6 +19,12 @@ export function effectiveFirmTypes(c: EnforcementCase): FirmType[] {
   return Array.from(new Set<FirmType>([...c.firmTypes, ...extra]));
 }
 
+/** Look up a real enforcement case by firm + year (trim/lowercase matched). */
+export function findEnforcementCase(firm: string, year: number): EnforcementCase | undefined {
+  const key = firm.trim().toLowerCase();
+  return enforcementCases.find((c) => c.year === year && c.firm.trim().toLowerCase() === key);
+}
+
 /** Compact GBP formatter shared across the evidence and benchmarks panels. */
 export function fmtGbp(n: number): string {
   if (n >= 1_000_000_000) return `£${(n / 1_000_000_000).toFixed(1)}bn`;

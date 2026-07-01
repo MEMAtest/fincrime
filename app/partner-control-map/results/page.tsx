@@ -7,8 +7,7 @@ import {
   AlertTriangle, Users, Database, ClipboardCheck, FileText,
   ArrowLeft, ShieldAlert, CheckCircle, XCircle, Layers, Scale, BarChart3,
 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import ResultCard from "@/components/results/ResultCard";
 import ResultsGrid from "@/components/results/ResultsGrid";
 import ResultTabs from "@/components/results/ResultTabs";
@@ -378,14 +377,12 @@ function PartnerResults() {
 
 export default function PartnerResultsPage() {
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <Suspense fallback={<div className="text-center py-20 text-text-muted">Loading results...</div>}>
           <PartnerResults />
         </Suspense>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

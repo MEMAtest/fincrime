@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import EnforcementCaseClient from "./EnforcementCaseClient";
 import { fmtGbp } from "@/lib/enforcement/select";
 import { lessonFor } from "@/data/enforcement/lessons";
@@ -36,8 +35,7 @@ export default async function EnforcementCasePage({ params }: { params: Promise<
   const controls = direct.length ? direct : controlsForThemes(c.riskThemes).slice(0, 6);
 
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <EnforcementCaseClient
           caseData={c}
@@ -48,7 +46,6 @@ export default async function EnforcementCasePage({ params }: { params: Promise<
           cSlug={caseSlug(c.firm, c.year)}
         />
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

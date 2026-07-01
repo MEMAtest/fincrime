@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import { allTypologies, getTypologyBySlug } from "@/data/typologies";
 import TypologyDetailClient from "./TypologyDetailClient";
 
@@ -26,12 +25,10 @@ export default async function TypologyDetailPage({ params }: { params: Promise<{
   const typology = getTypologyBySlug(slug);
   if (!typology) notFound();
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <TypologyDetailClient typology={typology} />
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

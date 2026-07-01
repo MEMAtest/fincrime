@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import SourceBadge from "@/components/shared/SourceBadge";
 import { FRAMEWORK_SOURCES } from "@/data/sources";
 import { enforcementBenchmarks, totalEnforcementCases } from "@/lib/enforcement/select";
@@ -23,8 +22,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function MethodologyPage() {
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
@@ -83,7 +81,6 @@ export default function MethodologyPage() {
           </Section>
         </section>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

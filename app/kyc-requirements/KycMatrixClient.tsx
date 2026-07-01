@@ -7,8 +7,7 @@ import {
   CheckCircle2, HelpCircle, MinusCircle, AlertTriangle, FileText, ClipboardList, BookOpen, FileCheck2,
   Share2, Check, ListChecks, ChevronsDownUp, ChevronsUpDown, Gavel, Layers,
 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import Button from "@/components/ui/Button";
 import SourceBadge from "@/components/shared/SourceBadge";
 import GlossaryTerm from "@/components/shared/GlossaryTerm";
@@ -71,7 +70,10 @@ export default function KycMatrixClient({
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Set<FilterKey>>(new Set());
   const [copied, setCopied] = useState(false);
-  const [openCats, setOpenCats] = useState<Set<CddCategoryKey>>(new Set(CATEGORY_ORDER));
+  // Open only the first category by default so the page reads as a short,
+  // scannable list of sections; the user opens one at a time (progressive
+  // disclosure) instead of scrolling a fully-expanded wall.
+  const [openCats, setOpenCats] = useState<Set<CddCategoryKey>>(() => new Set(CATEGORY_ORDER.slice(0, 1)));
   const [openReqs, setOpenReqs] = useState<Set<string>>(() => new Set(reqs[0] ? [reqs[0].key] : []));
 
   // Working checklist (collected/done), keyed by the sorted multi-selection so each
@@ -187,8 +189,7 @@ export default function KycMatrixClient({
   const tagLabel = (entityType: EntityType, j: Jurisdiction) => `${ENTITY_LABEL[entityType]} · ${JURISDICTION_LABEL[j]}`;
 
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           {/* Header */}
@@ -384,7 +385,9 @@ export default function KycMatrixClient({
             {groups.map(({ cat, all }, ci) => {
               const visible = all.filter(matches);
               if (visible.length === 0) return null;
-              const isOpen = openCats.has(cat);
+              // Force-open any category that has matches while a search/filter is
+              // active, so results are never hidden inside a collapsed section.
+              const isOpen = openCats.has(cat) || !!search.trim() || filters.size > 0;
               const catNonEdd = all.filter((r) => !r.eddTrigger);
               const req = catNonEdd.filter((r) => stOf(r) === "required").length;
               const cond = catNonEdd.filter((r) => stOf(r) === "conditional").length;
@@ -407,6 +410,9 @@ export default function KycMatrixClient({
 
                   {isOpen && (
                     <div className="px-5 pb-5 space-y-3">
+                      <p className="text-xs text-text-muted -mt-1 mb-1">
+                        Tick the box on each requirement as you collect the evidence. Click a requirement to see exactly what to collect, what the rule says, and the source.
+                      </p>
                       {visible.map((r, ri) => {
                         const badge = statusBadge(r);
                         const open = openReqs.has(r.key);
@@ -520,8 +526,7 @@ export default function KycMatrixClient({
           </p>
         </section>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }
 

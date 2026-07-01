@@ -3,14 +3,14 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowRight, ChevronDown, ChevronRight, AlertTriangle, Scale, Wrench } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import { ArrowRight, ArrowUpRight, ChevronDown, ChevronRight, AlertTriangle, Scale, Wrench } from "lucide-react";
+import ToolFrame from "@/components/layout/ToolFrame";
 import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import SourceBadge from "@/components/shared/SourceBadge";
-import { allTypologies } from "@/data/typologies";
+import ControlDetailModal from "@/components/controls/ControlDetailModal";
+import { controlsForThemes, CONTROL_CATEGORY_LABEL, CONTROL_TYPE_LABEL } from "@/data/controls";
 import { lessonFor } from "@/data/enforcement/lessons";
 import type { RiskTheme, FirmType, SourceOrg } from "@/data/typologies/types";
 
@@ -131,6 +131,7 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
   );
   const [enforcementOpen, setEnforcementOpen] = useState(false);
   const [expandedThemes, setExpandedThemes] = useState<Set<RiskTheme>>(new Set());
+  const [openControl, setOpenControl] = useState<string | null>(null);
 
   const toggleTheme = (theme: RiskTheme) => {
     setExpandedThemes((prev) => {
@@ -143,61 +144,42 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
 
   const frameworkOrg = orgForFramework(frameworkFilter);
 
-  // Filter typologies by firm type and framework, then group by risk theme
+  // Group the real control catalogue by risk theme, filtered by firm type and
+  // framework. Each theme lists the controls that address it as compact rows
+  // that open the full control specification in a modal (no navigation away, no
+  // flattened rule wall).
   const grouped = useMemo(() => {
-    const filtered = allTypologies.filter((t) => {
-      const firmMatch = firmFilter === "all" || t.applicableFirmTypes.includes(firmFilter);
-      const fwMatch = !frameworkOrg || t.sources.some((s) => s.org === frameworkOrg);
-      return firmMatch && fwMatch;
-    });
-
     const map = new Map<
       RiskTheme,
       {
-        typologies: typeof filtered;
-        detectionRules: { rule: string; source: string }[];
-        governanceItems: { item: string; source: string }[];
-        workflowSteps: { step: string; source: string }[];
-        metrics: { metric: string; source: string }[];
+        controls: ReturnType<typeof controlsForThemes>;
         frameworkSources: { reference: string; title: string; url: string; source: string }[];
       }
     >();
 
     for (const theme of RISK_THEMES) {
-      const themeTypologies = filtered.filter((t) => t.riskTheme === theme);
-      if (themeTypologies.length === 0) continue;
-
-      const detectionRules = themeTypologies.flatMap((t) =>
-        t.detectionLogic.map((r) => ({ rule: `${r.name}: ${r.logic}`, source: t.title }))
-      );
-      const governanceItems = themeTypologies.flatMap((t) =>
-        t.governanceChecklist.map((g) => ({ item: `${g.item} (${g.frequency})`, source: t.title }))
-      );
-      const workflowSteps = themeTypologies.flatMap((t) =>
-        t.workflowSteps.map((w) => ({ step: `${w.title}: ${w.description}`, source: t.title }))
-      );
-      const metrics = themeTypologies.flatMap((t) =>
-        t.metrics.map((m) => ({ metric: `${m.name} (target: ${m.target})`, source: t.title }))
-      );
+      let controls = controlsForThemes([theme]);
+      if (firmFilter !== "all") controls = controls.filter((c) => c.applicableFirmTypes.includes(firmFilter));
+      if (frameworkOrg) controls = controls.filter((c) => c.sources.some((s) => s.org === frameworkOrg));
+      if (controls.length === 0) continue;
 
       // When a framework is selected, surface that standard's specific citations.
       const frameworkSources = frameworkOrg
-        ? themeTypologies.flatMap((t) =>
-            t.sources
+        ? controls.flatMap((c) =>
+            c.sources
               .filter((s) => s.org === frameworkOrg)
-              .map((s) => ({ reference: s.reference, title: s.title, url: s.url, source: t.title }))
+              .map((s) => ({ reference: s.reference, title: s.title, url: s.url, source: c.name }))
           )
         : [];
 
-      map.set(theme, { typologies: themeTypologies, detectionRules, governanceItems, workflowSteps, metrics, frameworkSources });
+      map.set(theme, { controls, frameworkSources });
     }
 
     return map;
   }, [firmFilter, frameworkOrg]);
 
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         {/* Hero */}
         <section className="relative overflow-hidden py-16 sm:py-20">
@@ -392,8 +374,7 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
                             {THEME_CONFIG[theme].label}
                           </span>
                           <span className="ml-2 text-xs text-text-muted">
-                            {data.typologies.length} typolog
-                            {data.typologies.length === 1 ? "y" : "ies"}
+                            {data.controls.length} control{data.controls.length === 1 ? "" : "s"}
                           </span>
                         </div>
                       </div>
@@ -405,98 +386,42 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
                     </button>
 
                     {isOpen && (
-                      <div className="px-6 pb-6 space-y-6">
-                        {/* Detection Rules */}
-                        {data.detectionRules.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-foreground mb-2">
-                              Detection Rules
-                            </h3>
-                            <ul className="space-y-2">
-                              {data.detectionRules.map((r, i) => (
-                                <li
-                                  key={i}
-                                  className="text-sm text-text-muted border-l-2 border-accent/30 pl-3"
-                                >
-                                  {r.rule}
-                                  <span className="block text-xs text-accent/70 mt-0.5">
-                                    Source: {r.source}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Governance Items */}
-                        {data.governanceItems.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-foreground mb-2">
-                              Governance Items
-                            </h3>
-                            <ul className="space-y-2">
-                              {data.governanceItems.map((g, i) => (
-                                <li
-                                  key={i}
-                                  className="text-sm text-text-muted border-l-2 border-accent/30 pl-3"
-                                >
-                                  {g.item}
-                                  <span className="block text-xs text-accent/70 mt-0.5">
-                                    Source: {g.source}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Workflow Steps */}
-                        {data.workflowSteps.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-foreground mb-2">
-                              Workflow Steps
-                            </h3>
-                            <ul className="space-y-2">
-                              {data.workflowSteps.map((w, i) => (
-                                <li
-                                  key={i}
-                                  className="text-sm text-text-muted border-l-2 border-accent/30 pl-3"
-                                >
-                                  {w.step}
-                                  <span className="block text-xs text-accent/70 mt-0.5">
-                                    Source: {w.source}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Effectiveness Metrics */}
-                        {data.metrics.length > 0 && (
-                          <div>
-                            <h3 className="text-sm font-semibold text-foreground mb-2">
-                              Effectiveness Metrics
-                            </h3>
-                            <ul className="space-y-2">
-                              {data.metrics.map((m, i) => (
-                                <li
-                                  key={i}
-                                  className="text-sm text-text-muted border-l-2 border-accent/30 pl-3"
-                                >
-                                  {m.metric}
-                                  <span className="block text-xs text-accent/70 mt-0.5">
-                                    Source: {m.source}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
+                      <div className="px-6 pb-6 space-y-3">
+                        <p className="text-sm text-text-muted">
+                          Click a control to open its full specification: objective, threshold and rationale,
+                          owners, systems, test plan and cited sources.
+                        </p>
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          {data.controls.map((c) => (
+                            <button
+                              key={c.slug}
+                              onClick={() => setOpenControl(c.slug)}
+                              className="text-left glass-card rounded-xl p-4 card-hover cursor-pointer h-full flex flex-col"
+                            >
+                              <div className="flex items-start justify-between gap-2 mb-1.5">
+                                <h4 className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1">
+                                  <span>{c.name}</span>
+                                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                                </h4>
+                              </div>
+                              <p className="text-xs text-text-muted leading-relaxed line-clamp-2 flex-1">
+                                {c.plainSummary}
+                              </p>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/5 text-text-muted border border-surface-border">
+                                  {CONTROL_CATEGORY_LABEL[c.category]}
+                                </span>
+                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-accent/10 text-accent">
+                                  {CONTROL_TYPE_LABEL[c.controlType]}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
 
                         {/* Framework references (when a framework filter is active) */}
                         {frameworkOrg && data.frameworkSources.length > 0 && (
-                          <div>
+                          <div className="pt-2">
                             <h3 className="text-sm font-semibold text-foreground mb-2">
                               {frameworkOrg} references
                             </h3>
@@ -545,7 +470,7 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
           </div>
         </section>
       </main>
-      <Footer />
-    </>
+      <ControlDetailModal slug={openControl} onClose={() => setOpenControl(null)} />
+    </ToolFrame>
   );
 }

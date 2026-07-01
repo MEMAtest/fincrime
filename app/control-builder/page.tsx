@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import ControlBuilderClient from "./ControlBuilderClient";
-import { getControlBySlug, controlsForCase, controlsForTypology, controlsForThemes, starterControlsForFirmType } from "@/data/controls";
+import ControlRegisterApp from "./ControlRegisterApp";
+import { allControls, getControlBySlug, controlsForCase, controlsForTypology, controlsForThemes, controlsForFirmType } from "@/data/controls";
 import { getEnforcementCaseBySlug } from "@/lib/enforcement/case-slug";
 import { getTypologyBySlug } from "@/data/typologies";
-import { FIRM_TYPE_LABEL } from "@/data/typologies/labels";
-import type { FirmType } from "@/data/typologies/types";
+import { FIRM_TYPE_LABEL, RISK_THEME_LABEL } from "@/data/typologies/labels";
+import type { FirmType, RiskTheme } from "@/data/typologies/types";
 
 export const metadata: Metadata = {
   title: "Control Builder: design defensible financial crime controls",
@@ -48,6 +46,15 @@ export default async function ControlBuilderPage({ searchParams }: { searchParam
       initialSlugs = controlsForTypology(t.slug).map((c) => c.slug);
       contextLabel = `Controls for the ${t.title} typology`;
     }
+  } else if (from?.startsWith("theme:")) {
+    // Enter from a firm profile's risk-theme drill-in: scope the register to the
+    // controls that address that risk theme.
+    const theme = from.slice(6) as RiskTheme;
+    const list = controlsForThemes([theme]);
+    if (list.length) {
+      initialSlugs = list.map((c) => c.slug);
+      contextLabel = `Controls for ${RISK_THEME_LABEL[theme]} risk. Rate, adjust and export.`;
+    }
   }
 
   if (control && caseParam) {
@@ -56,22 +63,28 @@ export default async function ControlBuilderPage({ searchParams }: { searchParam
   }
 
   if (!initialSlugs.length && firmType && firmType in FIRM_TYPE_LABEL) {
-    // Preload a balanced starter set for the firm type so the builder opens
-    // populated (not empty) from a firm-profile entry.
-    initialSlugs = starterControlsForFirmType(firmType as FirmType).map((c) => c.slug);
-    contextLabel = `A starter control set for a ${FIRM_TYPE_LABEL[firmType as FirmType]}. Adjust, add and remove to fit your firm.`;
+    // Enter from a firm profile: the register is the full set of controls that
+    // apply to that firm type, ready to rate and prune.
+    initialSlugs = controlsForFirmType(firmType as FirmType).map((c) => c.slug);
+    contextLabel = `Control register for a ${FIRM_TYPE_LABEL[firmType as FirmType]}. Rate, adjust and export.`;
+  }
+
+  // Default (no context): the full catalogue as a complete starting register.
+  if (!initialSlugs.length) {
+    initialSlugs = allControls.map((c) => c.slug);
   }
 
   // De-duplicate while preserving order.
   initialSlugs = [...new Set(initialSlugs)];
 
+  const initialFirmType =
+    firmType && firmType in FIRM_TYPE_LABEL ? (firmType as FirmType) : undefined;
+
   return (
-    <>
-      <Header />
-      <main className="flex-1">
-        <ControlBuilderClient initialSlugs={initialSlugs} contextLabel={contextLabel} />
-      </main>
-      <Footer />
-    </>
+    <ControlRegisterApp
+      initialSlugs={initialSlugs}
+      contextLabel={contextLabel}
+      initialFirmType={initialFirmType}
+    />
   );
 }

@@ -7,8 +7,7 @@ import {
   Wallet, Banknote, Landmark, Globe, Coins, CreditCard, BarChart3, ShieldAlert,
   Clock, RefreshCw, Zap, CalendarClock,
 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import WizardShell from "@/components/wizard/WizardShell";
 import WizardStep from "@/components/wizard/WizardStep";
 import OptionCard from "@/components/wizard/OptionCard";
@@ -141,14 +140,12 @@ function ScreeningWizard() {
 
 export default function ScreeningControlDesignerPage() {
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <Suspense fallback={<div className="text-center py-20 text-text-muted">Loading wizard...</div>}>
           <ScreeningWizard />
         </Suspense>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

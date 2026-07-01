@@ -1,10 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import WorkflowBar from "@/components/workflow/WorkflowBar";
 
+const NAV_MODULES: { href: string; label: string }[] = [
+  { href: "/firm-research", label: "AI in Research" },
+  { href: "/typology-iq", label: "TypologyIQ" },
+  { href: "/control-builder", label: "Control Builder" },
+  { href: "/enforcement", label: "Enforcement" },
+  { href: "/firm-profiles", label: "Firm Profiles" },
+  { href: "/controls", label: "Controls" },
+  { href: "/kyc-requirements", label: "KYC Matrix" },
+];
+
 export default function Header() {
+  const pathname = usePathname();
+
   return (
     <>
       <div className="nav-shell">
@@ -23,13 +36,14 @@ export default function Header() {
         </Link>
 
         <div className="nav-links">
-          <Link href="/firm-research">AI in Research</Link>
-          <Link href="/typology-iq">TypologyIQ</Link>
-          <Link href="/control-builder">Control Builder</Link>
-          <Link href="/enforcement">Enforcement</Link>
-          <Link href="/firm-profiles">Firm Profiles</Link>
-          <Link href="/controls">Controls</Link>
-          <Link href="/kyc-requirements">KYC Matrix</Link>
+          {NAV_MODULES.map((m) => {
+            const active = pathname === m.href || pathname.startsWith(`${m.href}/`);
+            return (
+              <Link key={m.href} href={m.href} aria-current={active ? "page" : undefined}>
+                {m.label}
+              </Link>
+            );
+          })}
         </div>
 
         <div className="nav-cta">

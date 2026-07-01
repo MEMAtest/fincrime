@@ -141,5 +141,27 @@ export function controlsForThemes(themes: RiskTheme[]): Control[] {
   return allControls.filter((c) => c.riskThemes.some((t) => set.has(t)));
 }
 
+/**
+ * A sensible default priority for a control, DERIVED from real data (not
+ * fabricated): controls with a real enforcement precedent are High; controls
+ * mitigating several typologies are Medium; the rest Low. Fully editable by the
+ * user in the register.
+ */
+export function defaultPriority(c: Control): "high" | "medium" | "low" {
+  // Weighted by real signal: multiple enforcement precedents or broad typology
+  // coverage => High; a single precedent or some coverage => Medium; else Low.
+  if (c.enforcementRefs.length >= 2 || c.typologySlugs.length >= 3) return "high";
+  if (c.enforcementRefs.length >= 1 || c.typologySlugs.length >= 1) return "medium";
+  return "low";
+}
+
+/**
+ * The count of cited evidence items backing a control: its framework sources
+ * plus the enforcement precedents it addresses. Real, not fabricated.
+ */
+export function evidenceCount(c: Control): number {
+  return c.sources.length + c.enforcementRefs.length;
+}
+
 export type { Control, ControlCategory } from "./types";
 export type { ControlType, EnforcementRef, StrongVsWeak } from "./types";

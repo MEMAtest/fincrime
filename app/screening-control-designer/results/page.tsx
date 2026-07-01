@@ -7,8 +7,7 @@ import {
   Target, Database, SlidersHorizontal, Cpu, GitBranch, BarChart3,
   ClipboardCheck, ArrowLeft, Layers, Scale,
 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import ResultCard from "@/components/results/ResultCard";
 import ResultsGrid from "@/components/results/ResultsGrid";
 import ResultTabs from "@/components/results/ResultTabs";
@@ -271,14 +270,12 @@ function ScreeningResults() {
 
 export default function ScreeningResultsPage() {
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <Suspense fallback={<div className="text-center py-20 text-text-muted">Loading results...</div>}>
           <ScreeningResults />
         </Suspense>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

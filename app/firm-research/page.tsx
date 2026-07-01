@@ -3,8 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Search, Sparkles, ArrowRight, ArrowUpRight, AlertCircle, Building2 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import AiDisclosure from "@/components/shared/AiDisclosure";
 import type { RiskTheme, FirmType, ProductType, CustomerType } from "@/data/typologies/types";
@@ -71,8 +70,7 @@ export default function FirmResearchPage() {
   })();
 
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20 mb-4">
@@ -290,7 +288,6 @@ export default function FirmResearchPage() {
           </div>
         )}
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

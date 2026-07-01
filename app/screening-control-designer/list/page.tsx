@@ -3,8 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight, ShieldOff, Crown, Newspaper, UserSearch, ArrowLeftRight } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import { allScreeningControls } from "@/data/screening";
 import { SCREENING_CATEGORY_LABEL } from "@/data/screening/types";
 import type { ScreeningCategory } from "@/data/screening/types";
@@ -29,8 +28,7 @@ export default function ScreeningListPage() {
   );
 
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <section className="py-12 sm:py-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -87,7 +85,6 @@ export default function ScreeningListPage() {
           </div>
         </section>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Landmark, UserCheck, Activity, ShieldOff, FileText, GraduationCap } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import { allMaturityFrameworks } from "@/data/maturity";
 import { CONTROL_AREA_LABEL } from "@/data/maturity/types";
 import type { ControlArea } from "@/data/maturity/types";
@@ -19,8 +18,7 @@ const AREA_ICON: Record<ControlArea, typeof Landmark> = {
 
 export default function MaturityListPage() {
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <section className="py-12 sm:py-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -56,7 +54,6 @@ export default function MaturityListPage() {
           </div>
         </section>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

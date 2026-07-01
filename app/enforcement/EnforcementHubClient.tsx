@@ -24,6 +24,10 @@ const sorted = [...enforcementCases].sort((a, b) => b.amountGbp - a.amountGbp);
 export default function EnforcementHubClient() {
   const [theme, setTheme] = useState<RiskTheme | null>(null);
   const [firm, setFirm] = useState<FirmType | null>(null);
+  const [visible, setVisible] = useState(12);
+
+  const pickTheme = (t: RiskTheme | null) => { setTheme(t); setVisible(12); };
+  const pickFirm = (f: FirmType | null) => { setFirm(f); setVisible(12); };
 
   const cases = useMemo(
     () =>
@@ -78,14 +82,14 @@ export default function EnforcementHubClient() {
 
       {/* Theme filter */}
       <div className="flex flex-wrap gap-2 mb-3">
-        <FilterChip active={theme === null} onClick={() => setTheme(null)}>All themes</FilterChip>
+        <FilterChip active={theme === null} onClick={() => pickTheme(null)}>All themes</FilterChip>
         {ALL_THEMES.map((t) => {
           const cfg = THEME_CONFIG[t];
           const active = theme === t;
           return (
             <button
               key={t}
-              onClick={() => setTheme(active ? null : t)}
+              onClick={() => pickTheme(active ? null : t)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
                 active ? "text-white" : "glass-card text-text-muted hover:text-foreground"
               }`}
@@ -100,17 +104,20 @@ export default function EnforcementHubClient() {
       {/* Firm filter */}
       <div className="flex flex-wrap gap-2 mb-8 items-center">
         <span className="text-[11px] uppercase tracking-wider text-text-muted mr-1">Firm type</span>
-        <FilterChip active={firm === null} onClick={() => setFirm(null)}>All</FilterChip>
+        <FilterChip active={firm === null} onClick={() => pickFirm(null)}>All</FilterChip>
         {FIRM_FILTERS.map((f) => (
-          <FilterChip key={f} active={firm === f} onClick={() => setFirm(firm === f ? null : f)}>
+          <FilterChip key={f} active={firm === f} onClick={() => pickFirm(firm === f ? null : f)}>
             {FIRM_TYPE_LABEL[f]}
           </FilterChip>
         ))}
       </div>
 
       {/* Cases */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-text-muted">Showing {Math.min(visible, cases.length)} of {cases.length} case{cases.length === 1 ? "" : "s"}, largest fines first</p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {cases.map((c) => {
+        {cases.slice(0, visible).map((c) => {
           const lesson = lessonFor(c.firm, c.year);
           const nControls = controlsForCase(c.firm, c.year).length;
           return (
@@ -147,6 +154,14 @@ export default function EnforcementHubClient() {
           );
         })}
       </div>
+
+      {visible < cases.length && (
+        <div className="mt-5 text-center">
+          <button onClick={() => setVisible((v) => v + 12)} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg glass-card text-sm font-medium text-foreground hover:text-accent transition-colors">
+            Show more ({cases.length - visible} remaining)
+          </button>
+        </div>
+      )}
 
       {cases.length === 0 && (
         <div className="text-center py-20 text-text-muted">No cases match this filter.</div>

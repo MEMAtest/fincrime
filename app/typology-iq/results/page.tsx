@@ -7,8 +7,7 @@ import {
   Target, Database, Cpu, GitBranch, ClipboardCheck, BarChart3,
   ArrowLeft, BookOpen, ChevronDown, ChevronUp, Link2, Layers, Scale, Wrench,
 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import ResultCard from "@/components/results/ResultCard";
 import ResultsGrid from "@/components/results/ResultsGrid";
 import ResultTabs from "@/components/results/ResultTabs";
@@ -498,14 +497,12 @@ function TypologyResults() {
 
 export default function TypologyResultsPage() {
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <Suspense fallback={<div className="text-center py-20 text-text-muted">Loading results...</div>}>
           <TypologyResults />
         </Suspense>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

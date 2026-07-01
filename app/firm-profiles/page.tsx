@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import FirmProfileClient from "./FirmProfileClient";
 import { FIRM_TYPE_ORDER } from "@/data/firm-profiles";
 import type { FirmType } from "@/data/typologies/types";
@@ -23,12 +22,10 @@ export default async function FirmProfilesPage({
     : FIRM_TYPE_ORDER[0];
 
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <FirmProfileClient initialType={initialType} />
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

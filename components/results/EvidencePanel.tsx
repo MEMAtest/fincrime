@@ -12,7 +12,7 @@ import type { RiskTheme, Typology } from "@/data/typologies/types";
 export default function EvidencePanel({ themes, typology }: { themes: RiskTheme[]; typology?: Typology }) {
   const [showAll, setShowAll] = useState(false);
   const cases = casesForThemes(themes, 12);
-  const visible = showAll ? cases : cases.slice(0, 6);
+  const visible = showAll ? cases : cases.slice(0, 4);
   const totalPenalties = totalPenaltiesForThemes(themes);
   const matchedCount = countCasesForThemes(themes);
   const themeLabel = themes.map((t) => THEME_CONFIG[t]?.label ?? t).join(", ") || "financial crime";
@@ -91,13 +91,13 @@ export default function EvidencePanel({ themes, typology }: { themes: RiskTheme[
           <p className="text-xs text-text-muted">
             Source: FCA fines dataset (regactions.com). Showing {visible.length} of {matchedCount} cases tagged to {themeLabel}.
           </p>
-          {cases.length > 6 && (
+          {cases.length > 4 && (
             <button
               onClick={() => setShowAll((s) => !s)}
               className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500 hover:text-emerald-400 cursor-pointer"
             >
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAll ? "rotate-180" : ""}`} />
-              {showAll ? "Show fewer" : `Show ${cases.length - 6} more`}
+              {showAll ? "Show fewer" : `Show ${cases.length - 4} more`}
             </button>
           )}
         </div>

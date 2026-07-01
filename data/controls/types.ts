@@ -40,6 +40,15 @@ export interface StrongVsWeak {
  * fields fall back to the control's catalogue defaults. Kept here so the builder
  * UI and the register exporter share one shape.
  */
+/** A control's self-assessed rating in the register (all in-session, editable). */
+export type ControlRating = "strong" | "adequate" | "weak" | "not_assessed";
+
+/** Implementation status in the register (in-session, editable). */
+export type ControlStatus = "not_started" | "in_progress" | "needs_review" | "gaps" | "implemented";
+
+/** Priority in the register (in-session, editable; a sensible default is derived from risk). */
+export type ControlPriority = "high" | "medium" | "low";
+
 export interface ControlOverride {
   threshold?: string;
   firstLineOwner?: string;
@@ -47,6 +56,31 @@ export interface ControlOverride {
   system?: string;
   reviewCadence?: string;
   notes?: string;
+  // Control Register workspace fields (editable, catalogue defaults where relevant).
+  rating?: ControlRating;
+  maturityLevel?: number; // 1-5, undefined = not assessed
+  designEffectiveness?: ControlRating;
+  operatingEffectiveness?: ControlRating;
+  overallRating?: ControlRating;
+  frequency?: string;
+  nextReview?: string;
+  lastReviewed?: string;
+  // Control Register (table) + Builder wizard fields (all in-session, empty by default).
+  status?: ControlStatus;
+  priority?: ControlPriority;
+  owner?: string;
+  lastReview?: string;
+  version?: string;
+  effectiveDate?: string;
+  // Builder: Scope step
+  businessArea?: string;
+  geography?: string;
+  inScope?: string[];
+  outOfScope?: string[];
+  customerTypes?: string[];
+  products?: string[];
+  objectives?: string[];
+  description?: string;
 }
 
 export interface Control {

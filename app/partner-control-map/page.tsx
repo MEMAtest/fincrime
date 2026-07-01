@@ -7,8 +7,7 @@ import {
   Globe, Banknote, CreditCard, Wallet, ShoppingCart,
   UserCheck, Landmark, ArrowLeftRight, Radio,
 } from "lucide-react";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
+import ToolFrame from "@/components/layout/ToolFrame";
 import WizardShell from "@/components/wizard/WizardShell";
 import WizardStep from "@/components/wizard/WizardStep";
 import OptionCard from "@/components/wizard/OptionCard";
@@ -140,8 +139,7 @@ export default function PartnerControlMapPage() {
   ];
 
   return (
-    <>
-      <Header />
+    <ToolFrame>
       <main className="flex-1">
         <WizardShell
           steps={STEPS}
@@ -289,7 +287,6 @@ export default function PartnerControlMapPage() {
           )}
         </WizardShell>
       </main>
-      <Footer />
-    </>
+      </ToolFrame>
   );
 }

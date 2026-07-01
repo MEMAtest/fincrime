@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS } from "./shared";
-import { CONTROL_CATEGORY_LABEL, CONTROL_TYPE_LABEL } from "@/data/controls";
+import { CONTROL_CATEGORY_LABEL, CONTROL_TYPE_LABEL, defaultPriority } from "@/data/controls";
 import type { Control, ControlOverride } from "@/data/controls/types";
 
 interface RegisterEntry {
@@ -18,6 +18,11 @@ interface ControlRegisterPDFData {
 // override that is present but empty is a deliberate clear and must be honoured;
 // only a genuinely absent override falls back to the default.
 const eff = (o: string | undefined, d: string) => (o === undefined ? d : o.trim());
+
+const STATUS_LABEL: Record<string, string> = { not_started: "Not started", in_progress: "In progress", needs_review: "Needs review", gaps: "Gaps", implemented: "Implemented" };
+const stat = (s: string | undefined) => STATUS_LABEL[s ?? "not_started"] ?? "Not started";
+const PRIORITY_LABEL: Record<string, string> = { high: "High", medium: "Medium", low: "Low" };
+const prio = (c: Control, o?: ControlOverride) => PRIORITY_LABEL[o?.priority ?? defaultPriority(c)] ?? "Medium";
 
 export function generateControlRegisterPDF(data: ControlRegisterPDFData): Buffer {
   const doc = new jsPDF();
@@ -44,18 +49,18 @@ export function generateControlRegisterPDF(data: ControlRegisterPDFData): Buffer
   // Control matrix (summary)
   autoTable(doc, {
     startY: y,
-    head: [["Control", "Type", "Category", "Threshold", "Owner (1st line)"]],
+    head: [["Control", "Category", "Status", "Priority", "Owner"]],
     body: entries.map(({ control: c, override: o }) => [
       c.name,
-      CONTROL_TYPE_LABEL[c.controlType],
       CONTROL_CATEGORY_LABEL[c.category],
-      eff(o?.threshold, c.defaultThreshold),
-      eff(o?.firstLineOwner, c.firstLineOwner),
+      stat(o?.status),
+      prio(c, o),
+      o?.owner?.trim() || eff(o?.firstLineOwner, c.firstLineOwner),
     ]),
     theme: "grid",
     headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
     styles: { fontSize: 7.5, cellPadding: 2.5, valign: "top" },
-    columnStyles: { 0: { cellWidth: 38 }, 3: { cellWidth: 52 } },
+    columnStyles: { 0: { cellWidth: 48 }, 4: { cellWidth: 40 } },
   });
   // @ts-expect-error jspdf-autotable adds lastAutoTable
   y = doc.lastAutoTable.finalY + 12;
@@ -73,28 +78,44 @@ export function generateControlRegisterPDF(data: ControlRegisterPDFData): Buffer
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(110, 110, 110);
-    const sum = doc.splitTextToSize(c.plainSummary, 170);
+    const sum = doc.splitTextToSize(o?.description?.trim() || c.plainSummary, 170);
     doc.text(sum, 20, y);
     y += sum.length * 4.3 + 4;
 
     const rows: [string, string][] = [
       ["Type", `${CONTROL_TYPE_LABEL[c.controlType]} (${CONTROL_CATEGORY_LABEL[c.category]})`],
+      ["Status", stat(o?.status)],
+      ["Priority", prio(c, o)],
+      ["Accountable owner", o?.owner?.trim() || "Unassigned"],
+      ["Frequency", eff(o?.frequency, c.reviewCadence)],
+      ["Last / next reviewed", `${o?.lastReview?.trim() || "not set"} / ${o?.nextReview?.trim() || "not set"}`],
       ["Objective", c.objective],
       ["Rule / logic", c.ruleLogic],
       ["Threshold", eff(o?.threshold, c.defaultThreshold)],
       ["Threshold rationale", c.thresholdRationale],
       ["Lookback window", c.lookbackWindow],
-      ["Tuning", c.tuningNotes],
+      ["Tuning guidance", c.tuningNotes],
       ["First-line owner", eff(o?.firstLineOwner, c.firstLineOwner)],
       ["Second-line owner", eff(o?.secondLineOwner, c.secondLineOwner)],
       ["System / tooling", eff(o?.system, c.suggestedSystems.join("; "))],
       ["Escalation", c.escalation],
       ["SLA", c.sla],
       ["Test plan", c.testPlan.map((t, i) => `${i + 1}. ${t}`).join("  ")],
-      ["Review cadence", eff(o?.reviewCadence, c.reviewCadence)],
       ["Data inputs", c.dataInputs.join("; ")],
       ["Enforcement precedent", c.enforcementRefs.map((r) => `${r.firm} (${r.year})`).join("; ") || "n/a"],
     ];
+    // Scope and governance captured in the builder (shown only when the user set them).
+    const scope: [string, string][] = [];
+    if (o?.version?.trim()) scope.push(["Version", o.version.trim()]);
+    if (o?.effectiveDate?.trim()) scope.push(["Effective date", o.effectiveDate.trim()]);
+    if (o?.businessArea?.trim()) scope.push(["Business area / function", o.businessArea.trim()]);
+    if (o?.geography?.trim()) scope.push(["Geography / jurisdiction", o.geography.trim()]);
+    if (o?.inScope?.length) scope.push(["In scope", o.inScope.join("; ")]);
+    if (o?.outOfScope?.length) scope.push(["Out of scope", o.outOfScope.join("; ")]);
+    if (o?.customerTypes?.length) scope.push(["Customer types", o.customerTypes.join("; ")]);
+    if (o?.products?.length) scope.push(["Products / services", o.products.join("; ")]);
+    if (o?.objectives?.length) scope.push(["Regulatory objectives", o.objectives.join("; ")]);
+    rows.splice(4, 0, ...scope); // after "Accountable owner"
     if (o?.notes && o.notes.trim()) rows.push(["Firm notes", o.notes.trim()]);
 
     autoTable(doc, {
