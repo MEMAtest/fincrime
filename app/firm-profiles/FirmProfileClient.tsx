@@ -5,14 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Scale, ShieldCheck, UserCheck, Search, ClipboardCheck, Users, Building2,
-  Landmark, Flame, Layers, ArrowUpRight, Wrench,
+  Landmark, Flame, Layers, ArrowUpRight, Wrench, ChevronDown,
 } from "lucide-react";
 import ResultTabs from "@/components/results/ResultTabs";
 import EvidencePanel from "@/components/results/EvidencePanel";
-import BenchmarkStrip from "@/components/results/BenchmarkStrip";
 import HowItWorks from "@/components/shared/HowItWorks";
-import KeyTerms from "@/components/shared/KeyTerms";
-import NextSteps from "@/components/shared/NextSteps";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import RiskThemeModal from "@/components/firm-profiles/RiskThemeModal";
 import TypologyDetailModal from "@/components/typologies/TypologyDetailModal";
@@ -64,20 +61,15 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Intro */}
-      <div className="mb-6">
-        <p className="text-[11px] uppercase tracking-wider text-accent font-medium mb-1">Firm Profiles</p>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Financial crime risk by business model</h1>
-        <p className="text-text-muted text-sm max-w-3xl mt-2 leading-relaxed">
-          Pick a firm archetype to see what it sells, where its financial crime risk concentrates, which AML
-          typologies apply, and what real FCA enforcement looks like. Use it to prepare for a financial crime
-          interview, or as a quick reference for the firm you work in.
-        </p>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Intro (one line) */}
+      <div className="mb-3">
+        <p className="text-[11px] uppercase tracking-wider text-accent font-medium">Firm Profiles</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Financial crime risk by business model</h1>
       </div>
 
       {/* Firm-type switcher */}
-      <div className="flex flex-wrap gap-2 mb-8" role="tablist" aria-label="Firm type">
+      <div className="flex gap-1.5 mb-4 overflow-x-auto sm:flex-wrap -mx-4 px-4 sm:mx-0 sm:px-0 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Firm type">
         {FIRM_TYPE_ORDER.map((ft) => {
           const active = ft === activeType;
           return (
@@ -86,9 +78,9 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
               role="tab"
               aria-selected={active}
               onClick={() => switchTo(ft)}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                 active
-                  ? "bg-accent text-white shadow-md shadow-accent/20"
+                  ? "bg-accent text-white shadow-sm shadow-accent/20"
                   : "glass-card text-text-muted hover:text-foreground"
               }`}
             >
@@ -99,209 +91,164 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
         })}
       </div>
 
-      {/* Hero */}
-      <div className="glass-card rounded-2xl p-6 sm:p-8 mb-8">
-        <div className="flex items-start gap-4">
-          <div className="shrink-0 w-12 h-12 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
-            <Building2 className="h-6 w-6" />
+      {/* Compact firm header: identity + inline stats, everything else behind one toggle */}
+      <div className="glass-card rounded-2xl p-3.5 mb-3">
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+            <Building2 className="h-5 w-5" />
           </div>
-          <div className="min-w-0">
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground">{label}</h2>
-            <p className="text-accent text-sm font-medium mt-0.5">{profile.tagline}</p>
-          </div>
-        </div>
-        <p className="text-text-muted text-sm leading-relaxed mt-4 max-w-3xl">{profile.description}</p>
-        <div className="mt-3 flex items-start gap-2 text-xs text-text-muted max-w-3xl">
-          <Scale className="h-3.5 w-3.5 mt-0.5 shrink-0 text-accent" />
-          <span>{profile.regulatoryContext}</span>
-        </div>
-
-        <div className="mt-6 grid sm:grid-cols-2 gap-x-8 gap-y-5">
-          <div>
-            <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">Typical services</p>
-            <ul className="space-y-1.5">
-              {profile.typicalServices.map((s) => (
-                <li key={s} className="flex items-start gap-2 text-sm text-foreground">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
-                  <span>{s}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="space-y-4">
-            {profile.products.length > 0 && (
-              <div>
-                <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">Products</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {profile.products.map((p) => (
-                    <span key={p} className="inline-flex items-center px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.03] text-[11px] text-foreground">
-                      {PRODUCT_LABEL[p]}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">Primary customers</p>
-              <div className="flex flex-wrap gap-1.5">
-                {profile.primaryCustomers.map((c) => (
-                  <span key={c} className="inline-flex items-center px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.03] text-[11px] text-foreground">
-                    {CUSTOMER_LABEL[c]}
-                  </span>
-                ))}
-              </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <h2 className="text-lg font-bold text-foreground leading-tight">{label}</h2>
+              <span className="text-accent text-xs font-medium">{profile.tagline}</span>
+            </div>
+            <p className="text-text-muted text-sm mt-1 leading-relaxed line-clamp-2">{profile.description}</p>
+            {/* Inline stats, always visible (incl. mobile) */}
+            <div className="flex items-center gap-5 mt-2.5">
+              <MiniStat value={String(applicable.length)} label="typologies" />
+              <MiniStat value={String(profile.inherentRisks.length)} label="risk themes" />
+              <MiniStat value={firmCaseCount > 0 ? String(firmCaseCount) : "—"} label="FCA cases" />
             </div>
           </div>
         </div>
 
-        {/* Illustrative examples */}
-        <div className="mt-6 pt-5 border-t border-white/10">
-          <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">In the market</p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {profile.illustrativeExamples.map((ex) => (
-              <div key={ex.name} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
-                <p className="text-sm font-semibold text-foreground">{ex.name}</p>
-                <p className="text-xs text-text-muted mt-0.5 leading-snug">{ex.note}</p>
+        <details className="group mt-3 pt-3 border-t border-white/10">
+          <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer inline-flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-foreground transition-colors">
+            <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+            Services, products, customers &amp; market examples
+          </summary>
+          <div className="mt-3 space-y-3">
+            <p className="flex items-start gap-2 text-xs text-text-muted"><Scale className="h-3.5 w-3.5 mt-0.5 shrink-0 text-accent" />{profile.regulatoryContext}</p>
+            <div className="grid sm:grid-cols-3 gap-x-6 gap-y-3">
+              <ChipGroup title="Typical services" items={profile.typicalServices} />
+              {profile.products.length > 0 && <ChipGroup title="Products" items={profile.products.map((p) => PRODUCT_LABEL[p])} />}
+              <ChipGroup title="Primary customers" items={profile.primaryCustomers.map((c) => CUSTOMER_LABEL[c])} />
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">In the market</p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {profile.illustrativeExamples.map((ex) => (
+                  <div key={ex.name} className="rounded-lg border border-white/10 bg-white/[0.02] p-2.5">
+                    <p className="text-sm font-semibold text-foreground">{ex.name}</p>
+                    <p className="text-xs text-text-muted mt-0.5 leading-snug">{ex.note}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+              <p className="text-[11px] text-text-muted/70 mt-2 italic">{FIRM_PROFILE_DISCLAIMER}</p>
+            </div>
           </div>
-          <p className="text-[11px] text-text-muted/70 mt-2 italic">{FIRM_PROFILE_DISCLAIMER}</p>
-        </div>
+        </details>
       </div>
 
-      <KeyTerms terms={["CDD", "EDD", "PEP", "transaction monitoring", "SAR"]} />
-
-      {/* Coverage stats + enforcement KPIs */}
-      <div className="flex flex-wrap gap-3 mb-4">
-        <Stat label="Applicable typologies" value={String(applicable.length)} />
-        <Stat label="Inherent risk themes" value={String(profile.inherentRisks.length)} />
-        <Stat label="FCA cases (this firm type)" value={firmCaseCount > 0 ? String(firmCaseCount) : "see themes"} />
-      </div>
-      {firmCaseCount > 0 ? (
-        <BenchmarkStrip firmFilter={activeType} />
-      ) : (
-        <div className="glass-card rounded-2xl p-4 mb-8 text-sm text-text-muted">
-          No FCA monetary fines in our dataset are tagged specifically to a {label}. The Enforcement tab below
-          shows real cases drawn from this firm type{"'"}s inherent risk themes.
-        </div>
-      )}
-
-      {/* Inherent-risk heatmap */}
-      <section className="mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <Flame className="h-5 w-5 text-accent" />
-          <h3 className="text-lg font-semibold text-foreground">Where the risk concentrates</h3>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {profile.inherentRisks.map((r) => {
-            const cfg = THEME_CONFIG[r.theme];
-            const w = RISK_LEVEL_WEIGHT[r.level];
-            return (
-              <button
-                key={r.theme}
-                onClick={() => setOpenRisk(r.theme)}
-                className="text-left w-full glass-card rounded-xl p-4 card-hover cursor-pointer"
-              >
-                <div className="flex items-center gap-2 mb-2">
+      {/* Firm detail in one tabbed panel: only one section shows at a time */}
+      <ResultTabs
+        tabs={[
+          {
+            id: "risk",
+            label: "Risk & typologies",
+            icon: Flame,
+            content: (
+              <div className="grid lg:grid-cols-2 gap-5 items-start">
+        {/* Where the risk concentrates */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Flame className="h-5 w-5 text-accent" />
+            <h3 className="text-lg font-semibold text-foreground">Where the risk concentrates</h3>
+          </div>
+          <div className="space-y-1.5">
+            {profile.inherentRisks.map((r) => {
+              const cfg = THEME_CONFIG[r.theme];
+              const w = RISK_LEVEL_WEIGHT[r.level];
+              return (
+                <button
+                  key={r.theme}
+                  onClick={() => setOpenRisk(r.theme)}
+                  className="w-full text-left glass-card rounded-lg px-3 py-2 card-hover cursor-pointer flex items-center gap-3"
+                >
                   <RiskThemeIcon riskTheme={r.theme} size="sm" animated={false} />
-                  <span className="text-sm font-semibold text-foreground">{RISK_THEME_LABEL[r.theme]}</span>
-                  <span
-                    className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{ color: cfg.primary, backgroundColor: `${cfg.glow}1f` }}
-                  >
-                    {RISK_LEVEL_LABEL[r.level]}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground truncate">{RISK_THEME_LABEL[r.theme]}</span>
+                      <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ color: cfg.primary, backgroundColor: `${cfg.glow}1f` }}>
+                        {RISK_LEVEL_LABEL[r.level]}
+                      </span>
+                    </span>
+                    <span className="mt-1.5 block h-1.5 rounded-full bg-white/5 overflow-hidden">
+                      <span className="block h-full rounded-full" style={{ width: `${w * 100}%`, backgroundColor: cfg.primary }} />
+                    </span>
                   </span>
-                </div>
-                <div className="h-2 rounded-full bg-white/5 overflow-hidden mb-2">
-                  <div className="h-full rounded-full" style={{ width: `${w * 100}%`, backgroundColor: cfg.primary }} />
-                </div>
-                <p className="text-xs text-text-muted leading-relaxed">{r.rationale}</p>
-                <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-accent">
-                  View typologies and build controls <ArrowUpRight className="h-3 w-3" />
-                </span>
-              </button>
-            );
-          })}
+                  <ArrowUpRight className="h-3.5 w-3.5 text-text-muted shrink-0" />
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </section>
 
-      {/* Applicable typologies */}
-      <section className="mb-8">
-        <div className="flex items-center gap-2 mb-3">
-          <Layers className="h-5 w-5 text-accent" />
-          <h3 className="text-lg font-semibold text-foreground">
-            Typologies for a {label} <span className="text-text-muted font-normal">({applicable.length})</span>
-          </h3>
-        </div>
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            onClick={() => { setThemeFilter(null); setShowAllTypologies(false); }}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-              themeFilter === null ? "bg-accent text-white" : "glass-card text-text-muted hover:text-foreground"
-            }`}
-          >
-            All themes
-          </button>
-          {themesPresent.map((theme) => {
-            const cfg = THEME_CONFIG[theme];
-            const active = themeFilter === theme;
-            return (
-              <button
-                key={theme}
-                onClick={() => { setThemeFilter(active ? null : theme); setShowAllTypologies(false); }}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                  active ? "text-white" : "glass-card text-text-muted hover:text-foreground"
-                }`}
-                style={active ? { backgroundColor: cfg.glow } : undefined}
-              >
-                <RiskThemeIcon riskTheme={theme} size="sm" animated={false} />
-                {RISK_THEME_LABEL[theme]}
-              </button>
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(showAllTypologies ? shownTypologies : shownTypologies.slice(0, 6)).map((t) => {
-            const cfg = THEME_CONFIG[t.riskTheme];
-            return (
+        {/* Applicable typologies */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Layers className="h-5 w-5 text-accent" />
+            <h3 className="text-lg font-semibold text-foreground">
+              Typologies for a {label} <span className="text-text-muted font-normal">({applicable.length})</span>
+            </h3>
+          </div>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            <button
+              onClick={() => { setThemeFilter(null); setShowAllTypologies(false); }}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                themeFilter === null ? "bg-accent text-white" : "glass-card text-text-muted hover:text-foreground"
+              }`}
+            >
+              All
+            </button>
+            {themesPresent.map((theme) => {
+              const cfg = THEME_CONFIG[theme];
+              const active = themeFilter === theme;
+              return (
+                <button
+                  key={theme}
+                  onClick={() => { setThemeFilter(active ? null : theme); setShowAllTypologies(false); }}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
+                    active ? "text-white" : "glass-card text-text-muted hover:text-foreground"
+                  }`}
+                  style={active ? { backgroundColor: cfg.glow } : undefined}
+                >
+                  <RiskThemeIcon riskTheme={theme} size="sm" animated={false} />
+                  {RISK_THEME_LABEL[theme]}
+                </button>
+              );
+            })}
+          </div>
+          <div className="space-y-1.5">
+            {(showAllTypologies ? shownTypologies : shownTypologies.slice(0, 6)).map((t) => (
               <button
                 key={t.id}
                 onClick={() => setOpenTypology(t.slug)}
-                className="text-left block glass-card rounded-xl p-4 card-hover h-full cursor-pointer"
+                className="w-full text-left glass-card rounded-lg px-3 py-2 card-hover cursor-pointer flex items-start gap-2.5"
               >
-                <div className="flex items-start gap-2.5 mb-2">
-                  <RiskThemeIcon riskTheme={t.riskTheme} size="sm" animated={false} />
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1">
-                      <span className="truncate">{t.title}</span>
-                      <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
-                    </h4>
-                    <span
-                      className="inline-block text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full mt-1"
-                      style={{ backgroundColor: `${cfg.glow}20`, color: cfg.primary }}
-                    >
-                      {RISK_THEME_LABEL[t.riskTheme]}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-xs text-text-muted leading-relaxed line-clamp-3">{t.description}</p>
+                <RiskThemeIcon riskTheme={t.riskTheme} size="sm" animated={false} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1 text-sm font-medium text-foreground leading-tight">
+                    <span className="truncate">{t.title}</span>
+                    <ArrowUpRight className="h-3 w-3 shrink-0 text-text-muted" />
+                  </span>
+                  <span className="block text-xs text-text-muted line-clamp-1 mt-0.5">{t.description}</span>
+                </span>
               </button>
-            );
-          })}
+            ))}
+          </div>
+          {shownTypologies.length > 6 && (
+            <button
+              onClick={() => setShowAllTypologies((v) => !v)}
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-hover transition-colors cursor-pointer"
+            >
+              {showAllTypologies ? "Show fewer" : `View all ${shownTypologies.length} typologies`}
+            </button>
+          )}
         </div>
-        {shownTypologies.length > 6 && (
-          <button
-            onClick={() => setShowAllTypologies((v) => !v)}
-            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-hover transition-colors cursor-pointer"
-          >
-            {showAllTypologies ? "Show fewer" : `View all ${shownTypologies.length} typologies`}
-          </button>
-        )}
-      </section>
-
-      {/* Enforcement / KYC / Controls */}
-      <ResultTabs
-        tabs={[
+              </div>
+            ),
+          },
           {
             id: "enforcement",
             label: "Enforcement",
@@ -313,7 +260,7 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
                     ? `${firmCaseCount} FCA enforcement ${firmCaseCount === 1 ? "case is" : "cases are"} tagged directly to a ${label}. The cases below span this firm type's inherent risk themes; where we have a breakdown, each shows the controls that would have caught it.`
                     : `Real FCA cases across this firm type's inherent risk themes; where we have a breakdown, each shows the controls that would have caught it.`}
                 </p>
-                <EvidencePanel key={activeType} themes={riskThemes} />
+                <EvidencePanel key={activeType} themes={riskThemes} compact moreHref="/enforcement" />
               </div>
             ),
           },
@@ -370,7 +317,7 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
         ]}
       />
 
-      <div className="mt-10">
+      <div className="mt-5">
         <HowItWorks
           title="How this profile is derived"
           steps={[
@@ -396,34 +343,22 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
         />
       </div>
 
-      <NextSteps
-        items={[
-          {
-            title: "Build the controls",
-            body: `Adapt controls for a ${label} and export a register you can defend.`,
-            href: `/control-builder?firmType=${activeType}`,
-            icon: Wrench,
-          },
-          {
-            title: "Run this in TypologyIQ",
-            body: `Score a ${label} against the library and build its control framework.`,
-            href: `/typology-iq?firmType=${activeType}`,
-            icon: Search,
-          },
-          {
-            title: "See the controls library",
-            body: "Detection rules, workflows and governance for this firm type.",
-            href: `/controls?firmType=${activeType}`,
-            icon: ClipboardCheck,
-          },
-          {
-            title: "Check KYC requirements",
-            body: "Map the CDD evidence needed by customer and entity type.",
-            href: "/kyc-requirements",
-            icon: Users,
-          },
-        ]}
-      />
+      {/* Next steps: compact link row */}
+      <div className="mt-5">
+        <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">Next steps</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "Build the controls", href: `/control-builder?firmType=${activeType}`, icon: Wrench },
+            { label: "Run in TypologyIQ", href: `/typology-iq?firmType=${activeType}`, icon: Search },
+            { label: "Controls library", href: `/controls?firmType=${activeType}`, icon: ClipboardCheck },
+            { label: "KYC requirements", href: "/kyc-requirements", icon: Users },
+          ].map((n) => (
+            <Link key={n.href} href={n.href} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-card text-sm text-foreground hover:text-accent card-hover transition-colors">
+              <n.icon className="h-3.5 w-3.5 text-accent" /> {n.label} <ArrowUpRight className="h-3 w-3 text-text-muted" />
+            </Link>
+          ))}
+        </div>
+      </div>
 
       <RiskThemeModal
         theme={openRisk}
@@ -439,11 +374,25 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="glass-card rounded-xl px-4 py-2.5">
-      <div className="text-lg font-bold text-foreground tabular-nums leading-none">{value}</div>
-      <div className="text-[11px] text-text-muted mt-1">{label}</div>
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-base font-bold text-foreground tabular-nums leading-none">{value}</span>
+      <span className="text-[11px] text-text-muted whitespace-nowrap">{label}</span>
+    </div>
+  );
+}
+
+function ChipGroup({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wider text-text-muted mb-2">{title}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((s) => (
+          <span key={s} className="inline-flex items-center px-2 py-0.5 rounded-full border border-white/10 bg-white/[0.03] text-[11px] text-foreground">{s}</span>
+        ))}
+      </div>
     </div>
   );
 }

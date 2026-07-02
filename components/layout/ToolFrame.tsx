@@ -1,9 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import AppShell, { type Crumb, type SidebarId } from "./AppShell";
-import Footer from "./Footer";
 
 /**
  * The app-shell wrapper for the tool routes: renders the left sidebar + top bar
@@ -32,7 +32,15 @@ export default function ToolFrame({ children, breadcrumb }: { children: ReactNod
   return (
     <AppShell activeId={match?.id} activeTopNav={match?.top} breadcrumb={breadcrumb}>
       {children}
-      <Footer />
+      {/* Slim footer for the app shell (the full marketing footer stays on home/start) */}
+      <footer className="mt-auto border-t border-surface-border px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
+        <span>© 2026 MEMA Consultants · FinCrime Control Lab</span>
+        <span className="flex items-center gap-3">
+          <Link href="/methodology" className="hover:text-foreground transition-colors">Methodology</Link>
+          <Link href="/glossary" className="hover:text-foreground transition-colors">Glossary</Link>
+          <Link href="/enforcement" className="hover:text-foreground transition-colors">Enforcement</Link>
+        </span>
+      </footer>
     </AppShell>
   );
 }

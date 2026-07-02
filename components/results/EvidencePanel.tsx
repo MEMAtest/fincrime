@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Scale, ListChecks, BookOpen, ShieldCheck, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { Scale, ListChecks, BookOpen, ShieldCheck, ChevronDown, ArrowUpRight } from "lucide-react";
 import { casesForThemes, fmtGbp, totalPenaltiesForThemes, countCasesForThemes } from "@/lib/enforcement/select";
 import { lessonFor } from "@/data/enforcement/lessons";
 import { INDICATORS_BY_THEME, FRAMEWORK_SOURCES } from "@/data/sources";
@@ -9,10 +10,16 @@ import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import ReferenceLink from "@/components/shared/ReferenceLink";
 import type { RiskTheme, Typology } from "@/data/typologies/types";
 
-export default function EvidencePanel({ themes, typology }: { themes: RiskTheme[]; typology?: Typology }) {
+/**
+ * `compact` (used on the firm-profile page) shows only the top enforcement
+ * cases + a link to the full enforcement hub, dropping the red-flag indicator
+ * list and framework chips that make the full panel long. The full panel is
+ * used on the deep results pages.
+ */
+export default function EvidencePanel({ themes, typology, compact = false, moreHref = "/enforcement" }: { themes: RiskTheme[]; typology?: Typology; compact?: boolean; moreHref?: string }) {
   const [showAll, setShowAll] = useState(false);
   const cases = casesForThemes(themes, 12);
-  const visible = showAll ? cases : cases.slice(0, 4);
+  const visible = compact ? cases.slice(0, 3) : showAll ? cases : cases.slice(0, 4);
   const totalPenalties = totalPenaltiesForThemes(themes);
   const matchedCount = countCasesForThemes(themes);
   const themeLabel = themes.map((t) => THEME_CONFIG[t]?.label ?? t).join(", ") || "financial crime";
@@ -89,9 +96,17 @@ export default function EvidencePanel({ themes, typology }: { themes: RiskTheme[
         </div>
         <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
           <p className="text-xs text-text-muted">
-            Source: FCA fines dataset (regactions.com). Showing {visible.length} of {matchedCount} cases tagged to {themeLabel}.
+            {compact
+              ? `Top ${visible.length} cases across ${themeLabel}. Source: FCA fines dataset (regactions.com).`
+              : `Source: FCA fines dataset (regactions.com). Showing ${visible.length} of ${matchedCount} cases tagged to ${themeLabel}.`}
           </p>
-          {cases.length > 4 && (
+          {compact ? (
+            matchedCount > visible.length && (
+              <Link href={moreHref} className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500 hover:text-emerald-400">
+                See all enforcement for these themes <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+            )
+          ) : cases.length > 4 && (
             <button
               onClick={() => setShowAll((s) => !s)}
               className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500 hover:text-emerald-400 cursor-pointer"
@@ -103,8 +118,8 @@ export default function EvidencePanel({ themes, typology }: { themes: RiskTheme[
         </div>
       </section>
 
-      {/* Cited red-flag indicators */}
-      {indicators.length > 0 ? (
+      {/* Cited red-flag indicators (full panel only) */}
+      {!compact && indicators.length > 0 ? (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <ListChecks className="h-5 w-5 text-emerald-500" />
@@ -127,25 +142,27 @@ export default function EvidencePanel({ themes, typology }: { themes: RiskTheme[
         </section>
       ) : null}
 
-      {/* Frameworks */}
-      <section>
-        <div className="flex items-center gap-2 mb-4">
-          <BookOpen className="h-5 w-5 text-emerald-500" />
-          <h3 className="text-lg font-semibold text-foreground">Authoritative frameworks</h3>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {FRAMEWORK_SOURCES.map((f) => (
-            <ReferenceLink
-              key={f.org}
-              url={f.url}
-              label={f.title}
-              heading={f.title}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-surface-border text-xs font-medium text-foreground hover:border-emerald-500/40"
-              showIcon
-            />
-          ))}
-        </div>
-      </section>
+      {/* Frameworks (full panel only) */}
+      {!compact && (
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <BookOpen className="h-5 w-5 text-emerald-500" />
+            <h3 className="text-lg font-semibold text-foreground">Authoritative frameworks</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {FRAMEWORK_SOURCES.map((f) => (
+              <ReferenceLink
+                key={f.org}
+                url={f.url}
+                label={f.title}
+                heading={f.title}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-surface-border text-xs font-medium text-foreground hover:border-emerald-500/40"
+                showIcon
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
