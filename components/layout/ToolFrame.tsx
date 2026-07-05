@@ -11,18 +11,19 @@ import AppShell, { type Crumb, type SidebarId } from "./AppShell";
  * pages just wrap their content in <ToolFrame> instead of a marketing header.
  * Marketing/landing pages (home, /start) keep the lighter <Header> instead.
  */
-const ROUTE_MAP: { prefix: string; id?: SidebarId; top?: string }[] = [
-  { prefix: "/firm-profiles", id: "firm-profiles", top: "Firm Profiles" },
-  { prefix: "/firm-research", id: "enhancement", top: "AI Assistant" },
-  { prefix: "/typology-iq", id: "targeting", top: "Targeting" },
-  { prefix: "/kyc-requirements", id: "kyc-center" },
-  { prefix: "/controls-maturity", id: "assessments" },
-  { prefix: "/screening-control-designer", id: "assessments" },
-  { prefix: "/enforcement", top: "Content Hub" },
-  { prefix: "/controls", top: "Content Hub" },
-  { prefix: "/glossary", top: "Content Hub" },
+// Longest-prefix first so /controls-maturity doesn't match the /controls entry.
+const ROUTE_MAP: { prefix: string; id?: SidebarId }[] = [
+  { prefix: "/firm-profiles", id: "firm-profiles" },
+  { prefix: "/firm-research", id: "firm-research" },
+  { prefix: "/typology-iq", id: "typology-iq" },
+  { prefix: "/kyc-requirements", id: "kyc" },
+  { prefix: "/controls-maturity", id: "maturity" },
+  { prefix: "/screening-control-designer" },
+  { prefix: "/enforcement", id: "enforcement" },
+  { prefix: "/controls", id: "controls-library" },
+  { prefix: "/glossary" },
   { prefix: "/methodology", id: "help" },
-  { prefix: "/partner-control-map" },
+  { prefix: "/partner-control-map", id: "partner-map" },
 ];
 
 export default function ToolFrame({ children, breadcrumb }: { children: ReactNode; breadcrumb?: Crumb[] }) {
@@ -30,7 +31,7 @@ export default function ToolFrame({ children, breadcrumb }: { children: ReactNod
   const match = ROUTE_MAP.find((r) => pathname === r.prefix || pathname.startsWith(`${r.prefix}/`)) ?? ROUTE_MAP.find((r) => pathname.startsWith(r.prefix));
 
   return (
-    <AppShell activeId={match?.id} activeTopNav={match?.top} breadcrumb={breadcrumb}>
+    <AppShell activeId={match?.id} breadcrumb={breadcrumb}>
       {children}
       {/* Slim footer for the app shell (the full marketing footer stays on home/start) */}
       <footer className="mt-auto border-t border-surface-border px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">

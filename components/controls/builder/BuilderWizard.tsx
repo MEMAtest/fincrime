@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Check, ChevronDown, ChevronRight, Search, Plus, Sparkles, RefreshCw, ThumbsUp, ThumbsDown,
+  ArrowLeft, Check, ChevronDown, ChevronRight, Search, Plus, Lightbulb,
   Gauge, BookOpen, Link2, History, Scale, ShieldCheck, X,
 } from "lucide-react";
 import { StatusSelect, isOverrideSet } from "@/components/controls/ControlBits";
@@ -199,7 +199,7 @@ export default function BuilderWizard({
 
           {/* Footer */}
           <div className="flex items-center justify-between gap-3 mt-6 pt-4 border-t border-surface-border">
-            <button onClick={resetOverride} className="text-sm text-text-muted hover:text-risk-high transition-colors">Discard changes</button>
+            <button onClick={() => { if (window.confirm("Reset this control to its catalogue defaults? This clears every edit you have made to it across all steps.")) resetOverride(); }} className="text-sm text-text-muted hover:text-risk-high transition-colors">Reset control</button>
             <div className="flex items-center gap-3">
               <span className="text-xs text-text-muted">Step {stepIdx + 1} of {STEPS.length}</span>
               {stepIdx < STEPS.length - 1 ? (
@@ -213,21 +213,19 @@ export default function BuilderWizard({
 
         {/* RIGHT: side rail */}
         <aside className="space-y-4 self-start hidden xl:block">
-          {/* AI Suggestions */}
+          {/* Tuning guidance (static, from the control catalogue) */}
           <div className="glass-card rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-accent" /><span className="text-sm font-semibold text-foreground">AI Suggestions</span><span className="text-[9px] uppercase tracking-wider text-text-muted border border-surface-border rounded-full px-1.5">Beta</span></div>
-              <button className="text-text-muted hover:text-accent" aria-label="Regenerate"><RefreshCw className="h-3.5 w-3.5" /></button>
-            </div>
+            <div className="flex items-center gap-1.5 mb-2"><Lightbulb className="h-4 w-4 text-accent" /><span className="text-sm font-semibold text-foreground">Tuning guidance</span></div>
             <div className="rounded-xl border border-accent/20 bg-accent/[0.05] p-3">
               <p className="text-xs text-text-muted leading-relaxed">{c.tuningNotes}</p>
-              <button onClick={() => setOverride({ notes: `${override.notes ? override.notes + "\n" : ""}${c.tuningNotes}` })} className="mt-2 text-xs font-medium text-accent hover:underline">Apply to notes</button>
+              <button
+                onClick={() => { const cur = override.notes ?? ""; if (!cur.includes(c.tuningNotes)) setOverride({ notes: cur ? `${cur}\n${c.tuningNotes}` : c.tuningNotes }); }}
+                className="mt-2 text-xs font-medium text-accent hover:underline"
+              >Add to your notes</button>
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <button className="text-text-muted hover:text-emerald-500" aria-label="Helpful"><ThumbsUp className="h-3.5 w-3.5" /></button>
-              <button className="text-text-muted hover:text-risk-high" aria-label="Not helpful"><ThumbsDown className="h-3.5 w-3.5" /></button>
-              {c.whatGoodLooksLike.length > 0 && <button onClick={() => setMoreSug((v) => !v)} className="ml-auto text-xs text-accent hover:underline">More suggestions ({c.whatGoodLooksLike.length})</button>}
-            </div>
+            {c.whatGoodLooksLike.length > 0 && (
+              <button onClick={() => setMoreSug((v) => !v)} className="mt-2 text-xs text-accent hover:underline">{moreSug ? "Hide" : "What good looks like"} ({c.whatGoodLooksLike.length})</button>
+            )}
             {moreSug && (
               <ul className="mt-2 space-y-1.5">
                 {c.whatGoodLooksLike.map((g, i) => <li key={i} className="text-xs text-text-muted flex gap-1.5"><Check className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" />{g}</li>)}
@@ -396,7 +394,7 @@ function EvidenceStep({ c, cases }: { c: Control; cases: NonNullable<ReturnType<
       </section>
       <section>
         <div className="flex items-center gap-2 mb-2"><BookOpen className="h-4 w-4 text-emerald-500" /><h4 className="text-sm font-semibold text-foreground">Cited sources</h4></div>
-        <ul className="space-y-1.5">{c.sources.map((s) => <li key={`${s.org}-${s.reference}`} className="text-sm text-text-muted"><span className="font-medium text-foreground">{s.org} {s.reference}</span> — {s.title}</li>)}</ul>
+        <ul className="space-y-1.5">{c.sources.map((s) => <li key={`${s.org}-${s.reference}`} className="text-sm text-text-muted"><span className="font-medium text-foreground">{s.org} {s.reference}</span>: {s.title}</li>)}</ul>
       </section>
     </div>
   );

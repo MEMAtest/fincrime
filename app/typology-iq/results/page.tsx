@@ -123,7 +123,7 @@ function TypologyResults() {
       {/* Header Section */}
       <div className="flex items-center justify-between mb-8">
         <Link
-          href="/typology-iq"
+          href={`/typology-iq?${searchParams.toString()}`}
           className="flex items-center gap-1.5 text-sm text-text-muted hover:text-accent transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />

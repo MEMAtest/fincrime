@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       "Write a concise 3-5 sentence plain-English risk overview explaining why this typology is relevant to the firm and what they should prioritise.",
       "Be practical and specific. Reference the firm type, product, customer segment, and the selected risk themes naturally.",
       "Do not use bullet points, headings, or markdown formatting.",
-      "Do not provide legal advice. Use UK English.",
+      "Do not provide legal advice. Use UK English. Do not use em-dashes.",
     ].join(" ");
 
     const userPrompt = [

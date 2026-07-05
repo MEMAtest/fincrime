@@ -34,7 +34,7 @@ export async function generateKycDocx(data: KycDocxData): Promise<Buffer> {
 
   const children: (Paragraph | Table)[] = [
     new Paragraph({ text: "KYC / CDD Requirements", heading: HeadingLevel.TITLE }),
-    para(`${entities.map((e) => ENTITY_LABEL[e]).join(", ")} — ${jurisdictions.map((j) => JURISDICTION_LABEL[j]).join(", ")}`, { bold: true }),
+    para(`${entities.map((e) => ENTITY_LABEL[e]).join(", ")} | ${jurisdictions.map((j) => JURISDICTION_LABEL[j]).join(", ")}`, { bold: true }),
     para(`Risk context: ${risks.map((r) => RISK_LABEL[r]).join(", ")}` + (merged.anyFallback ? "  (FATF baseline used where a cell is not authored)" : ""), { italics: true, color: "666666" }),
     para(`${merged.scenarios.length} scenario(s) combined. Onboarding checklist: collected ${collected} of ${requirements.length}.`, { color: "0F7B4F" }),
     para(`Beneficial ownership threshold: ${merged.boThresholds.join(", ") || "-"}`, { bold: true }),

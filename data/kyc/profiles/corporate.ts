@@ -67,8 +67,8 @@ export const corporate: CddProfile[] = [
       ]),
       sec("beneficial_ownership", [
         it("Identify ownership/control including intermediary holding entities", cite("mlr_r28", "jmlsg_corp")),
-        it("Verify identity of UBOs", cite("mlr_r28"), { threshold: "25%+ (LR/MR); 10%+ (HR)" }),
-        it("Verify ALL UBOs at 25%+", cite("mlr_r28"), { risk: HI, threshold: "25%+" }),
+        it("Verify identity of UBOs", cite("mlr_r28"), { threshold: "more than 25% (firms often lower to 10% for higher-risk as a policy choice)" }),
+        it("Verify ALL UBOs above 25%", cite("mlr_r28"), { risk: HI, threshold: "more than 25%" }),
       ]),
       sec("authorised_contacts", [
         it("Identify and verify all authorised contacts", cite("jmlsg_corp")),

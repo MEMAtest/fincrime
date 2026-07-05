@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       "Write a concise 3-5 sentence plain-English overview of how this screening control should be designed and what matters most for this firm.",
       "Be practical and specific. Reference the screening category, firm type and trigger naturally.",
       "Do not use bullet points, headings, or markdown formatting.",
-      "Do not provide legal advice. Use UK English.",
+      "Do not provide legal advice. Use UK English. Do not use em-dashes.",
     ].join(" ");
 
     const userPrompt = [

@@ -4,10 +4,11 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Home, ClipboardCheck, Crosshair, Blocks, Sparkles, Building2, ShieldCheck, UserCheck,
-  FileText, FolderClosed, CheckSquare, BarChart3, Settings, HelpCircle, PanelLeftClose,
-  PanelLeftOpen, Search, Bell, ChevronDown, ChevronRight, Menu, X, Bot, Library,
+  Scale, Network, FileText, Settings, HelpCircle, PanelLeftClose,
+  PanelLeftOpen, ChevronDown, ChevronRight, Menu, X,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme/ThemeToggle";
+import WorkflowBar from "@/components/workflow/WorkflowBar";
 import { FIRM_TYPE_ORDER } from "@/data/firm-profiles";
 import { FIRM_TYPE_LABEL } from "@/data/typologies/labels";
 import type { FirmType } from "@/data/typologies/types";
@@ -20,64 +21,52 @@ export interface Crumb {
   onClick?: () => void;
 }
 
+// Canonical tool names, ordered by the four-stage journey (Profile, Risks,
+// Build, Govern). One name per destination so the marketing pages, the sidebar
+// and every deep link agree.
 export type SidebarId =
-  | "home" | "assessments" | "targeting" | "control-builder" | "enhancement"
-  | "firm-profiles" | "controls" | "kyc-center"
-  | "reports" | "documents" | "tasks" | "insights" | "settings" | "help";
+  | "home" | "firm-research" | "firm-profiles" | "typology-iq" | "enforcement"
+  | "control-builder" | "controls-library" | "partner-map" | "kyc" | "maturity"
+  | "reports" | "settings" | "help";
 
 interface SidebarItem {
   id: SidebarId;
   label: string;
   icon: typeof Home;
   href?: string;
-  inApp?: boolean;   // switches a view inside the mounted app (no navigation)
   soon?: boolean;    // not yet built: shown, non-navigating
 }
 
 const PRIMARY: SidebarItem[] = [
   { id: "home", label: "Home", icon: Home, href: "/" },
-  { id: "assessments", label: "Assessments", icon: ClipboardCheck, href: "/controls-maturity" },
-  { id: "targeting", label: "Targeting", icon: Crosshair, href: "/typology-iq" },
-  { id: "control-builder", label: "Control Builder", icon: Blocks, href: "/control-builder", inApp: true },
-  { id: "enhancement", label: "Enhancement", icon: Sparkles, href: "/firm-research" },
+  { id: "firm-research", label: "AI Research", icon: Sparkles, href: "/firm-research" },
   { id: "firm-profiles", label: "Firm Profiles", icon: Building2, href: "/firm-profiles" },
-  { id: "controls", label: "Controls", icon: ShieldCheck, href: "/control-builder", inApp: true },
-  { id: "kyc-center", label: "KYC Center", icon: UserCheck, href: "/kyc-requirements" },
+  { id: "typology-iq", label: "TypologyIQ", icon: Crosshair, href: "/typology-iq" },
+  { id: "enforcement", label: "Enforcement", icon: Scale, href: "/enforcement" },
+  { id: "control-builder", label: "Control Builder", icon: Blocks, href: "/control-builder" },
+  { id: "controls-library", label: "Controls Library", icon: ShieldCheck, href: "/controls" },
+  { id: "partner-map", label: "Partner Map", icon: Network, href: "/partner-control-map" },
+  { id: "kyc", label: "KYC Matrix", icon: UserCheck, href: "/kyc-requirements" },
+  { id: "maturity", label: "Controls Maturity", icon: ClipboardCheck, href: "/controls-maturity" },
 ];
 
 const SECONDARY: SidebarItem[] = [
   { id: "reports", label: "Reports", icon: FileText, soon: true },
-  { id: "documents", label: "Documents", icon: FolderClosed, soon: true },
-  { id: "tasks", label: "Tasks", icon: CheckSquare, soon: true },
-  { id: "insights", label: "Insights", icon: BarChart3, soon: true },
   { id: "settings", label: "Settings", icon: Settings, soon: true },
-];
-
-const TOP_NAV: { label: string; href: string; icon: typeof Home }[] = [
-  { label: "AI Assistant", href: "/firm-research", icon: Bot },
-  { label: "Targeting", href: "/typology-iq", icon: Crosshair },
-  { label: "Control Builder", href: "/control-builder", icon: Blocks },
-  { label: "Firm Profiles", href: "/firm-profiles", icon: Building2 },
-  { label: "Content Hub", href: "/enforcement", icon: Library },
 ];
 
 export default function AppShell({
   breadcrumb,
   activeId,
-  activeTopNav,
-  onSelectInApp,
   firm,
   children,
 }: {
   breadcrumb?: Crumb[];
   activeId?: SidebarId;
-  activeTopNav?: string;
-  onSelectInApp?: (id: "controls" | "control-builder") => void;
   firm?: { value: FirmContext; onChange: (v: FirmContext) => void };
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
 
   const renderItem = (item: SidebarItem) => {
@@ -92,9 +81,6 @@ export default function AppShell({
         {!collapsed && item.soon && <span className="text-[9px] uppercase tracking-wide text-text-muted/70 border border-surface-border rounded px-1 py-0.5">Soon</span>}
       </>
     );
-    if (item.inApp && onSelectInApp && (item.id === "controls" || item.id === "control-builder")) {
-      return <button key={item.id} onClick={() => onSelectInApp(item.id as "controls" | "control-builder")} className={base} title={collapsed ? item.label : undefined}>{inner}</button>;
-    }
     if (item.href) {
       return <Link key={item.id} href={item.href} className={base} title={collapsed ? item.label : undefined}>{inner}</Link>;
     }
@@ -147,50 +133,25 @@ export default function AppShell({
 
       {/* Main column */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Top bar */}
+        {/* Top bar: logo + (optional) firm switcher + theme. The sidebar is the
+            single nav system, so the top bar stays minimal and never overflows. */}
         <header className="sticky top-0 z-30 border-b border-surface-border bg-surface/80 backdrop-blur-md">
-          <div className="flex items-center gap-4 px-4 sm:px-6 h-16">
-            <button onClick={() => setMobileNav(true)} className="lg:hidden h-9 w-9 -ml-1 rounded-lg grid place-items-center text-text-muted hover:bg-surface-hover" aria-label="Open menu"><Menu className="h-5 w-5" /></button>
-            <Link href="/" className="flex items-center gap-2.5 shrink-0" aria-label="FinCrime Control Lab">
-              <span className="h-9 w-9 rounded-[10px] bg-accent/12 text-accent grid place-items-center">
+          <div className="flex items-center gap-3 px-4 sm:px-6 h-16">
+            <button onClick={() => setMobileNav(true)} className="lg:hidden h-9 w-9 -ml-1 rounded-lg grid place-items-center text-text-muted hover:bg-surface-hover shrink-0" aria-label="Open menu"><Menu className="h-5 w-5" /></button>
+            <Link href="/" className="flex items-center gap-2.5 min-w-0" aria-label="FinCrime Control Lab">
+              <span className="h-9 w-9 rounded-[10px] bg-accent/12 text-accent grid place-items-center shrink-0">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
                   <path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5z" />
                   <path d="m9 12 2 2 4-4" />
                 </svg>
               </span>
-              <span className="hidden xl:flex flex-col leading-none">
-                <b className="text-sm text-foreground">FinCrime Control Lab</b>
-                <span className="text-[11px] text-text-muted mt-0.5">Regulatory confidence. Built in.</span>
+              <span className="hidden sm:flex flex-col leading-none min-w-0">
+                <b className="text-sm text-foreground truncate">FinCrime Control Lab</b>
+                <span className="hidden lg:block text-[11px] text-text-muted mt-0.5 truncate">Regulatory confidence. Built in.</span>
               </span>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-0.5 ml-2 min-w-0">
-              {TOP_NAV.map((m) => {
-                const isActive = activeTopNav === m.label;
-                return (
-                  <Link key={m.label} href={m.href} aria-current={isActive ? "page" : undefined}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors ${isActive ? "text-accent bg-accent/10" : "text-text-muted hover:text-foreground hover:bg-surface-hover"}`}>
-                    <m.icon className="h-4 w-4" /> {m.label}
-                  </Link>
-                );
-              })}
-            </nav>
-
             <div className="flex items-center gap-2 ml-auto shrink-0">
-              <button className="h-9 w-9 rounded-lg grid place-items-center text-text-muted hover:bg-surface-hover hover:text-foreground transition-colors" aria-label="Search"><Search className="h-[18px] w-[18px]" /></button>
-              <div className="relative">
-                <button onClick={() => setNotifOpen((o) => !o)} className="h-9 w-9 rounded-lg grid place-items-center text-text-muted hover:bg-surface-hover hover:text-foreground transition-colors" aria-label="Notifications"><Bell className="h-[18px] w-[18px]" /></button>
-                {notifOpen && (
-                  <>
-                    {/* Click-catcher so clicking anywhere else dismisses the popover */}
-                    <div className="fixed inset-0 z-30" onClick={() => setNotifOpen(false)} />
-                    <div className="absolute right-0 top-11 w-64 glass-card rounded-xl p-4 shadow-xl z-40">
-                      <p className="text-sm font-medium text-foreground mb-1">Notifications</p>
-                      <p className="text-xs text-text-muted">You are all caught up. Alerts appear here as you work in this session.</p>
-                    </div>
-                  </>
-                )}
-              </div>
               {firm && <FirmSwitcher value={firm.value} onChange={firm.onChange} />}
               <ThemeToggle />
             </div>
@@ -215,6 +176,9 @@ export default function AppShell({
           </div>
         )}
 
+        {/* The four-stage journey spine (self-hides on non-workflow routes) */}
+        <WorkflowBar />
+
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col">{children}</div>
       </div>
@@ -230,7 +194,7 @@ function FirmSwitcher({ value, onChange }: { value: FirmContext; onChange: (v: F
         value={value}
         onChange={(e) => onChange(e.target.value as FirmContext)}
         aria-label="Firm context"
-        className="appearance-none pl-8 pr-8 py-2 rounded-lg bg-accent text-white text-sm font-semibold focus:outline-none cursor-pointer hover:bg-accent-hover transition-colors"
+        className="appearance-none pl-8 pr-8 py-2 rounded-lg bg-accent text-white text-sm font-semibold focus:outline-none cursor-pointer hover:bg-accent-hover transition-colors max-w-[9.5rem] sm:max-w-none truncate"
       >
         <option value="all" className="text-foreground">Full catalogue</option>
         {FIRM_TYPE_ORDER.map((ft) => (

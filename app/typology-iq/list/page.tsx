@@ -124,10 +124,10 @@ export default function TypologyListPage() {
         </div>
 
         {/* risk theme filter tabs */}
-        <div className="flex flex-wrap justify-center gap-3 mb-10">
+        <div className="flex gap-2 mb-8 overflow-x-auto sm:flex-wrap sm:justify-center -mx-4 px-4 sm:mx-0 sm:px-0 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <button
             onClick={() => setActiveTheme(null)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
+            className={`shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
               activeTheme === null
                 ? "bg-accent text-white shadow-md shadow-accent/20"
                 : "glass-card text-text-muted hover:text-foreground"
@@ -139,7 +139,7 @@ export default function TypologyListPage() {
             <button
               key={theme}
               onClick={() => setActiveTheme(activeTheme === theme ? null : theme)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-2 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
                 activeTheme === theme
                   ? "shadow-md text-white"
                   : "glass-card text-text-muted hover:text-foreground"

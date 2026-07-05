@@ -17,7 +17,10 @@ const ALL_THEMES: RiskTheme[] = [
   "bribery_corruption", "proliferation_financing", "tax_evasion",
 ];
 
-const FIRM_FILTERS: FirmType[] = ["bank", "neobank", "wealth_manager", "insurance"];
+// Every firm type that actually has tagged cases (so no filter is a dead end).
+const FIRM_FILTERS: FirmType[] = (Object.keys(FIRM_TYPE_LABEL) as FirmType[]).filter(
+  (ft) => enforcementCases.some((c) => effectiveFirmTypes(c).includes(ft))
+);
 
 const sorted = [...enforcementCases].sort((a, b) => b.amountGbp - a.amountGbp);
 

@@ -85,6 +85,7 @@ export default function TypologyDetail({ typology, compact = false }: { typology
             content: (
               <ResultsGrid>
                 <ResultCard title="Detection logic" icon={Cpu} className="md:col-span-2" index={0}>
+                  <p className="text-xs text-slate-500 mb-3">Thresholds shown are illustrative starting points, not regulatory limits. Calibrate them to your own book and risk appetite.</p>
                   <div className="space-y-3">
                     {typology.detectionLogic.map((r) => (
                       <div key={r.id} className="p-3 bg-slate-50 rounded-lg">

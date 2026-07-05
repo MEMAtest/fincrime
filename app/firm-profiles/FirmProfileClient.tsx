@@ -23,6 +23,15 @@ import {
 } from "@/lib/enforcement/select";
 import type { FirmType, RiskTheme } from "@/data/typologies/types";
 
+// A single severity ramp for risk-level pills/bars, so colour means severity
+// consistently across the product (red = higher risk), not the risk category.
+const LEVEL_COLOR: Record<string, string> = {
+  very_high: "#dc2626", // red-600
+  high: "#ea580c",      // orange-600
+  medium: "#d97706",    // amber-600
+  low: "#64748b",       // slate-500
+};
+
 export default function FirmProfileClient({ initialType }: { initialType: FirmType }) {
   const router = useRouter();
   const [activeType, setActiveType] = useState<FirmType>(initialType);
@@ -107,7 +116,7 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
             <div className="flex items-center gap-5 mt-2.5">
               <MiniStat value={String(applicable.length)} label="typologies" />
               <MiniStat value={String(profile.inherentRisks.length)} label="risk themes" />
-              <MiniStat value={firmCaseCount > 0 ? String(firmCaseCount) : "—"} label="FCA cases" />
+              <MiniStat value={String(firmCaseCount)} label="FCA cases" />
             </div>
           </div>
         </div>
@@ -157,8 +166,10 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
           </div>
           <div className="space-y-1.5">
             {profile.inherentRisks.map((r) => {
-              const cfg = THEME_CONFIG[r.theme];
               const w = RISK_LEVEL_WEIGHT[r.level];
+              // Severity colour (not the theme's category hue) so red always means
+              // higher risk across the whole product, not "money laundering".
+              const sev = LEVEL_COLOR[r.level] ?? LEVEL_COLOR.medium;
               return (
                 <button
                   key={r.theme}
@@ -169,12 +180,12 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <span className="text-sm font-medium text-foreground truncate">{RISK_THEME_LABEL[r.theme]}</span>
-                      <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ color: cfg.primary, backgroundColor: `${cfg.glow}1f` }}>
+                      <span className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ color: sev, backgroundColor: `${sev}1f` }}>
                         {RISK_LEVEL_LABEL[r.level]}
                       </span>
                     </span>
                     <span className="mt-1.5 block h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <span className="block h-full rounded-full" style={{ width: `${w * 100}%`, backgroundColor: cfg.primary }} />
+                      <span className="block h-full rounded-full" style={{ width: `${w * 100}%`, backgroundColor: sev }} />
                     </span>
                   </span>
                   <ArrowUpRight className="h-3.5 w-3.5 text-text-muted shrink-0" />

@@ -55,7 +55,8 @@ export default function StartPage() {
           <p className="text-text-muted max-w-2xl mx-auto leading-relaxed">
             One workflow, four stages. Profile your firm, see the risks and real enforcement that apply, build
             your controls, then govern and export a committee-ready pack. Everything is free, deterministic and
-            cited. Nothing is saved to a server.
+            cited. Your assessment work stays in your browser; we only store the contact details you give us
+            when you request an export.
           </p>
         </div>
 

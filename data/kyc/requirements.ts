@@ -187,7 +187,7 @@ export function buildRequirements(profile: CddProfile): CddRequirement[] {
     if (section.items.length === 0) continue;
     const c = REQUIREMENT_CATALOGUE[section.key];
     const whatToCollect = section.items.map(
-      (i) => i.text + (i.threshold ? ` (${i.threshold})` : "") + (i.conditional ? ` — ${i.conditional}` : "")
+      (i) => i.text + (i.threshold ? ` (${i.threshold})` : "") + (i.conditional ? ` (${i.conditional})` : "")
     );
     const legalBasis = uniqueSources(section.items.flatMap((i) => i.sources));
     const appliesAtRisk = Array.from(new Set(section.items.flatMap((i) => i.appliesAtRisk)));

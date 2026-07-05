@@ -12,63 +12,17 @@ import SourceBadge from "@/components/shared/SourceBadge";
 import ControlDetailModal from "@/components/controls/ControlDetailModal";
 import { controlsForThemes, CONTROL_CATEGORY_LABEL, CONTROL_TYPE_LABEL } from "@/data/controls";
 import { lessonFor } from "@/data/enforcement/lessons";
+import { enforcementCases } from "@/data/enforcement/cases";
+import { caseSlug } from "@/lib/enforcement/case-slug";
 import type { RiskTheme, FirmType, SourceOrg } from "@/data/typologies/types";
 
 /* ── Enforcement actions ───────────────────────────── */
 
-// "What would have caught this" now lives once in data/enforcement/lessons.ts
-// (joined by firm + year); this array only carries the display fields.
-interface EnforcementAction {
-  firm: string;
-  regulator: string;
-  year: number;
-  fine: string;
-  summary: string;
-  controlAreas: RiskTheme[];
-}
-
-const ENFORCEMENT_ACTIONS: EnforcementAction[] = [
-  {
-    firm: "Starling Bank",
-    regulator: "FCA",
-    year: 2024,
-    fine: "£29m",
-    summary: "AML screening failures: inadequate screening of sanctions lists and PEPs, with gaps in automated monitoring systems.",
-    controlAreas: ["sanctions_evasion", "money_laundering"],
-  },
-  {
-    firm: "Monzo",
-    regulator: "FCA",
-    year: 2024,
-    fine: "Warning notice",
-    summary: "AML failings: insufficient monitoring of customer transactions and delayed suspicious activity reporting.",
-    controlAreas: ["money_laundering", "fraud"],
-  },
-  {
-    firm: "NatWest",
-    regulator: "FCA",
-    year: 2021,
-    fine: "£265m",
-    summary: "Cash monitoring failures: failed to adequately monitor cash deposits in a commercial customer account, allowing £365m in suspicious cash deposits over 5 years.",
-    controlAreas: ["money_laundering"],
-  },
-  {
-    firm: "HSBC",
-    regulator: "FCA",
-    year: 2021,
-    fine: "£64m",
-    summary: "Transaction monitoring failures: deficient automated transaction monitoring across multiple business lines.",
-    controlAreas: ["money_laundering", "terrorist_financing"],
-  },
-  {
-    firm: "Metro Bank",
-    regulator: "FCA",
-    year: 2024,
-    fine: "£16.7m",
-    summary: "Transaction monitoring failure: an automated-system gap meant accounts opened from a certain date were not monitored for money-laundering risk, leaving tens of millions of transactions unmonitored.",
-    controlAreas: ["money_laundering"],
-  },
-];
+// The five largest FCA fines, taken from the canonical dataset
+// (data/enforcement/cases.ts) so this panel can never drift from /enforcement or
+// show an uncited/incorrect figure. "What would have caught this" is joined from
+// data/enforcement/lessons.ts by firm + year.
+const TOP_ENFORCEMENT = [...enforcementCases].sort((a, b) => b.amountGbp - a.amountGbp).slice(0, 5);
 
 /* ── Firm type labels ──────────────────────────────── */
 
@@ -286,29 +240,30 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
 
               {enforcementOpen && (
                 <div className="px-6 pb-6 space-y-6">
-                  {ENFORCEMENT_ACTIONS.map((action, i) => {
-                    const prevented = lessonFor(action.firm, action.year)?.preventedBy ?? [];
+                  {TOP_ENFORCEMENT.map((c) => {
+                    const lesson = lessonFor(c.firm, c.year);
+                    const prevented = lesson?.preventedBy ?? [];
                     return (
                     <div
-                      key={i}
+                      key={`${c.firm}-${c.year}`}
                       className="border border-surface-border rounded-xl p-5"
                     >
                       <div className="flex flex-wrap items-center gap-3 mb-3">
                         <span className="text-base font-semibold text-foreground">
-                          {action.firm}
+                          {c.firm}
                         </span>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-risk-high/10 text-risk-high font-medium">
-                          {action.fine}
+                          {c.fine}
                         </span>
                         <span className="text-xs text-text-muted">
-                          {action.regulator} {action.year}
+                          {c.regulator} {c.year}
                         </span>
                       </div>
                       <p className="text-sm text-text-muted mb-3">
-                        {action.summary}
+                        {lesson?.rootCause ?? c.summary}
                       </p>
                       <div className="flex flex-wrap gap-2 mb-3">
-                        {action.controlAreas.map((area) => (
+                        {c.riskThemes.map((area) => (
                           <span
                             key={area}
                             className="text-xs px-2 py-0.5 rounded bg-accent/10 text-accent"
@@ -335,6 +290,9 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
                           </ul>
                         </div>
                       )}
+                      <Link href={`/enforcement/${caseSlug(c.firm, c.year)}`} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline">
+                        Read the case and cited notice <ArrowUpRight className="h-3 w-3" />
+                      </Link>
                     </div>
                     );
                   })}

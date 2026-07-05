@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -82,22 +83,25 @@ export default function LeadCaptureModal({
         }),
       });
 
-      if (pdfRes.ok) {
-        const blob = await pdfRes.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `MEMA-FinCrime-${MODULE_LABEL[module]}-${new Date().toISOString().split("T")[0]}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }
+      // Do NOT report success unless the document actually generated and
+      // downloaded. Previously success was set even on a failed export, so the
+      // user surrendered their email and was told it worked when nothing came.
+      if (!pdfRes.ok) throw new Error("export-failed");
+      const blob = await pdfRes.blob();
+      if (!blob || blob.size === 0) throw new Error("export-empty");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `MEMA-FinCrime-${MODULE_LABEL[module]}-${new Date().toISOString().split("T")[0]}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       setSuccess(true);
       onSuccess?.();
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError("We couldn't generate your document. Your details were received; please try the download again.");
     } finally {
       setLoading(false);
     }
@@ -183,7 +187,8 @@ export default function LeadCaptureModal({
         </Button>
 
         <p className="text-xs text-slate-400 text-center">
-          By downloading, you agree to MEMA&apos;s privacy policy.
+          We use these details to send your document and, if you opt in, occasional updates. See our{" "}
+          <Link href="/privacy" className="text-accent hover:underline" target="_blank">privacy notice</Link>.
         </p>
       </form>
     </Modal>

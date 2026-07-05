@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Search, SlidersHorizontal, Plus, ChevronDown, FileText as FileIcon, LayoutGrid, Table as TableIcon,
-  ShieldCheck, CheckCircle2, Clock3, AlertTriangle, Eye, Flag, ArrowUpDown, Bookmark,
+  ShieldCheck, CheckCircle2, Clock3, AlertTriangle, Eye, Flag, Bookmark, Info,
 } from "lucide-react";
 import PDFExportButton from "@/components/shared/PDFExportButton";
 import ControlDetailPanel from "./ControlDetailPanel";
@@ -165,6 +165,20 @@ export default function RegisterTable({
         </div>
       </div>
 
+      {/* Active scope (from an enforcement case / typology / firm context) */}
+      {contextLabel && (
+        <div className="mb-4 flex items-start gap-2 text-xs text-text-muted glass-card rounded-lg px-3 py-2">
+          <Info className="h-3.5 w-3.5 text-accent shrink-0 mt-0.5" />
+          <span>{contextLabel}</span>
+        </div>
+      )}
+
+      {/* Mobile search (the header search is desktop-only) */}
+      <div className="relative sm:hidden mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted pointer-events-none" />
+        <input value={search} onChange={(e) => { setSearch(e.target.value); onFilterChange(); }} placeholder="Search controls..." className="w-full pl-9 pr-3 py-2 rounded-lg bg-white/5 border border-surface-border text-sm text-foreground focus:outline-none focus:border-accent" />
+      </div>
+
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
         <Kpi icon={ShieldCheck} tint="text-accent" bg="bg-accent/10" label="Total Controls" value={kpis.total} sub={`Across ${kpis.catCount} categories`} />
@@ -201,7 +215,7 @@ export default function RegisterTable({
             <Select value={effectiveOwnerFilter} onChange={(v) => { setOwnerFilter(v); onFilterChange(); }} label="Owner" options={[["all", "Owner"], ["__unassigned__", "Unassigned"], ...owners.map((o) => [o, o] as [string, string])]} />
             {anyFilter && <button onClick={clearAll} className="text-sm text-accent hover:underline ml-1">Clear all</button>}
             <div className="ml-auto flex items-center gap-2">
-              <button className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-surface-border text-xs text-text-muted opacity-70 cursor-default" title="Saved views are not stored in this stateless demo"><Bookmark className="h-3.5 w-3.5" /> Saved views</button>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-surface-border text-xs text-text-muted/70"><Bookmark className="h-3.5 w-3.5" /> Saved views <span className="text-[9px] uppercase tracking-wide border border-surface-border rounded px-1">Soon</span></span>
               <div className="inline-flex rounded-lg border border-surface-border overflow-hidden">
                 <button onClick={() => setViewMode("table")} aria-pressed={viewMode === "table"} className={`p-1.5 ${viewMode === "table" ? "bg-accent/12 text-accent" : "text-text-muted hover:bg-surface-hover"}`} title="Table view"><TableIcon className="h-4 w-4" /></button>
                 <button onClick={() => setViewMode("cards")} aria-pressed={viewMode === "cards"} className={`p-1.5 ${viewMode === "cards" ? "bg-accent/12 text-accent" : "text-text-muted hover:bg-surface-hover"}`} title="Card view"><LayoutGrid className="h-4 w-4" /></button>
@@ -332,7 +346,7 @@ function Kpi({ icon: Icon, tint, bg, label, value, sub }: { icon: typeof ShieldC
 }
 
 function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-4 py-3 font-medium"><span className="inline-flex items-center gap-1">{children}<ArrowUpDown className="h-3 w-3 text-text-muted/40" /></span></th>;
+  return <th className="px-4 py-3 font-medium">{children}</th>;
 }
 
 function Select({ value, onChange, label, options }: { value: string; onChange: (v: string) => void; label: string; options: [string, string][] }) {

@@ -42,10 +42,12 @@ const TOOLKIT: CellDef[] = [
   { code: "T-04", icon: EyeOff, title: "Screening Control Designer", text: "Design sanctions, PEP, adverse-media and payment screening controls.", href: "/screening-control-designer" },
   { code: "T-05", icon: Gauge, title: "Controls Maturity", text: "Assess a control area against a 5-level model and get a remediation roadmap.", href: "/controls-maturity" },
   { code: "T-06", icon: Library, title: "Controls Library", text: "Browse controls by risk theme and firm type, mapped to real enforcement.", href: "/controls" },
-  { code: "T-07", icon: Globe2, title: "KYC Requirements Matrix", text: "CDD requirements by entity type and jurisdiction, cited to the rules, across UK, US, EU, Singapore and Hong Kong.", href: "/kyc-requirements" },
+  { code: "T-07", icon: Globe2, title: "KYC Requirements Matrix", text: "CDD requirements by entity type and jurisdiction, cited to the rules, across the UK, US, EU, Germany, France, Singapore and Hong Kong.", href: "/kyc-requirements" },
   { code: "T-08", icon: Building2, title: "Firm Profiles", text: "Pick a firm archetype (neobank, EMI, bank, crypto) to see its services, ranked inherent risks, applicable typologies and real enforcement.", href: "/firm-profiles" },
   { code: "T-09", icon: Wrench, title: "Control Builder", text: "Adapt controls to your firm (thresholds, owners, systems) with guidance on what good looks like, then export a committee-ready register.", href: "/control-builder" },
   { code: "T-10", icon: Scale, title: "Enforcement", text: "Real FCA fines broken down into what failed and the controls that would have caught it. Start a build from any case.", href: "/enforcement" },
+  { code: "T-11", icon: Library, title: "Glossary", text: "Plain-English definitions of the financial-crime terms used across the tools, each cited to a primary source.", href: "/glossary" },
+  { code: "T-12", icon: FileCheck, title: "Methodology", text: "How the scoring works, where AI plays a bounded role, the cited frameworks, the enforcement-data refresh date and the limits.", href: "/methodology" },
 ];
 
 function Cell({ c }: { c: CellDef }) {
@@ -98,7 +100,7 @@ export default function HomePage() {
               <Instrument variant="lattice" />
               <div className="readout r-tl"><span className="rk">AML Typologies</span><span className="rv">{TYPOLOGY_COUNT}</span><span className="pin" /></div>
               <div className="readout r-tr">
-                <span className="rk">Frameworks</span><span className="rv">{FRAMEWORK_COUNT}</span>
+                <span className="rk">Core frameworks</span><span className="rv">{FRAMEWORK_COUNT}</span>
                 <div className="chips"><span className="chip">FATF</span><span className="chip">Wolfsberg</span><span className="chip">FCA</span><span className="chip">JMLSG</span></div>
                 <span className="pin" />
               </div>
@@ -137,7 +139,7 @@ export default function HomePage() {
             <div className="stat"><div className="n">{TYPOLOGY_COUNT}</div><div className="l">AML typologies</div></div>
             <div className="stat"><div className="n">{FLOW_COUNT}</div><div className="l">Partner flow types</div></div>
             <div className="stat"><div className="n">{RISK_THEME_COUNT}</div><div className="l">Risk themes</div></div>
-            <div className="stat"><div className="n">{FRAMEWORK_COUNT}</div><div className="l">Frameworks</div></div>
+            <div className="stat"><div className="n">{FRAMEWORK_COUNT}</div><div className="l">Core frameworks</div></div>
           </div>
         </section>
 

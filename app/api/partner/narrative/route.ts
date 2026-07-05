@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       "Write a concise 3-5 sentence plain-English narrative summarising the key risks in this partner flow configuration.",
       "Focus on practical recommendations: which gaps to close first, what data to request, and what governance to prioritise.",
       "Be specific about the partner model type and control ownership distribution.",
-      "Do not use bullet points, headings, or markdown. Use UK English. Do not provide legal advice.",
+      "Do not use bullet points, headings, or markdown. Use UK English. Do not use em-dashes. Do not provide legal advice.",
     ].join(" ");
 
     const userPrompt = [

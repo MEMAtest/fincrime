@@ -118,13 +118,13 @@ export const CASE_LESSONS: CaseLesson[] = [
     ],
   },
   {
-    firm: "Monzo", year: 2024,
-    rootCause: "Weak transaction monitoring and delayed suspicious activity reporting amid rapid customer growth.",
+    firm: "Monzo Bank Limited", year: 2025, aliases: ["Monzo", "Monzo Bank"],
+    rootCause: "Inadequate customer onboarding, customer risk assessment and transaction monitoring during rapid growth, plus repeated breaches of a voluntary requirement not to onboard high-risk customers (tens of thousands were opened, some with implausible address details).",
     preventedBy: [
-      "Real-time transaction monitoring with tuned thresholds",
-      "Timely SAR submission workflows",
-      "Financial-crime staffing scaled to growth",
-      "Board MI on AML control effectiveness",
+      "Onboarding controls that check address and identity plausibility",
+      "Risk-based customer risk assessment scaled to growth",
+      "Transaction monitoring tuned to the actual onboarded population",
+      "Adherence to and board MI on regulatory restrictions (VREQ)",
     ],
   },
   {

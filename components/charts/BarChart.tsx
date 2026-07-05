@@ -1,7 +1,3 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
-
 export interface BarDatum {
   label: string;
   value: number;
@@ -9,8 +5,11 @@ export interface BarDatum {
 }
 
 /**
- * Horizontal animated bar chart (bespoke SVG). Brand-emerald by default.
- * Values are real; pass a formatter for currency etc.
+ * Horizontal bar chart (bespoke, no chart lib). Bars render at their final width
+ * directly so the data is always visible, including on full-page capture, print
+ * and PDF (a previous framer-motion whileInView reveal left the bars empty when
+ * the intersection observer did not fire). A CSS width transition gives a subtle
+ * grow only when values actually change.
  */
 export default function BarChart({
   data,
@@ -21,12 +20,11 @@ export default function BarChart({
   format?: (n: number) => string;
   barColor?: string;
 }) {
-  const reduce = useReducedMotion();
   const max = Math.max(1, ...data.map((d) => d.value));
 
   return (
     <div className="space-y-3">
-      {data.map((d, i) => {
+      {data.map((d) => {
         const pct = Math.max(2, (d.value / max) * 100);
         return (
           <div key={d.label} className="flex items-center gap-3">
@@ -34,15 +32,12 @@ export default function BarChart({
               {d.label}
             </div>
             <div className="flex-1 h-6 rounded-md bg-surface overflow-hidden">
-              <motion.div
-                className="h-full rounded-md"
+              <div
+                className="h-full rounded-md transition-[width] duration-700 ease-out"
                 style={{
+                  width: `${pct}%`,
                   background: `linear-gradient(90deg, ${d.color ?? barColor}, ${d.color ?? "#14b8a6"})`,
                 }}
-                initial={reduce ? { width: `${pct}%` } : { width: 0 }}
-                whileInView={{ width: `${pct}%` }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.7, delay: i * 0.05, ease: "easeOut" }}
               />
             </div>
             <div className="w-16 shrink-0 text-right text-xs font-semibold text-foreground tabular-nums">

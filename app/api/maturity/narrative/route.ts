@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       "Write a concise 3-5 sentence plain-English summary of the maturity gap for this control area and the priority steps to close it.",
       "Be practical and specific. Reference the current and target maturity levels naturally.",
       "Do not use bullet points, headings, or markdown formatting.",
-      "Do not provide legal advice. Use UK English.",
+      "Do not provide legal advice. Use UK English. Do not use em-dashes.",
     ].join(" ");
 
     const userPrompt = [

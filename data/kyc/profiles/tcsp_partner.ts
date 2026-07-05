@@ -26,7 +26,7 @@ export const tcspPartner: CddProfile[] = [
     status: "in_force",
     inherentRisk: "varies",
     regulatoryBasis: cite("mlr_r28", "jmlsg_corp"),
-    boThreshold: "25%+ (LR/MR) / 10%+ (HR)",
+    boThreshold: "more than 25% (firms may apply 10% for higher-risk as policy)",
     sddEligibility: "SDD where the TCSP is regulated/supervised and lower risk (MLR reg. 37).",
     sections: [
       sec("legal_entity", [
@@ -34,7 +34,7 @@ export const tcspPartner: CddProfile[] = [
         it("Evidence of regulated / registered status and AML supervision", cite("jmlsg_corp")),
       ]),
       sec("directors_controllers", [it("Identify and verify partners / directors", cite("jmlsg_corp"))]),
-      sec("beneficial_ownership", [it("Identify ownership/control; verify UBOs", cite("mlr_r28"), { threshold: "25%+ (LR/MR); 10%+ (HR)" })]),
+      sec("beneficial_ownership", [it("Identify ownership/control; verify UBOs", cite("mlr_r28"), { threshold: "more than 25% (firms often lower to 10% for higher-risk as policy)" })]),
       sec("screening", [it("Screen the entity, partners, intermediary owners and signatories", cite("mlr_r35", "fca_fcg"))]),
     ],
     eddTriggers: [edd("Weakly supervised TCSP or higher-risk jurisdiction", "EDD form; confirm AML controls; external EDD report", cite("mlr_r33"))],

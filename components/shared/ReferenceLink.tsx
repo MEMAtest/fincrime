@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import ReferenceModal from "./ReferenceModal";
 
 /**
@@ -40,7 +40,7 @@ export default function ReferenceLink({ url, label, heading, className, showIcon
         aria-haspopup="dialog"
       >
         {label}
-        {showIcon && <ExternalLink className="h-3 w-3 opacity-70" />}
+        {showIcon && <BookOpen className="h-3 w-3 opacity-70" />}
       </span>
       <ReferenceModal open={open} onClose={() => setOpen(false)} heading={heading ?? label} url={url} />
     </>

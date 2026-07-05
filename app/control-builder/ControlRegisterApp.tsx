@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell, { type Crumb, type FirmContext } from "@/components/layout/AppShell";
 import RegisterTable from "@/components/controls/register/RegisterTable";
 import BuilderWizard from "@/components/controls/builder/BuilderWizard";
@@ -27,6 +27,36 @@ export default function ControlRegisterApp({
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [firmContext, setFirmContext] = useState<FirmContext>(initialFirmType ?? "all");
   const [showAdd, setShowAdd] = useState(false);
+
+  // Persist the in-session register to localStorage so navigation/refresh no
+  // longer silently discards the user's work (statuses, owners, overrides,
+  // tested steps). Field edits (overrides/tested, keyed by slug) always restore;
+  // the register membership (selected) only restores on a cold entry, so a
+  // deep-link scope (?from=case:/typology:/firmType=) still wins.
+  const STORAGE_KEY = "fincrime-register";
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as { selected?: string[]; overrides?: Record<string, ControlOverride>; tested?: Record<string, number[]> };
+        /* eslint-disable react-hooks/set-state-in-effect -- one-time hydration from localStorage on mount */
+        if (saved.overrides) setOverrides(saved.overrides);
+        if (saved.tested) setTested(saved.tested);
+        if (!contextLabel && Array.isArray(saved.selected) && saved.selected.length) setSelected(saved.selected);
+        /* eslint-enable react-hooks/set-state-in-effect */
+      }
+    } catch { /* ignore corrupt storage */ }
+    hydrated.current = true;
+    // Hydrate once on mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ selected, overrides, tested })); } catch { /* quota/full */ }
+  }, [selected, overrides, tested]);
 
   const selectedControls = useMemo(
     () => selected.map(getControlBySlug).filter(Boolean) as NonNullable<ReturnType<typeof getControlBySlug>>[],
@@ -84,26 +114,19 @@ export default function ControlRegisterApp({
     setView("builder");
   };
 
-  const onSelectInApp = (id: "controls" | "control-builder") => {
-    if (id === "controls") { setView("register"); setActiveSlug(null); }
-    else { setActiveSlug((a) => a ?? selected[0] ?? null); setView("builder"); }
-  };
-
   const backToRegister = () => { setView("register"); setActiveSlug(null); };
 
   const builderControl = activeSlug ? getControlBySlug(activeSlug) : selectedControls[0];
 
   const breadcrumb: Crumb[] =
     view === "register"
-      ? [{ label: "Home", href: "/" }, { label: "Controls", onClick: () => setView("register") }, { label: "Control Register" }]
-      : [{ label: "Control Register", onClick: () => setView("register") }, { label: "Control Builder" }, { label: "Edit Control" }];
+      ? [{ label: "Home", href: "/" }, { label: "Control Builder", href: "/control-builder" }, { label: "Register" }]
+      : [{ label: "Home", href: "/" }, { label: "Control Builder", onClick: backToRegister }, { label: builderControl?.name ?? "Edit control" }];
 
   return (
     <AppShell
       breadcrumb={breadcrumb}
-      activeId={view === "register" ? "controls" : "control-builder"}
-      activeTopNav="Control Builder"
-      onSelectInApp={onSelectInApp}
+      activeId="control-builder"
       firm={{ value: firmContext, onChange: switchFirm }}
     >
       {view === "register" ? (
@@ -142,7 +165,8 @@ export default function ControlRegisterApp({
 
       <p className="px-4 sm:px-6 pb-6 text-xs text-text-muted/80 max-w-4xl">
         This tool produces a control specification for design and discussion. It is not legal advice; validate thresholds,
-        ownership and status against your own risk assessment and the cited sources before implementing. Nothing is saved to a server.
+        ownership and status against your own risk assessment and the cited sources before implementing. Your register is
+        kept in this browser (not on a server); we only store the contact details you provide when you request an export.
       </p>
 
       <AddControlsModal open={showAdd} onClose={() => setShowAdd(false)} selected={selected} onAdd={add} onRemove={remove} />
