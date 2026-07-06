@@ -20,6 +20,7 @@ import KeyTerms from "@/components/shared/KeyTerms";
 import HowItWorks from "@/components/shared/HowItWorks";
 import NextSteps from "@/components/shared/NextSteps";
 import TypologyDetailModal from "@/components/typologies/TypologyDetailModal";
+import { track } from "@vercel/analytics";
 import { useNarrative } from "@/lib/useNarrative";
 import { allTypologies } from "@/data/typologies";
 import { totalEnforcementCases, enforcementBenchmarks } from "@/lib/enforcement/select";
@@ -70,6 +71,7 @@ function TypologyResults() {
   const activeRank = active ? matches.findIndex((m) => m.typology.slug === active.typology.slug) + 1 : 0;
 
   const selectTypology = (slug: string) => {
+    track("typology_select", { slug });
     const p = new URLSearchParams(searchParams.toString());
     p.set("active", slug);
     router.replace(`${pathname}?${p.toString()}`, { scroll: false });

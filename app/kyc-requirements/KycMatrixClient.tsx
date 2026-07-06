@@ -7,6 +7,7 @@ import {
   CheckCircle2, HelpCircle, MinusCircle, AlertTriangle, FileText, ClipboardList, BookOpen, FileCheck2,
   Share2, Check, ListChecks, ChevronsDownUp, ChevronsUpDown, Gavel, Layers,
 } from "lucide-react";
+import { track } from "@vercel/analytics";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Button from "@/components/ui/Button";
 import SourceBadge from "@/components/shared/SourceBadge";
@@ -116,6 +117,7 @@ export default function KycMatrixClient({
 
   // Profile-summary tiles jump to their detail: open the category, then scroll to it.
   const openCategory = (c: CddCategoryKey) => {
+    track("kyc_profile_tile", { category: c });
     setOpenCats((p) => new Set(p).add(c));
     requestAnimationFrame(() =>
       document.getElementById(`kyc-cat-${c}`)?.scrollIntoView({ behavior: "smooth", block: "start" })

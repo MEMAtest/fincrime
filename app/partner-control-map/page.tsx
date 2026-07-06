@@ -7,6 +7,7 @@ import {
   Globe, Banknote, CreditCard, Wallet, ShoppingCart,
   UserCheck, Landmark, ArrowLeftRight, Radio,
 } from "lucide-react";
+import { track } from "@vercel/analytics";
 import ToolFrame from "@/components/layout/ToolFrame";
 import WizardShell from "@/components/wizard/WizardShell";
 import WizardStep from "@/components/wizard/WizardStep";
@@ -138,6 +139,7 @@ export default function PartnerControlMapPage() {
   };
 
   const setControlOwner = (controlId: string, owner: ControlOwnership) => {
+    track("partner_owner_set", { owner });
     setAnswers((a) => ({
       ...a,
       controlOverrides: { ...a.controlOverrides, [controlId]: owner },
@@ -335,7 +337,7 @@ export default function PartnerControlMapPage() {
                       {/* One-tap actions */}
                       <div className="flex flex-wrap items-center gap-2 mb-4">
                         <button
-                          onClick={() => setDataFields(requiredIds, !allRequiredOn)}
+                          onClick={() => { track("partner_data_select_all", { on: !allRequiredOn }); setDataFields(requiredIds, !allRequiredOn); }}
                           className="px-3 py-1.5 rounded-lg text-xs font-medium bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer"
                         >
                           {allRequiredOn ? "Unselect all required" : "Select all required"}
