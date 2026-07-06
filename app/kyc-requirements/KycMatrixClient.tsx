@@ -113,6 +113,14 @@ export default function KycMatrixClient({
 
   const toggleCat = (c: CddCategoryKey) =>
     setOpenCats((p) => { const n = new Set(p); if (n.has(c)) n.delete(c); else n.add(c); return n; });
+
+  // Profile-summary tiles jump to their detail: open the category, then scroll to it.
+  const openCategory = (c: CddCategoryKey) => {
+    setOpenCats((p) => new Set(p).add(c));
+    requestAnimationFrame(() =>
+      document.getElementById(`kyc-cat-${c}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  };
   const toggleReq = (key: string) =>
     setOpenReqs((p) => { const n = new Set(p); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const toggleFilter = (k: FilterKey) =>
@@ -282,6 +290,69 @@ export default function KycMatrixClient({
             </div>
           )}
 
+          {/* Profile summary: "for this profile, you typically need X" (above the detail) */}
+          {groups.length > 0 && (() => {
+            const highSelected = rks.includes("high");
+            const cddTier = highSelected
+              ? "Enhanced due diligence (EDD)"
+              : rks.length === 1 && rks[0] === "low"
+                ? "Simplified due diligence (SDD)"
+                : "Standard CDD";
+            const headline = merged.scenarios.length === 1
+              ? `${ENTITY_LABEL[merged.scenarios[0].entity]} · ${JURISDICTION_LABEL[merged.scenarios[0].jurisdiction]} · ${cddTier}`
+              : `${merged.scenarios.length} scenarios combined · ${cddTier}`;
+            return (
+              <div className="glass-card rounded-2xl p-4 sm:p-5 mt-4">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-3">
+                  <span className="text-[11px] uppercase tracking-wider text-text-muted">For this profile</span>
+                  <h2 className="text-sm sm:text-base font-semibold text-foreground">{headline}</h2>
+                  <span className="text-xs text-text-muted">you typically need:</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
+                  {groups.map(({ cat, all }) => {
+                    const catNonEdd = all.filter((r) => !r.eddTrigger);
+                    const requiredReqs = catNonEdd.filter((r) => stOf(r) === "required");
+                    const topTitles = requiredReqs.slice(0, 3).map((r) => r.title);
+                    const eddCount = all.filter((r) => r.eddTrigger).length;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => openCategory(cat)}
+                        className="glass-card rounded-xl p-3 text-left card-hover cursor-pointer flex flex-col"
+                        aria-label={`${CATEGORY_TITLE[cat]}: ${requiredReqs.length} required. Open details.`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-semibold text-foreground leading-snug">{CATEGORY_TITLE[cat]}</p>
+                          <span className="shrink-0 text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-accent/15 text-accent">{requiredReqs.length}</span>
+                        </div>
+                        <p className="text-[10px] uppercase tracking-wide text-text-muted mt-0.5">required</p>
+                        <ul className="mt-2 space-y-1 flex-1">
+                          {topTitles.map((t) => (
+                            <li key={t} className="text-[11px] text-text-muted leading-snug flex gap-1">
+                              <Check className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" />
+                              <span className="line-clamp-1">{t}</span>
+                            </li>
+                          ))}
+                          {requiredReqs.length === 0 && (
+                            <li className="text-[11px] text-text-muted/70">None at this risk level</li>
+                          )}
+                          {requiredReqs.length > 3 && (
+                            <li className="text-[10px] text-text-muted/70">+{requiredReqs.length - 3} more</li>
+                          )}
+                        </ul>
+                        {highSelected && eddCount > 0 && (
+                          <span className="mt-2 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-risk-high/10 text-risk-high w-fit">
+                            +{eddCount} EDD
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Summary stat bar */}
           <div className="glass-card rounded-2xl p-4 mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
             <div className="pr-6 border-r border-surface-border">
@@ -362,24 +433,6 @@ export default function KycMatrixClient({
             </button>
           </div>
 
-          {/* Category progress cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
-            {groups.map(({ cat, all }) => {
-              const catNonEdd = all.filter((r) => !r.eddTrigger);
-              const req = catNonEdd.filter((r) => stOf(r) === "required").length;
-              const p = catNonEdd.length ? Math.round((req / catNonEdd.length) * 100) : 0;
-              return (
-                <div key={cat} className="glass-card rounded-xl p-3">
-                  <p className="text-xs font-semibold text-foreground leading-snug min-h-[2.5rem]">{CATEGORY_TITLE[cat]}</p>
-                  <p className="text-[11px] text-text-muted mt-1">{req} required · {all.length} total</p>
-                  <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                    <div className="h-full bg-accent rounded-full" style={{ width: `${p}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
           {/* Category accordions */}
           <div className="space-y-4 mt-6">
             {groups.map(({ cat, all }, ci) => {
@@ -393,7 +446,7 @@ export default function KycMatrixClient({
               const cond = catNonEdd.filter((r) => stOf(r) === "conditional").length;
               const na = catNonEdd.filter((r) => stOf(r) === "not_applicable").length;
               return (
-                <div key={cat} className="glass-card rounded-2xl overflow-hidden">
+                <div key={cat} id={`kyc-cat-${cat}`} className="glass-card rounded-2xl overflow-hidden scroll-mt-20">
                   <button onClick={() => toggleCat(cat)} aria-expanded={isOpen}
                     className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-surface-hover transition-colors">
                     <div className="flex items-center gap-3">

@@ -10,6 +10,9 @@ export const control01: Control = {
     "Before a customer can use the account, prove they are who they say they are using reliable, independent evidence, not just what they typed into the form.",
   objective:
     "Identify the customer and verify that identity on the basis of documents, data or information obtained from a reliable and independent source before establishing a business relationship, in line with reg.27 and reg.28 of the MLR 2017, so that no account is opened for an unidentified or impersonated party.",
+  plainObjective: "Make sure every new customer is genuinely who they claim to be, checked against trustworthy independent evidence, before any account is opened.",
+  plainHowItWorks: "It keeps the account frozen until each identity detail matches a reliable outside source and the ID and a liveness check pass, sending anything that fails to a person to review.",
+  plainWhyThreshold: "One piece of self-reported information is too weak, so requiring two independent sources blocks fake and stolen identities while a sensible match-confidence floor avoids wrongly rejecting real people.",
   riskThemes: ["money_laundering", "fraud", "terrorist_financing"],
   applicableFirmTypes: [
     "emi",

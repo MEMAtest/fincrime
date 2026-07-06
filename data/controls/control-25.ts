@@ -10,6 +10,9 @@ export const control25: Control = {
     "Checks trade finance deals for tell-tale signs of laundering, such as over- or under-priced goods, dual-use items and shell counterparties, before the firm finances or pays for them.",
   objective:
     "Detect trade-based money laundering and sanctions or proliferation risk in trade finance and trade-related payments by screening counterparties, vessels, ports and goods, and by checking price, quantity and documentary consistency, so the firm does not finance disguised value transfer or prohibited trade.",
+  plainObjective: "Aims to spot money laundering and sanctions or proliferation risk hidden in trade deals, so the firm never finances disguised value transfer or banned trade.",
+  plainHowItWorks: "It screens every trade party, vessel and port against sanctions lists, compares invoiced prices to market benchmarks, checks quantities, and flags dual-use goods or shell counterparties for compliance review before financing.",
+  plainWhyThreshold: "The 85% match floor matches the firm's other screening, the 25% price band catches serious mispricing while allowing normal variation, and dual-use or sanctioned-port hits always trigger review.",
   riskThemes: ["money_laundering", "sanctions_evasion", "proliferation_financing", "tax_evasion"],
   applicableFirmTypes: ["bank", "emi", "pi", "msb"],
   typologySlugs: ["trade-based-money-laundering", "dual-use-export-procurement-diversion", "sanctions-evasion-via-intermediaries"],

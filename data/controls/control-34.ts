@@ -10,6 +10,9 @@ export const control34: Control = {
     "A written, evidence-based picture of where the firm is most exposed to financial crime, kept current, so money and effort go to the riskiest areas first.",
   objective:
     "Identify, assess and document the money laundering, terrorist financing, sanctions, fraud and wider financial crime risks the firm is exposed to across its customers, products, channels, geographies and delivery methods, and use that assessment to drive the design and calibration of every downstream control, in line with reg.18 of the MLR 2017 and FATF Recommendation 1.",
+  plainObjective: "To map, rate and write down where the firm is most exposed to money laundering, sanctions, fraud and other financial crime, and use that to shape every other control.",
+  plainHowItWorks: "It builds a risk picture from the ground up, scoring inherent risk by customer, product, channel and geography, then subtracting how well controls work to give a residual rating, with above-appetite risks getting dated fixes.",
+  plainWhyThreshold: "It refreshes at least yearly and whenever something material changes so the picture stays live, and tying above-appetite risks to dated actions turns it into a real control.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

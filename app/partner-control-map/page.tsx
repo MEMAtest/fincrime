@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Building2, GitBranch, Users, ShieldCheck, Database,
+  Building2, Users, ShieldCheck,
   Globe, Banknote, CreditCard, Wallet, ShoppingCart,
   UserCheck, Landmark, ArrowLeftRight, Radio,
 } from "lucide-react";
@@ -45,6 +45,17 @@ const labels: Record<string, Record<string, string>> = {
   modelType: Object.fromEntries(MODEL_OPTIONS.map((o) => [o.value, o.label])),
   flowType: Object.fromEntries(FLOW_OPTIONS.map((o) => [o.value, o.label])),
 };
+
+// Shared ownership colour language, reused on the results page so the metaphor
+// survives submit. Segments carry text labels too (not colour alone).
+const OWNERS: {
+  value: ControlOwnership; label: string; dot: string; active: string; chip: string; count: string;
+}[] = [
+  { value: "your_firm", label: "Your firm", dot: "bg-blue-500", active: "bg-blue-500 text-white border-blue-500", chip: "bg-blue-500/10 text-blue-500 border-blue-500/30", count: "text-blue-500" },
+  { value: "shared", label: "Shared", dot: "bg-amber-500", active: "bg-amber-500 text-white border-amber-500", chip: "bg-amber-500/10 text-amber-500 border-amber-500/30", count: "text-amber-500" },
+  { value: "partner", label: "Partner", dot: "bg-teal-500", active: "bg-teal-500 text-white border-teal-500", chip: "bg-teal-500/10 text-teal-500 border-teal-500/30", count: "text-teal-500" },
+  { value: "gap", label: "Gap", dot: "bg-red-500", active: "bg-red-500 text-white border-red-500", chip: "bg-red-500/10 text-red-500 border-red-500/30", count: "text-red-500" },
+];
 
 export default function PartnerControlMapPage() {
   const router = useRouter();
@@ -116,6 +127,16 @@ export default function PartnerControlMapPage() {
     }));
   };
 
+  // One-tap select/clear for data fields (nothing is pre-checked, so the gap
+  // analysis stays honest until the user says what they actually receive).
+  const setDataFields = (ids: string[], on: boolean) => {
+    setAnswers((a) => {
+      const set = new Set(a.dataReceived);
+      ids.forEach((id) => (on ? set.add(id) : set.delete(id)));
+      return { ...a, dataReceived: [...set] };
+    });
+  };
+
   const setControlOwner = (controlId: string, owner: ControlOwnership) => {
     setAnswers((a) => ({
       ...a,
@@ -129,13 +150,6 @@ export default function PartnerControlMapPage() {
     { label: "Actors", value: answers.actors.length > 0 ? `${answers.actors.length} selected` : null },
     { label: "Controls Reviewed", value: Object.keys(answers.controlOverrides).length > 0 ? `${Object.keys(answers.controlOverrides).length} overrides` : null },
     { label: "Data Fields", value: answers.dataReceived.length > 0 ? `${answers.dataReceived.length} received` : null },
-  ];
-
-  const ownershipOptions: { value: ControlOwnership; label: string }[] = [
-    { value: "your_firm", label: "Your Firm" },
-    { value: "partner", label: "Partner" },
-    { value: "shared", label: "Shared" },
-    { value: "gap", label: "Gap" },
   ];
 
   return (
@@ -209,37 +223,93 @@ export default function PartnerControlMapPage() {
 
           {step === 3 && (
             <WizardStep
-              title="Review control ownership"
-              subtitle="Adjust who owns each control. Mark as 'Gap' if no one currently owns it."
+              title="Who owns each control?"
+              subtitle="Each control starts on the template's default owner. Reassign any of them, and mark a control as 'Gap' where no one currently owns it. The map and the counts update as you go."
             >
               {matchedFlow ? (
-                <div className="space-y-3">
-                  {matchedFlow.controlOwnershipTemplate.map((ctrl) => {
-                    const currentOwner = answers.controlOverrides[ctrl.id] || ctrl.defaultOwner;
-                    return (
-                      <div key={ctrl.id} className="glass-card rounded-xl p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{ctrl.control}</p>
-                            <p className="text-xs text-text-muted mt-0.5">{ctrl.description}</p>
-                            <span className="text-xs text-accent mt-1 inline-block">{ctrl.category}</span>
-                          </div>
-                          <select
-                            value={currentOwner}
-                            onChange={(e) => setControlOwner(ctrl.id, e.target.value as ControlOwnership)}
-                            className="shrink-0 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-foreground cursor-pointer"
-                          >
-                            {ownershipOptions.map((o) => (
-                              <option key={o.value} value={o.value} className="bg-navy-mid text-foreground">
-                                {o.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                (() => {
+                  const controls = matchedFlow.controlOwnershipTemplate;
+                  const ownerOf = (c: typeof controls[number]): ControlOwnership =>
+                    answers.controlOverrides[c.id] || c.defaultOwner;
+                  const dist: Record<ControlOwnership, number> = { your_firm: 0, shared: 0, partner: 0, gap: 0 };
+                  controls.forEach((c) => { dist[ownerOf(c)]++; });
+                  const categories = [...new Set(controls.map((c) => c.category))];
+                  return (
+                    <div>
+                      {/* Sticky live distribution strip */}
+                      <div className="sticky top-0 z-10 -mx-1 mb-4 rounded-xl border border-surface-border bg-background/90 backdrop-blur px-4 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-1">
+                        {OWNERS.map((o) => (
+                          <span key={o.value} className="inline-flex items-center gap-1.5 text-sm">
+                            <span className={`h-2.5 w-2.5 rounded-full ${o.dot}`} />
+                            <span className={`font-semibold ${o.value === "gap" && dist.gap > 0 ? "text-red-500" : "text-foreground"}`}>{dist[o.value]}</span>
+                            <span className="text-text-muted">{o.label}</span>
+                          </span>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
+
+                      {/* Swimlane map: control chips grouped under their current owner */}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                        {OWNERS.map((o) => {
+                          const items = controls.filter((c) => ownerOf(c) === o.value);
+                          return (
+                            <div key={o.value} className={`rounded-xl border p-3 ${o.value === "gap" && items.length ? "border-red-500/40" : "border-surface-border"}`}>
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                                  <span className={`h-2 w-2 rounded-full ${o.dot}`} />{o.label}
+                                </span>
+                                <span className={`text-xs font-bold ${o.count}`}>{items.length}</span>
+                              </div>
+                              <div className="space-y-1">
+                                {items.map((c) => (
+                                  <div key={c.id} className={`text-[11px] px-2 py-1 rounded border truncate ${o.chip}`} title={c.control}>{c.control}</div>
+                                ))}
+                                {items.length === 0 && <p className="text-[11px] text-text-muted/60">None</p>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Per-category editor rows with a colour-coded segmented toggle */}
+                      <div className="space-y-5">
+                        {categories.map((cat) => (
+                          <div key={cat}>
+                            <p className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2">{cat}</p>
+                            <div className="space-y-2">
+                              {controls.filter((c) => c.category === cat).map((ctrl) => {
+                                const current = ownerOf(ctrl);
+                                return (
+                                  <div key={ctrl.id} className="glass-card rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground">{ctrl.control}</p>
+                                      <p className="text-xs text-text-muted mt-0.5">{ctrl.description}</p>
+                                    </div>
+                                    <div role="radiogroup" aria-label={`Owner for ${ctrl.control}`} className="flex flex-wrap gap-1 shrink-0">
+                                      {OWNERS.map((o) => {
+                                        const active = current === o.value;
+                                        return (
+                                          <button
+                                            key={o.value}
+                                            role="radio"
+                                            aria-checked={active}
+                                            onClick={() => setControlOwner(ctrl.id, o.value)}
+                                            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${active ? o.active : "border-surface-border bg-white/5 text-text-muted hover:bg-white/10"}`}
+                                          >
+                                            {o.label}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()
               ) : (
                 <p className="text-text-muted text-sm">No matching flow found. Go back and adjust your selections.</p>
               )}
@@ -249,37 +319,94 @@ export default function PartnerControlMapPage() {
           {step === 4 && (
             <WizardStep
               title="Which data fields do you receive from the partner?"
-              subtitle="Check the fields your partner provides. Unchecked required fields will be flagged as data gaps."
+              subtitle="Nothing is ticked to start with, so the gap check stays honest. Tick what you actually receive, or use 'Select all required' if you get the full set."
             >
               {matchedFlow ? (
-                <div className="space-y-2">
-                  {matchedFlow.dataFieldsTemplate.map((field) => (
-                    <label
-                      key={field.id}
-                      className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                        answers.dataReceived.includes(field.id)
-                          ? "border-accent bg-accent/5"
-                          : "border-white/10 bg-white/[0.02] hover:border-white/20"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={answers.dataReceived.includes(field.id)}
-                        onChange={() => toggleDataField(field.id)}
-                        className="mt-1 rounded border-white/20 text-accent focus:ring-accent bg-transparent"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          {field.field}
-                          {field.required && (
-                            <span className="text-red-400 ml-1 text-xs">*required</span>
-                          )}
-                        </p>
-                        <p className="text-xs text-text-muted">{field.description}</p>
+                (() => {
+                  const fields = matchedFlow.dataFieldsTemplate;
+                  const requiredIds = fields.filter((f) => f.required).map((f) => f.id);
+                  const allRequiredOn = requiredIds.every((id) => answers.dataReceived.includes(id));
+                  const groups = [...new Set(fields.map((f) => f.source))].map((src) => ({
+                    src,
+                    items: fields.filter((f) => f.source === src),
+                  }));
+                  return (
+                    <div>
+                      {/* One-tap actions */}
+                      <div className="flex flex-wrap items-center gap-2 mb-4">
+                        <button
+                          onClick={() => setDataFields(requiredIds, !allRequiredOn)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-accent text-white hover:bg-accent-hover transition-colors cursor-pointer"
+                        >
+                          {allRequiredOn ? "Unselect all required" : "Select all required"}
+                        </button>
+                        {answers.dataReceived.length > 0 && (
+                          <button
+                            onClick={() => setDataFields(fields.map((f) => f.id), false)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-surface-border bg-white/5 text-text-muted hover:bg-white/10 transition-colors cursor-pointer"
+                          >
+                            Clear all
+                          </button>
+                        )}
+                        <span className="text-xs text-text-muted ml-auto">
+                          {answers.dataReceived.length} of {fields.length} received
+                        </span>
                       </div>
-                    </label>
-                  ))}
-                </div>
+
+                      {/* Grouped multi-select cards */}
+                      <div className="space-y-5">
+                        {groups.map((g) => {
+                          const groupIds = g.items.map((f) => f.id);
+                          const allOn = groupIds.every((id) => answers.dataReceived.includes(id));
+                          return (
+                            <div key={g.src}>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">{g.src}</p>
+                                <button
+                                  onClick={() => setDataFields(groupIds, !allOn)}
+                                  className="text-xs font-medium text-accent hover:underline cursor-pointer"
+                                >
+                                  {allOn ? "Clear group" : "Select group"}
+                                </button>
+                              </div>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                {g.items.map((field) => {
+                                  const checked = answers.dataReceived.includes(field.id);
+                                  return (
+                                    <button
+                                      key={field.id}
+                                      type="button"
+                                      aria-pressed={checked}
+                                      onClick={() => toggleDataField(field.id)}
+                                      className={`w-full text-left p-3 rounded-xl border-2 transition-all cursor-pointer ${
+                                        checked ? "border-accent bg-accent/5" : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                                      }`}
+                                    >
+                                      <div className="flex items-start gap-3">
+                                        <span className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${checked ? "border-accent bg-accent" : "border-white/20"}`}>
+                                          {checked && <ShieldCheck className="h-3 w-3 text-white" />}
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-sm font-medium text-foreground flex items-center flex-wrap gap-2">
+                                            {field.field}
+                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${field.required ? "bg-red-500/10 text-red-500" : "bg-white/10 text-text-muted"}`}>
+                                              {field.required ? "Required" : "Suggested"}
+                                            </span>
+                                          </p>
+                                          <p className="text-xs text-text-muted mt-0.5">{field.description}</p>
+                                        </div>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()
               ) : (
                 <p className="text-text-muted text-sm">No matching flow found.</p>
               )}

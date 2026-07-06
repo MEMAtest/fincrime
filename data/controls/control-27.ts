@@ -10,6 +10,9 @@ export const control27: Control = {
     "When something material changes about a customer, the firm reviews them straight away instead of waiting for the next scheduled review.",
   objective:
     "Detect material changes in a customer's circumstances, behaviour or risk indicators and force an immediate, out-of-cycle CDD review so the customer's risk rating and controls stay current between periodic reviews.",
+  plainObjective: "Catches important changes in a customer's situation or behaviour and forces an immediate review, so their risk rating stays current instead of waiting for the next scheduled check.",
+  plainHowItWorks: "It keeps a list of defined trigger events, and whenever a data feed reports one for a customer, it opens a tagged review and routes the most serious triggers straight to enhanced review.",
+  plainWhyThreshold: "Scheduled reviews can leave a customer unwatched for years, so triggers close that gap, and sanctions or SAR events are handled the same day because they carry legal deadlines.",
   riskThemes: ["money_laundering", "fraud", "terrorist_financing", "sanctions_evasion"],
   applicableFirmTypes: ["bank", "emi", "msb", "neobank", "wealth_manager", "pi", "crypto"],
   typologySlugs: ["behavioural-change-indicators", "unusual-business-vs-declared-profile"],

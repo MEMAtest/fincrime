@@ -12,7 +12,7 @@ import { buildMergedRequirements } from "@/data/kyc/merge";
 import { coerceList } from "@/lib/list-params";
 import { ENTITY_ORDER, JURISDICTION_ORDER } from "@/data/kyc/types";
 import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
-import { getBestMatch, normalizeAnswers } from "@/data/scoring/typology-scoring";
+import { scoreTypologies, normalizeAnswers } from "@/data/scoring/typology-scoring";
 import { scorePartnerRisk } from "@/data/scoring/partner-scoring";
 import { getBestScreeningMatch } from "@/data/scoring/screening-scoring";
 import { scoreMaturity } from "@/data/scoring/maturity-scoring";
@@ -44,14 +44,16 @@ export async function POST(request: NextRequest) {
     let contentType = "application/pdf";
 
     if (module === "typology_iq") {
-      const { narrative } = assessmentData as { narrative?: string };
+      const { narrative, activeSlug } = assessmentData as { narrative?: string; activeSlug?: string };
       const answers = normalizeAnswers(assessmentData);
 
       if (!answers.firmTypes.length || !answers.products.length || !answers.customerTypes.length || !answers.riskThemes.length) {
         return NextResponse.json({ error: "Missing typology selections" }, { status: 400 });
       }
 
-      const result = getBestMatch(answers);
+      // Export the typology the user is actively viewing (falls back to the best match).
+      const ranked = scoreTypologies(answers);
+      const result = (activeSlug ? ranked.find((m) => m.typology.slug === activeSlug) : undefined) ?? ranked[0];
 
       pdfBuffer = generateTypologyPDF({
         typology: result.typology,

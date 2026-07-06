@@ -10,6 +10,9 @@ export const control33: Control = {
     "The firm spots pairs of offsetting trades that move value across borders with no real economic purpose, the classic way of laundering or moving money disguised as trading.",
   objective:
     "Detect mirror trades, matched principal trades and other offsetting transaction pairs that have no genuine economic rationale and are used to transfer value across jurisdictions or to launder funds under the cover of legitimate trading.",
+  plainObjective: "To catch pairs of offsetting trades that have no real economic purpose and exist only to move value between countries or to launder money behind a front of normal trading.",
+  plainHowItWorks: "It scores buy and sell pairs in the same or similar instrument for matching size, close timing, shared ownership and cross-border settlement, then flags high-scoring pairs, especially repeated round-trips, for investigation.",
+  plainWhyThreshold: "The match settings stay tight because mirror trades are near-identical offsetting legs with no market risk, so close size, timing and shared control catch them without snagging ordinary hedging.",
   riskThemes: ["money_laundering", "sanctions_evasion", "tax_evasion"],
   applicableFirmTypes: ["bank", "wealth_manager", "crypto", "emi"],
   typologySlugs: ["third-party-round-tripping", "high-risk-corridor-remittances", "unusual-business-vs-declared-profile"],

@@ -10,6 +10,9 @@ export const control36: Control = {
     "Regular, honest numbers and trends about financial crime risk put in front of senior leaders, so problems are seen and acted on instead of being buried.",
   objective:
     "Provide the board and senior management with accurate, timely and decision-useful management information on financial crime risk and control performance, so that emerging issues, backlogs and control failures are detected and challenged at the right level, in line with reg.21 of the MLR 2017, FATF Recommendation 18 and the FCA's expectations on senior management responsibility.",
+  plainObjective: "To put accurate, timely and useful numbers on financial crime risk and control performance in front of the board and senior managers, so problems get spotted and challenged early.",
+  plainHowItWorks: "It runs a standing pack of risk and control indicators, each with a red/amber/green rating and trend, presents it to the board, and demands a cause and dated fix for anything red.",
+  plainWhyThreshold: "Senior managers are accountable and can only act on regular, reliable numbers, so a quarterly committee pack with board sight twice a year is the baseline, tighter for higher-risk firms.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

@@ -10,6 +10,9 @@ export const control35: Control = {
     "A clear, fast route for staff to raise a suspicion, for the MLRO to decide, and for a report to reach the authorities on time without tipping off the customer.",
   objective:
     "Ensure that internal suspicions are raised, evaluated by the nominated officer and, where suspicion remains, reported to the National Crime Agency as a Suspicious Activity Report promptly and without tipping off, with defence-against-money-laundering consent sought where required, in line with reg.21 of the MLR 2017, the Proceeds of Crime Act and FATF Recommendations 20 and 21.",
+  plainObjective: "To make sure staff suspicions get raised, judged by the nominated officer, and reported to the authorities quickly, without warning the customer, and with consent sought before acting where needed.",
+  plainHowItWorks: "It gives every staff member one confidential route to the nominated officer, who reviews each report, logs a decision, files with the authorities as soon as possible, seeks consent before risky acts, and blocks tip-offs.",
+  plainWhyThreshold: "The clock is set tight because the law requires reporting as soon as practicable, so quick acknowledgement and submission stop suspicions sitting and ageing in an inbox.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

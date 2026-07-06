@@ -10,6 +10,9 @@ export const control20: Control = {
     "Flags customers who are senior public officials or their close associates so the firm applies extra checks before and during the relationship.",
   objective:
     "Identify customers, beneficial owners and connected parties who are politically exposed persons (PEPs), their family members or known close associates, so that the firm applies enhanced due diligence, senior sign-off and ongoing monitoring proportionate to the corruption and bribery risk they present.",
+  plainObjective: "This control finds customers and their owners or connections who are senior public officials, so the firm applies extra checks and senior approval matched to their corruption and bribery risk.",
+  plainHowItWorks: "It matches every customer, owner and connection against a PEP database by name and supporting details; a hit flags the relationship for enhanced checks, source-of-wealth verification and senior approval, with periodic rechecks for new officials.",
+  plainWhyThreshold: "The match level mirrors sanctions screening but allows more review, since a PEP flag only triggers extra checks rather than a block, and biographical details help rule out common-name mix-ups.",
   riskThemes: ["bribery_corruption", "money_laundering"],
   applicableFirmTypes: ["bank", "wealth_manager", "emi", "pi", "neobank", "crypto", "insurance", "msb"],
   typologySlugs: ["pep-grand-corruption-proceeds", "bribery-facilitation-payments"],

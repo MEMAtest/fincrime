@@ -94,6 +94,20 @@ export interface Control {
   /** The control objective in compliance terms. */
   objective: string;
 
+  /**
+   * Additive plain-English layer, shown FIRST in the read view so a non-expert
+   * gets it before the cited/regulatory wording (which stays verbatim behind a
+   * "Regulatory detail" expander). These paraphrase the fields named below; they
+   * add no new facts, figures or thresholds. Optional so the UI falls back to the
+   * original field when a plain version is not (yet) authored.
+   */
+  /** Plain restatement of `objective`: what the control is for. */
+  plainObjective?: string;
+  /** Plain restatement of `ruleLogic`: how the control works / how it spots things. */
+  plainHowItWorks?: string;
+  /** Plain restatement of `thresholdRationale`: why the default threshold is set where it is. */
+  plainWhyThreshold?: string;
+
   riskThemes: RiskTheme[];
   applicableFirmTypes: FirmType[];
   /** Typology slugs this control mitigates (cross-ref to data/typologies). */

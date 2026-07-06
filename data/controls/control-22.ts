@@ -10,6 +10,9 @@ export const control22: Control = {
     "Checks the names, banks and countries on each payment message against sanctions lists in real time and holds anything that hits before the money leaves.",
   objective:
     "Screen the parties and content of inbound and outbound payment messages against sanctions and watch lists in real time, blocking or holding any payment with a potential match so the firm does not process funds for a sanctioned party or via a prohibited jurisdiction.",
+  plainObjective: "This control checks names and details on every incoming and outgoing payment against sanctions and watch lists in real time, holding any possible match so prohibited payments cannot go through.",
+  plainHowItWorks: "It stops each payment message before release, tidies up stripped or non-Latin fields, and checks every party and the text against the lists, holding anything that matches for a person to review before release.",
+  plainWhyThreshold: "The match level catches transliterated and shortened names in cross-border messages while keeping the hold queue workable, and identifier or country hard-blocks skip the name score because they are near-certain.",
   riskThemes: ["sanctions_evasion", "terrorist_financing", "proliferation_financing"],
   applicableFirmTypes: ["bank", "emi", "pi", "msb", "neobank", "crypto"],
   typologySlugs: ["sanctions-evasion-via-intermediaries", "high-risk-corridor-remittances", "proliferation-financing"],

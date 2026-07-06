@@ -10,6 +10,9 @@ export const control08: Control = {
     "For the highest-risk customers, run a deeper, joined-up due diligence package (extra evidence, senior sign-off, closer monitoring) and make sure it actually happens before and during the relationship.",
   objective:
     "Apply enhanced due diligence to all relationships and transactions presenting higher money-laundering or terrorist-financing risk, as required by reg.33 of the MLR 2017, by mandating additional information, corroboration, senior approval and enhanced ongoing monitoring as a coherent programme rather than ad hoc extra steps.",
+  plainObjective: "For the highest-risk customers and transactions, run a full, joined-up package of extra evidence, senior approval and closer monitoring rather than scattered one-off extra steps.",
+  plainHowItWorks: "When a high-risk trigger fires, it opens a structured case demanding a complete evidence pack and senior sign-off before the relationship can proceed, switches on closer monitoring, and treats overdue reviews as breaches.",
+  plainWhyThreshold: "Because these enhanced checks are legally compulsory, a full evidence pack and senior approval are hard gates, while shorter reviews and a 30-day overdue limit keep high-risk files current.",
   riskThemes: [
     "money_laundering",
     "bribery_corruption",

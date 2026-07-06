@@ -10,6 +10,9 @@ export const control14: Control = {
     "Watches payments to and from higher-risk countries and routes, and flags activity that does not fit the customer or looks designed to disguise where money is really going.",
   objective:
     "Detect transactions involving higher-risk jurisdictions and corridors that are inconsistent with the customer's profile or show signs of disguised routing, so that exposure to money laundering, terrorist financing, sanctions evasion and proliferation financing through geography is identified and investigated.",
+  plainObjective: "This control watches payments to and from higher-risk countries that do not fit the customer or look disguised, so money laundering, terrorist financing and sanctions risks through geography are caught.",
+  plainHowItWorks: "It rates each cross-border payment using the firm's country-risk list and the customer's stated countries, flagging risky routes not in their profile, unusually high value, disguised routing, or missing sender details.",
+  plainWhyThreshold: "Even one payment to a risky country the customer never mentioned is worth a look because geography alone says a lot, plus a separate rule catches small frequent payments.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

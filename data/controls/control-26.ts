@@ -10,6 +10,9 @@ export const control26: Control = {
     "Every customer's identity and risk information is refreshed on a fixed schedule so the firm never relies on stale onboarding data.",
   objective:
     "Ensure customer due diligence data, beneficial ownership, expected activity and risk rating remain accurate and complete throughout the relationship, in line with the requirement to keep CDD documents, data and information up to date.",
+  plainObjective: "Keeps each customer's identity, ownership, expected activity and risk rating accurate and complete for the whole relationship, so the firm never leans on outdated onboarding records.",
+  plainHowItWorks: "It sets each customer's next review date from their risk level, opens a review case shortly before that date, and blocks closing it until someone records a documented outcome.",
+  plainWhyThreshold: "Higher-risk customers change faster, so they get refreshed more often, and opening the case early gives staff time to gather documents before it falls overdue.",
   riskThemes: ["money_laundering", "terrorist_financing", "sanctions_evasion"],
   applicableFirmTypes: ["bank", "emi", "msb", "wealth_manager", "neobank", "pi", "insurance"],
   typologySlugs: ["unusual-business-vs-declared-profile", "behavioural-change-indicators"],

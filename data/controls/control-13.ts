@@ -10,6 +10,9 @@ export const control13: Control = {
     "Finds accounts being used by other people to receive and pass on dirty or stolen money, and links them together when they are part of the same ring.",
   objective:
     "Detect money-mule accounts and the networks that operate them by combining behavioural indicators with link analysis, so that recruited or compromised accounts and the coordinators behind them are identified, closed and reported rather than treated as isolated low-value cases.",
+  plainObjective: "This control finds accounts used by others to receive and pass on stolen money, and links them to the ring behind them, so whole networks are caught, not single cases.",
+  plainHowItWorks: "It blends warning signs of a mule account, like a new account suddenly taking money from many unrelated senders and paying it straight out, with links such as shared devices to reveal whole clusters.",
+  plainWhyThreshold: "Money pouring in from many unrelated people and leaving fast marks a collection mule, while needing a shared link plus a common recipient keeps clusters accurate.",
   riskThemes: ["money_laundering", "fraud", "terrorist_financing"],
   applicableFirmTypes: ["bank", "neobank", "emi", "pi"],
   typologySlugs: [

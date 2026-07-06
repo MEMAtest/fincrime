@@ -10,6 +10,9 @@ export const control11: Control = {
     "Catches people breaking one big payment into lots of smaller ones to stay under reporting or alerting limits, including when several accounts act together.",
   objective:
     "Detect deliberate fragmentation of value into multiple sub-threshold transactions (structuring) and coordinated activity across multiple parties or accounts (smurfing) intended to evade reporting thresholds or detection limits, so the underlying aggregate flow is identified and investigated.",
+  plainObjective: "This control catches money being split into many small payments to stay under reporting limits, including when several linked people do it together, so the true total flow is investigated.",
+  plainHowItWorks: "It looks for several payments bunched just under a known limit in a short time from one customer, and for many linked people each sending small amounts to the same recipient.",
+  plainWhyThreshold: "Needing several payments clustered just below a limit tells deliberate splitting apart from chance, while the funnelling rule is what catches a group spreading it across many people.",
   riskThemes: ["money_laundering", "terrorist_financing", "tax_evasion"],
   applicableFirmTypes: ["bank", "msb", "neobank", "emi", "pi"],
   typologySlugs: [

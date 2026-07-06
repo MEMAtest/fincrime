@@ -10,6 +10,9 @@ export const control24: Control = {
     "Before banking another bank, the firm checks that respondent's ownership, controls and customers so it does not unknowingly process crime or sanctions risk on their behalf.",
   objective:
     "Apply enhanced due diligence to correspondent and respondent banking relationships, understanding the respondent's ownership, AML/CTF and sanctions controls, customer base and use of the account, so the firm does not provide indirect access to its payment rails for sanctioned, criminal or unscreened activity, including nested relationships.",
+  plainObjective: "This control scrutinises a partner bank's ownership, controls and customers before banking it, so the firm does not let sanctioned, criminal or unscreened activity onto its payment rails.",
+  plainHowItWorks: "Before opening the account it runs enhanced checks on the respondent's licence, ownership, controls and customers, screens it and its owners, requires senior sign-off, then monitors actual flows against the expected profile, watching for nesting.",
+  plainWhyThreshold: "Because the firm leans on the partner bank's controls for people it never sees, the bar is thorough due diligence and senior accountability, not one number, with nesting gated.",
   riskThemes: ["sanctions_evasion", "money_laundering", "terrorist_financing", "proliferation_financing"],
   applicableFirmTypes: ["bank", "emi", "pi", "msb"],
   typologySlugs: ["sanctions-evasion-via-intermediaries", "nested-msb-agent-risk", "high-risk-corridor-remittances"],

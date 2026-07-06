@@ -10,6 +10,9 @@ export const control12: Control = {
     "Spots money that arrives and leaves almost immediately, where the account is being used as a channel to move funds on rather than to hold or spend them.",
   objective:
     "Detect accounts being used as conduits, where incoming funds are moved out rapidly with little or no economic purpose (layering), so that pass-through behaviour, including mule and pay-in/pay-out patterns, is identified and investigated before funds are dissipated.",
+  plainObjective: "This control finds accounts used just to move money onward, where cash comes in and leaves fast with no real purpose, so it is caught before the funds vanish.",
+  plainHowItWorks: "For each sizeable payment in, it measures how fast and how fully the money is sent back out, flagging when most of it leaves quickly, the balance empties, and the pattern repeats.",
+  plainWhyThreshold: "Money leaving almost as fast and as fully as it arrived signals a channel account, and needing it to repeat rules out a one-off genuine payment.",
   riskThemes: ["money_laundering", "fraud", "terrorist_financing"],
   applicableFirmTypes: ["bank", "neobank", "emi", "pi", "msb"],
   typologySlugs: [

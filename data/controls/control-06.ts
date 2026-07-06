@@ -10,6 +10,9 @@ export const control06: Control = {
     "For high-risk and PEP customers, understand and prove how they built their overall wealth (not just one deposit), and make sure that story is plausible and independently corroborated.",
   objective:
     "For higher-risk relationships and PEPs, establish the customer's overall source of wealth and corroborate it with independent evidence under reg.33 and reg.35 of the MLR 2017, so that the firm is satisfied the customer's total wealth has a legitimate, plausible origin before and during the relationship.",
+  plainObjective: "For high-risk and PEP customers, understand and independently prove how their whole fortune was built, so the firm is confident its origin is genuinely legitimate.",
+  plainHowItWorks: "It requires a documented account of how the customer's total wealth was built, independently corroborated and tested for plausibility, with senior sign-off needed whenever the story cannot be evidenced or looks linked to corruption.",
+  plainWhyThreshold: "Rules require corroborated, not just claimed, wealth here; the 75% evidence floor allows for genuinely hard-to-document legacy wealth, while the 10x income test flags the classic corruption warning sign.",
   riskThemes: ["bribery_corruption", "money_laundering", "tax_evasion"],
   applicableFirmTypes: [
     "bank",

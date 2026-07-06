@@ -10,6 +10,9 @@ export const control19: Control = {
     "Regularly tests the sanctions screening engine with known good and bad names to prove it actually catches what it should and is not silently letting hits through.",
   objective:
     "Provide independent, evidence-based assurance that the sanctions screening solution screens the full population, ingests every list completely, and detects true matches at the configured threshold, so that coverage gaps and miscalibration are found by the firm before a regulator finds them.",
+  plainObjective: "This control independently proves the screening tool works: it checks everyone, loads every list in full, and catches true matches, so gaps are found in-house before a regulator does.",
+  plainHowItWorks: "It spots gaps by comparing screened numbers against the full population and loaded list entries against the provider's, feeding in known test matches to measure the catch rate, and back-testing thresholds against past confirmed hits.",
+  plainWhyThreshold: "Exact and identifier matches must always be caught because missing one breaks the law; fuzzy variants get a lower bar as no engine is perfect, and coverage gaps stay unacceptable.",
   riskThemes: ["sanctions_evasion", "proliferation_financing", "terrorist_financing"],
   applicableFirmTypes: ["emi", "pi", "bank", "msb", "crypto", "neobank", "wealth_manager", "insurance"],
   typologySlugs: ["sanctions-evasion-via-intermediaries", "proliferation-financing"],

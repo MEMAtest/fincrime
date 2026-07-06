@@ -10,6 +10,9 @@ export const control28: Control = {
     "The customer's risk score is recalculated automatically from their real behaviour, so a customer who starts acting riskier is re-rated without waiting for a manual review.",
   objective:
     "Continuously recompute each customer's residual risk rating from a blend of static profile factors and dynamic behavioural signals, so that monitoring intensity, review cadence and controls track the customer's actual risk rather than their onboarding snapshot.",
+  plainObjective: "Keeps recalculating each customer's risk rating from both their fixed profile and their real behaviour, so monitoring and controls follow their actual risk, not their sign-up snapshot.",
+  plainHowItWorks: "A scoring model blends fixed and behavioural factors into a risk score, recalculating regularly; a rating rise automatically tightens monitoring, while a drop is held until an analyst confirms it.",
+  plainWhyThreshold: "A 20-point or band-crossing jump is big enough to signal a real change, upgrades apply automatically because under-monitoring is riskier, and downgrades wait for a person.",
   riskThemes: ["money_laundering", "fraud", "sanctions_evasion", "terrorist_financing"],
   applicableFirmTypes: ["bank", "emi", "neobank", "msb", "wealth_manager", "pi", "crypto"],
   typologySlugs: ["behavioural-change-indicators", "unusual-business-vs-declared-profile", "mule-account-activity"],

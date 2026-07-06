@@ -10,6 +10,9 @@ export const control05: Control = {
     "For a specific large or unusual deposit, establish and evidence where that exact money came from before it is used.",
   objective:
     "Establish and, on a risk-sensitive basis, verify the origin of the specific funds involved in a transaction or relationship under reg.28 and (for higher-risk and PEP relationships) reg.33 and reg.35, so the firm is satisfied the funds are not the proceeds of crime before they are deployed.",
+  plainObjective: "Pin down and evidence where a specific large or unusual payment actually came from, so the firm can be sure it is not criminal money before it is used.",
+  plainHowItWorks: "Once a payment crosses a size or risk trigger, it asks the customer to prove where that exact money came from and freezes it from onward use until the evidence checks out.",
+  plainWhyThreshold: "A GBP 10,000 trigger catches meaningful sums without slowing everyday payments, while higher-risk and PEP customers, third-party payers and risky-country origins get checked whatever the amount.",
   riskThemes: ["money_laundering", "tax_evasion", "bribery_corruption"],
   applicableFirmTypes: [
     "bank",

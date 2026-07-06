@@ -10,6 +10,9 @@ export const control18: Control = {
     "Checks every customer and payment against official sanctions lists before money moves, so the firm does not deal with a sanctioned person or entity.",
   objective:
     "Prevent the firm from establishing or maintaining a business relationship with, or processing funds for, any person, entity or jurisdiction subject to UK or applicable financial sanctions, and to detect any existing customer who becomes a target following a list update.",
+  plainObjective: "This control stops the firm from taking on or paying money for anyone covered by financial sanctions, and catches existing customers who are added to a list later.",
+  plainHowItWorks: "It cleans each name and identifier, checks them against every active sanctions entry with exact and close matching, then blocks onboarding or holds a payment on a strong match, rechecking everyone when a list changes.",
+  plainWhyThreshold: "The match level is set to catch spelling and transliteration variants without burying analysts in false alarms, while exact identifier hits block automatically because they are almost always genuine.",
   riskThemes: ["sanctions_evasion", "terrorist_financing", "proliferation_financing"],
   applicableFirmTypes: ["emi", "pi", "bank", "msb", "crypto", "neobank", "wealth_manager", "insurance"],
   typologySlugs: ["sanctions-evasion-via-intermediaries", "proliferation-financing"],

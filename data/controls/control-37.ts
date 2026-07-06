@@ -10,6 +10,9 @@ export const control37: Control = {
     "A clear split of who owns risk, who oversees it, and who independently checks it, with named senior people accountable, so nothing falls through the gaps.",
   objective:
     "Establish and maintain a clear, documented operating model in which the first line owns and manages financial crime risk, the second line sets policy and provides independent oversight and challenge, and the third line provides independent assurance, with individual senior accountability allocated, in line with reg.21 of the MLR 2017, FATF Recommendation 18 and the FCA's senior management regime.",
+  plainObjective: "To keep a clear, written setup where the first line runs the controls, the second line oversees and challenges, the third line independently checks, and named senior people are accountable.",
+  plainHowItWorks: "It assigns every control a named first-line owner, an independent second line to set standards and challenge, and a third line to assure, with no one holding conflicting roles and senior accountability formally allocated.",
+  plainWhyThreshold: "Rules demand a nominated officer and clear individual accountability, so every control needs a named owner and no self-reviewing function, with reviews yearly and whenever the firm reorganises.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

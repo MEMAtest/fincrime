@@ -10,6 +10,9 @@ export const control07: Control = {
     "Spot customers (and their close family and associates) who hold or held prominent public office, then apply extra checks and senior approval because they carry higher corruption risk.",
   objective:
     "Identify whether a customer, beneficial owner or connected party is a politically exposed person, family member or known close associate, and apply the enhanced measures required by reg.35 of the MLR 2017 (senior approval, source of wealth and funds, enhanced ongoing monitoring) proportionate to the corruption risk they present.",
+  plainObjective: "Detect customers, owners or their close family and associates who hold prominent public office, and give them extra checks and senior approval to match their corruption risk.",
+  plainHowItWorks: "It screens everyone connected to the account against public-office reference data at onboarding and continuously, sends any real match for a person to review and into deeper checks, and blocks PEPs lacking senior approval.",
+  plainWhyThreshold: "The law makes senior-approved checks compulsory for these people, so an 85% match score catches name variants without flooding analysts, and a 12-month stand-down reflects that risk lingers after office.",
   riskThemes: ["bribery_corruption", "money_laundering", "sanctions_evasion"],
   applicableFirmTypes: [
     "bank",

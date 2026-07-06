@@ -10,6 +10,9 @@ export const control32: Control = {
     "The firm regularly proves that every account and every payment is actually being watched by its monitoring system, so nothing slips through an un-monitored gap.",
   objective:
     "Continuously reconcile the population of customers, accounts and transactions in the firm's books against what the transaction monitoring and screening systems are actually ingesting, so that no account or product line is left without coverage.",
+  plainObjective: "Regularly checks that every customer, account and transaction on the firm's books is actually being fed into its monitoring and screening systems, so nothing is left uncovered.",
+  plainHowItWorks: "On a set cycle it compares the ledger's true list of accounts and transactions against what monitoring and screening actually took in, raising any missing account, unmapped product or count mismatch as a gap.",
+  plainWhyThreshold: "Accounts never added to monitoring are a known failure, so coverage is zero-tolerance, while a small count tolerance absorbs normal timing differences yet still catches whole feeds that fail.",
   riskThemes: ["money_laundering", "fraud", "sanctions_evasion", "terrorist_financing"],
   applicableFirmTypes: ["bank", "emi", "neobank", "msb", "wealth_manager", "pi", "crypto", "insurance"],
   typologySlugs: ["mule-account-activity", "unusual-business-vs-declared-profile"],

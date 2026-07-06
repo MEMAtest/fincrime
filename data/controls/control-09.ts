@@ -10,6 +10,9 @@ export const control09: Control = {
     "Flags when a customer pays in cash that does not fit their declared business or income, so unexplained cash can be reviewed before it disappears into the system.",
   objective:
     "Detect and review cash credits that are inconsistent with the customer's expected profile, declared turnover or source of funds, so that potentially laundered cash entering the firm is identified, investigated and reported where appropriate.",
+  plainObjective: "This control is here to catch cash paid in that does not match what the customer said they earn or do, so dirty cash gets checked and reported.",
+  plainHowItWorks: "It adds up each customer's cash deposits over a period and compares the total against what they said they would deposit, flagging big overshoots, unusually cash-heavy accounts, or sudden jumps.",
+  plainWhyThreshold: "The limits are set against each customer's own declared figures, high enough to allow normal trading swings but low enough to catch cash that does not fit their business.",
   riskThemes: ["money_laundering", "tax_evasion"],
   applicableFirmTypes: ["bank", "neobank", "msb", "emi"],
   typologySlugs: [

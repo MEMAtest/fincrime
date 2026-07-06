@@ -10,6 +10,9 @@ export const control03: Control = {
     "At sign-up, ask and record what normal looks like for this customer (how much, how often, to where) so monitoring can later spot when they behave nothing like that.",
   objective:
     "Obtain and record information on the purpose and intended nature of the business relationship under reg.28(2)(c) of the MLR 2017, establishing a documented expected-activity baseline that ongoing monitoring can compare actual behaviour against.",
+  plainObjective: "Record at sign-up what typical activity should look like for each customer, giving monitoring a documented baseline to judge their later behaviour against.",
+  plainHowItWorks: "At onboarding it gathers a structured picture of expected activity, checks the answers hang together, and stores them in a form monitoring can read, holding anyone whose declared activity looks inconsistent or implausible.",
+  plainWhyThreshold: "A baseline only helps if it is structured and sanity-checked, and a threefold gap between declared activity and provable income catches inflated stories while allowing honest variation.",
   riskThemes: ["money_laundering", "fraud", "tax_evasion"],
   applicableFirmTypes: [
     "emi",

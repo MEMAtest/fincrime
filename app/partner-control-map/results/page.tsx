@@ -136,24 +136,25 @@ function PartnerResults() {
         </div>
 
         {/* Control Distribution */}
+        {/* Same colour language as the ownership map: Your firm (blue), Shared (amber), Partner (teal), Gap (red). */}
         <div className="grid grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/10">
           <div className="text-center">
-            <div className="text-lg font-bold text-accent">{controlSummary.yourFirm}</div>
-            <p className="text-xs text-text-muted">Your Firm</p>
+            <div className="text-lg font-bold text-blue-500">{controlSummary.yourFirm}</div>
+            <p className="text-xs text-text-muted inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-500" />Your firm</p>
           </div>
           <div className="text-center">
-            <div className="text-lg font-bold text-amber-400">{controlSummary.partner}</div>
-            <p className="text-xs text-text-muted">Partner</p>
+            <div className="text-lg font-bold text-amber-500">{controlSummary.shared}</div>
+            <p className="text-xs text-text-muted inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" />Shared</p>
           </div>
           <div className="text-center">
-            <div className="text-lg font-bold text-blue-400">{controlSummary.shared}</div>
-            <p className="text-xs text-text-muted">Shared</p>
+            <div className="text-lg font-bold text-teal-500">{controlSummary.partner}</div>
+            <p className="text-xs text-text-muted inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-500" />Partner</p>
           </div>
           <div className="text-center">
-            <div className={`text-lg font-bold ${controlSummary.gap > 0 ? "text-red-400" : "text-green-400"}`}>
+            <div className={`text-lg font-bold ${controlSummary.gap > 0 ? "text-red-500" : "text-green-500"}`}>
               {controlSummary.gap}
             </div>
-            <p className="text-xs text-text-muted">Gaps</p>
+            <p className="text-xs text-text-muted inline-flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${controlSummary.gap > 0 ? "bg-red-500" : "bg-green-500"}`} />Gaps</p>
           </div>
         </div>
       </div>

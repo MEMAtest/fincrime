@@ -10,6 +10,9 @@ export const control38: Control = {
     "People independent of the day-to-day teams regularly test whether financial crime controls actually work, so weaknesses are found internally before a regulator finds them.",
   objective:
     "Provide independent, risk-based assurance that financial crime controls are designed appropriately and operating effectively, through second-line monitoring and third-line audit, so that control failures and design gaps are detected, reported and remediated, in line with reg.21 of the MLR 2017 and FATF Recommendation 18.",
+  plainObjective: "To give independent, risk-based assurance that financial crime controls are well designed and actually working, so gaps and failures are found, reported and fixed rather than assumed away.",
+  plainHowItWorks: "It runs a risk-based plan that tests the highest-risk controls for both design and real-world operation using proper sampling, rates and root-causes findings, then tracks fixes to closure with an independent re-test.",
+  plainWhyThreshold: "Rules expect an independent audit function and controls to be tested not assumed, so high-risk controls are checked yearly and serious findings close only after an independent re-test.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

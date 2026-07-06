@@ -10,6 +10,9 @@ export const control39: Control = {
     "Make sure everyone, especially front-line and high-risk roles, knows how to spot financial crime and what to do about it, and prove they have understood it.",
   objective:
     "Ensure all relevant employees are made aware of the law and their obligations and are given regular, role-appropriate training on recognising and handling financial crime, including how and to whom to report suspicions, in line with reg.24 of the MLR 2017 and FATF Recommendation 18.",
+  plainObjective: "To make sure every relevant employee knows the law and their duties and gets regular, role-suited training on spotting financial crime and how and to whom to report it.",
+  plainHowItWorks: "It sets a role-based training plan: everyone gets awareness training at induction and regular refreshers, higher-risk roles get deeper content, and staff must pass an assessment, with new joiners trained before doing in-scope work.",
+  plainWhyThreshold: "Rules require regular, role-relevant training, so it refreshes yearly with induction and event-driven top-ups, and a passed test proves real understanding rather than just attendance.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

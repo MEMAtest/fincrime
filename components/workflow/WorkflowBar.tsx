@@ -59,13 +59,13 @@ export default function WorkflowBar() {
           <span className="text-accent font-medium">Stage {current.n}/4</span> · {current.label}
         </div>
 
-        {/* Next-stage affordance */}
+        {/* Next-stage affordance (a clear CTA pill, not a faint link) */}
         {next ? (
-          <Link href={next.primary} className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline whitespace-nowrap">
+          <Link href={next.primary} className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-3 py-1.5 text-xs font-medium hover:bg-accent-hover transition-colors whitespace-nowrap">
             Next: {next.short} <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         ) : (
-          <Link href="/control-builder" className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline whitespace-nowrap">
+          <Link href="/control-builder" className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-3 py-1.5 text-xs font-medium hover:bg-accent-hover transition-colors whitespace-nowrap">
             Export your register <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         )}

@@ -10,6 +10,9 @@ export const control04: Control = {
     "Score each new and existing customer for money-laundering risk from clear factors (who they are, what they do, where they are) so the firm spends most effort on the riskiest ones.",
   objective:
     "Assess and assign a money-laundering and terrorist-financing risk rating to each customer using the risk factors in reg.28 and the risk-based approach in reg.18, so that the level of CDD, monitoring intensity and review frequency are proportionate to the risk the customer presents.",
+  plainObjective: "Give every customer a money-laundering risk rating from clear factors, so the amount of checking and monitoring each one gets matches the risk they pose.",
+  plainHowItWorks: "It scores customers on weighted risk factors into a band, lets sanctions or PEP status force the top band, and uses that band to set how much diligence, monitoring and re-checking each gets.",
+  plainWhyThreshold: "The rules demand a documented, risk-based method and force certain factors straight to high risk, so the band cut-offs give a defensible starting point that concentrates effort on the riskiest.",
   riskThemes: ["money_laundering", "terrorist_financing", "sanctions_evasion"],
   applicableFirmTypes: [
     "emi",

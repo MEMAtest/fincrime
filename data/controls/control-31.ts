@@ -10,6 +10,9 @@ export const control31: Control = {
     "The firm vets and keeps watch over the agents and distributors who sell or move money on its behalf, so a rogue or nested agent cannot smuggle dirty money through its rails.",
   objective:
     "Ensure agents, distributors and intermediaries that act on the firm's behalf are properly due-diligenced, monitored and held to the firm's AML standards, and that nested or undisclosed sub-agent activity is identified and controlled.",
+  plainObjective: "Makes sure the agents and distributors acting for the firm are properly vetted, monitored and held to its AML standards, and that hidden sub-agent activity is found and controlled.",
+  plainHowItWorks: "Each agent is vetted and risk-rated at onboarding, then watched against expected volumes and corridors, with spikes, undeclared corridors or nested sub-agent traffic flagged, and failing agents suspended or offboarded.",
+  plainWhyThreshold: "Agents concentrate risk because the firm relies on them for front-line checks, so re-vetting and volume and corridor baselines catch an agent going rogue or a hidden nested operator.",
   riskThemes: ["money_laundering", "terrorist_financing", "sanctions_evasion"],
   applicableFirmTypes: ["msb", "emi", "pi", "bank"],
   typologySlugs: ["nested-msb-agent-risk", "high-risk-corridor-remittances", "third-party-round-tripping"],

@@ -10,6 +10,9 @@ export const control23: Control = {
     "Adjusts how loosely or tightly the screening engine matches names so it keeps catching real hits while cutting the flood of false alarms.",
   objective:
     "Maintain the precision and recall of fuzzy name matching across sanctions, PEP and adverse media screening by calibrating algorithm settings, thresholds and rules using evidence, so analysts spend effort on genuine matches without lowering detection of true positives.",
+  plainObjective: "This control keeps name matching across sanctions, PEP and adverse media both accurate and complete by tuning its settings with evidence, so analysts focus on real hits without losing detection.",
+  plainHowItWorks: "It studies the scores at which real matches actually land, sets the review cut-off just below the lowest with a safety margin, demotes weak hits through extra rules, and re-tests known matches after every change.",
+  plainWhyThreshold: "The cut-off follows where real matches actually score, not alert volume, with a safety margin for name variation, and precision improves through extra rules rather than raising the bar.",
   riskThemes: ["sanctions_evasion", "bribery_corruption", "money_laundering", "proliferation_financing"],
   applicableFirmTypes: ["bank", "emi", "pi", "msb", "crypto", "neobank", "wealth_manager", "insurance"],
   typologySlugs: ["sanctions-evasion-via-intermediaries", "pep-grand-corruption-proceeds"],

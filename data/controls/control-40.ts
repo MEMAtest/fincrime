@@ -10,6 +10,9 @@ export const control40: Control = {
     "Stop financial crime alerts and cases piling up unworked by tracking how old they are, fixing the cause, and stepping in fast when the queue grows.",
   objective:
     "Ensure financial crime alerts and cases are worked within target timescales and that any backlog is identified, controlled and remediated before it lets suspicious activity go unreviewed, in line with the FCA's expectations on timely monitoring and reg.21 of the MLR 2017.",
+  plainObjective: "To keep financial crime alerts and cases worked on time and to catch and clear any backlog before suspicious activity slips through unreviewed.",
+  plainHowItWorks: "It constantly measures how old open items are against risk-tiered targets, watches new items against ones closed, and when a backlog trigger trips it runs a playbook to prioritise, add capacity and fix the cause.",
+  plainWhyThreshold: "Regulators have criticised firms for letting queues build unseen, so risk-tiered targets with a clear backlog trigger force early action, and sanctions and live-harm items are ring-fenced to tight timescales.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

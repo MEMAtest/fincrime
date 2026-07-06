@@ -10,6 +10,9 @@ export const control10: Control = {
     "Compares what a customer actually does on the account with what they told you they would do at sign-up, and flags when the two no longer match.",
   objective:
     "Detect material divergence between a customer's observed transactional behaviour and the expected activity profile captured at onboarding, so that accounts being used for a purpose other than the one disclosed are identified, the profile is refreshed and suspicious use is investigated.",
+  plainObjective: "This control spots when an account is being used very differently from what the customer described at sign-up, so misused accounts are found, the record updated, and odd use investigated.",
+  plainHowItWorks: "It scores real account behaviour against what the customer said they would do across things like money volume, who they pay, and where, then flags when any of these break the agreed limits.",
+  plainWhyThreshold: "The limits sit against the customer's own stated figures so normal growth is allowed, while a brand-new type of activity, like a first overseas payment, is caught on its own.",
   riskThemes: ["money_laundering", "fraud", "tax_evasion"],
   applicableFirmTypes: ["bank", "neobank", "emi", "pi", "wealth_manager"],
   typologySlugs: [

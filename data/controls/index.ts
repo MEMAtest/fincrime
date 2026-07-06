@@ -141,6 +141,42 @@ export function controlsForThemes(themes: RiskTheme[]): Control[] {
   return allControls.filter((c) => c.riskThemes.some((t) => set.has(t)));
 }
 
+export interface CategoryGroup {
+  category: ControlCategory;
+  controls: Control[];
+}
+
+/**
+ * Each control ONCE, grouped by control category (in CONTROL_CATEGORY_ORDER),
+ * optionally narrowed by firm type / risk themes / framework. This replaces the
+ * by-risk-theme grouping on the Controls Library, where a control that mitigates
+ * three themes appeared three times and read as a duplicate. Risk theme is now a
+ * filter (OR-match) with per-card theme badges rather than the grouping key.
+ */
+export function controlsByCategory(opts?: {
+  firmType?: FirmType;
+  themes?: RiskTheme[];
+  frameworkOrg?: string;
+}): CategoryGroup[] {
+  const { firmType, themes, frameworkOrg } = opts ?? {};
+  const themeSet = themes && themes.length ? new Set(themes) : null;
+  const filtered = allControls.filter((c) => {
+    if (firmType && !c.applicableFirmTypes.includes(firmType)) return false;
+    if (themeSet && !c.riskThemes.some((t) => themeSet.has(t))) return false;
+    if (frameworkOrg && !c.sources.some((s) => s.org === frameworkOrg)) return false;
+    return true;
+  });
+  const byCat = new Map<ControlCategory, Control[]>();
+  for (const cat of CONTROL_CATEGORY_ORDER) byCat.set(cat, []);
+  for (const c of filtered) byCat.get(c.category)?.push(c);
+  const out: CategoryGroup[] = [];
+  for (const cat of CONTROL_CATEGORY_ORDER) {
+    const arr = byCat.get(cat)!;
+    if (arr.length) out.push({ category: cat, controls: arr });
+  }
+  return out;
+}
+
 /**
  * A sensible default priority for a control, DERIVED from real data (not
  * fabricated): controls with a real enforcement precedent are High; controls

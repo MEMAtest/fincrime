@@ -10,6 +10,9 @@ export const control29: Control = {
     "At sign-up the firm checks the applicant is a real, unique person using their genuine identity and device, blocking fake, stolen and bulk-created accounts before they open.",
   objective:
     "Verify identity, detect synthetic and stolen identities, and prevent bulk or coordinated account creation at onboarding, so that fraudulent and mule accounts are stopped before they enter the customer base.",
+  plainObjective: "Makes sure each new applicant is a real, unique person using genuine identity, stopping fake, stolen and mass-created mule accounts before they join the customer base.",
+  plainHowItWorks: "Every application is scored on identity, liveness, device and network risk and velocity; failing identity or liveness is declined, fraud-ring signals go to manual review, and approvals always get a monitoring profile.",
+  plainWhyThreshold: "Failed identity or liveness checks are automatic stops because they signal a fake account, while the shared-attribute and top-scoring bands catch bulk mule sign-ups without swamping manual review.",
   riskThemes: ["fraud", "money_laundering", "terrorist_financing"],
   applicableFirmTypes: ["emi", "neobank", "bank", "msb", "crypto", "pi"],
   typologySlugs: ["money-mule-herding-recruitment", "account-takeover-fraud", "mule-account-activity"],

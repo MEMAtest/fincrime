@@ -10,6 +10,9 @@ export const control16: Control = {
     "Checks that the firm's monitoring rules actually cover the risks the firm faces, so no major money-laundering pattern is left with no rule watching for it.",
   objective:
     "Provide assurance that the deployed transaction-monitoring scenario set fully and demonstrably covers the firm's assessed money-laundering, terrorist-financing and sanctions-evasion risks across products, customers and geographies, so that coverage gaps are identified and remediated before they become enforcement findings.",
+  plainObjective: "This control makes sure the firm's monitoring rules actually cover every risk it has identified, so any gap is found and fixed before it turns into an enforcement problem.",
+  plainHowItWorks: "It keeps a checklist matching every identified risk to a live monitoring rule and every product and channel to a data feed, then raises an exception whenever something has no rule or feed watching it.",
+  plainWhyThreshold: "The bar is all-or-nothing: every identified risk must have a live rule and the right data, because allowing a percentage of gaps would quietly leave some risks unwatched.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

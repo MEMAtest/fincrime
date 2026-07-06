@@ -1,7 +1,8 @@
 "use client";
 
-import { Sparkles, FileText, Scale, ShieldCheck, FlaskConical, BookOpen, ExternalLink, ArrowUpRight, Check } from "lucide-react";
+import { Sparkles, FileText, Scale, ShieldCheck, FlaskConical, BookOpen, ExternalLink, ArrowUpRight, Check, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import ResultTabs from "@/components/results/ResultTabs";
 import SourceBadge from "@/components/shared/SourceBadge";
 import GlossaryText from "@/components/shared/GlossaryText";
@@ -34,6 +35,7 @@ export default function ControlDetail({
   onToggleTest: (idx: number) => void;
   readOnly?: boolean;
 }) {
+  const [showReg, setShowReg] = useState(false);
   const set = (patch: Partial<ControlOverride>) => onChange({ ...override, ...patch });
   const owner = override.firstLineOwner ?? c.firstLineOwner;
   const secondOwner = override.secondLineOwner ?? c.secondLineOwner;
@@ -146,23 +148,67 @@ export default function ControlDetail({
     <div className="grid lg:grid-cols-[1fr_300px] gap-6">
       {/* Main */}
       <div className="space-y-5">
-        <div>
-          <p className={label}>Description</p>
-          <p className="text-sm text-text-muted leading-relaxed mt-1"><GlossaryText>{c.plainSummary}</GlossaryText></p>
-        </div>
-        <div>
-          <p className={label}>Control objective</p>
-          <p className="text-sm text-foreground leading-relaxed mt-1">{c.objective}</p>
-        </div>
-
         {readOnly ? (
-          <div className="space-y-3">
-            {([["Threshold", threshold], ["Why this threshold", c.thresholdRationale], ["Lookback window", c.lookbackWindow], ["Tuning", c.tuningNotes], ["Escalation", c.escalation], ["SLA", c.sla]] as [string, string][]).map(([k, v]) => (
-              <div key={k}><p className={label}>{k}</p><p className="text-sm text-text-muted leading-relaxed mt-0.5">{v}</p></div>
-            ))}
+          /* Plain-first read view: plain-English scaffolding up top, the verbatim
+             cited/regulatory wording tucked behind an expander (nothing removed). */
+          <div className="space-y-5">
+            <div>
+              <p className={label}>What it is</p>
+              <p className="text-sm text-text-muted leading-relaxed mt-1"><GlossaryText>{c.plainSummary}</GlossaryText></p>
+            </div>
+            <div>
+              <p className={label}>What it&apos;s for</p>
+              <p className="text-sm text-foreground leading-relaxed mt-1"><GlossaryText>{c.plainObjective ?? c.objective}</GlossaryText></p>
+            </div>
+            <div>
+              <p className={label}>{c.controlType === "detective" ? "How it spots things" : "How it works"}</p>
+              <p className="text-sm text-text-muted leading-relaxed mt-1"><GlossaryText>{c.plainHowItWorks ?? c.ruleLogic}</GlossaryText></p>
+            </div>
+            <div>
+              <p className={label}>Why this threshold</p>
+              <p className="text-sm text-text-muted leading-relaxed mt-1"><GlossaryText>{c.plainWhyThreshold ?? c.thresholdRationale}</GlossaryText></p>
+              <span className="inline-block mt-1.5 text-xs font-mono px-2 py-0.5 rounded bg-accent/10 text-accent">Default: {threshold}</span>
+            </div>
+
+            {/* Regulatory detail: the exact cited wording and calibration fields. */}
+            <div className="rounded-xl border border-surface-border overflow-hidden">
+              <button
+                onClick={() => setShowReg((s) => !s)}
+                aria-expanded={showReg}
+                className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-surface-hover transition-colors cursor-pointer"
+              >
+                <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <Scale className="h-4 w-4 text-text-muted" /> Regulatory detail
+                </span>
+                {showReg ? <ChevronUp className="h-4 w-4 text-text-muted" /> : <ChevronDown className="h-4 w-4 text-text-muted" />}
+              </button>
+              {showReg && (
+                <div className="px-4 pb-4 space-y-3 border-t border-surface-border pt-3">
+                  {([
+                    ["Control objective", c.objective],
+                    ["Rule logic", c.ruleLogic],
+                    ["Threshold rationale", c.thresholdRationale],
+                    ["Lookback window", c.lookbackWindow],
+                    ["Tuning", c.tuningNotes],
+                    ["Escalation", c.escalation],
+                    ["SLA", c.sla],
+                  ] as [string, string][]).map(([k, v]) => (
+                    <div key={k}><p className={label}>{k}</p><p className="text-sm text-text-muted leading-relaxed mt-0.5">{v}</p></div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <>
+            <div>
+              <p className={label}>What it is</p>
+              <p className="text-sm text-text-muted leading-relaxed mt-1"><GlossaryText>{c.plainSummary}</GlossaryText></p>
+            </div>
+            <div>
+              <p className={label}>Control objective</p>
+              <p className="text-sm text-foreground leading-relaxed mt-1">{c.plainObjective ?? c.objective}</p>
+            </div>
             <div className="grid sm:grid-cols-3 gap-4">
               <label className="block"><span className={label}>Owner</span>
                 <input className={input} value={owner} onChange={(e) => set({ firstLineOwner: e.target.value })} /></label>
@@ -205,7 +251,7 @@ export default function ControlDetail({
       {/* Sidebar */}
       <div className="space-y-4">
         <div className="rounded-xl border border-accent/20 bg-accent/[0.05] p-3">
-          <div className="flex items-center gap-1.5 mb-1.5"><Sparkles className="h-3.5 w-3.5 text-accent" /><span className="text-xs font-semibold text-accent">AI Suggestions</span><span className="text-[9px] uppercase tracking-wider text-text-muted border border-surface-border rounded-full px-1.5">Beta</span></div>
+          <div className="flex items-center gap-1.5 mb-1.5"><Sparkles className="h-3.5 w-3.5 text-accent" /><span className="text-xs font-semibold text-accent">Tuning guidance</span></div>
           <p className="text-xs text-text-muted leading-relaxed">{c.tuningNotes}</p>
         </div>
         <div>

@@ -10,6 +10,9 @@ export const control21: Control = {
     "Searches news and public sources for negative stories about a customer (fraud, corruption, crime) so the firm spots risk that lists alone miss.",
   objective:
     "Detect credible negative news linking a customer, beneficial owner or connected party to financial crime, corruption, sanctions or serious criminality, so the firm can reassess risk, apply enhanced due diligence and decide whether to continue the relationship or report.",
+  plainObjective: "This control picks up credible bad news tying a customer, owner or connection to financial crime, corruption or serious criminality, so the firm can rethink risk, dig deeper, or report.",
+  plainHowItWorks: "It spots risk by checking customers and connections against a categorised news database, then ranking hits by topic, source quality and how recent they are, so analysts review genuine crime stories rather than noise.",
+  plainWhyThreshold: "Because news is so noisy, the trigger pairs a name-match floor with topic and source-credibility filters, keeping the name bar loose enough to catch variant spellings while categories handle relevance.",
   riskThemes: ["money_laundering", "bribery_corruption", "fraud", "sanctions_evasion"],
   applicableFirmTypes: ["bank", "wealth_manager", "emi", "pi", "neobank", "crypto", "insurance", "msb"],
   typologySlugs: ["pep-grand-corruption-proceeds", "romance-investment-scams", "front-company-bo-obfuscation"],

@@ -10,6 +10,9 @@ export const control17: Control = {
     "Regularly tests and adjusts monitoring rule settings so the firm catches real risk without drowning analysts in pointless alerts, with evidence for every change.",
   objective:
     "Maintain the effectiveness and efficiency of transaction-monitoring scenarios by periodically testing thresholds against outcomes, evidencing changes through above-the-line and below-the-line analysis, and ensuring tuning improves risk capture rather than simply reducing alert volume.",
+  plainObjective: "This control keeps monitoring rules effective by regularly testing and adjusting their settings so they catch more genuine risk, not just cut the number of alerts.",
+  plainHowItWorks: "It checks how each rule performs, samples alerts and near-misses, and only changes a setting where evidence backs it and a simulation and sign-off confirm it will not hide real risk.",
+  plainWhyThreshold: "The trigger points sit where a rule mostly produces noise or where real suspicious activity is missed just below the cut-off, because both mean the setting is wrong.",
   riskThemes: ["money_laundering", "terrorist_financing", "fraud"],
   applicableFirmTypes: [
     "bank",

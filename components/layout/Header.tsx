@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import WorkflowBar from "@/components/workflow/WorkflowBar";
+import SearchTrigger from "@/components/search/SearchTrigger";
 
 const NAV_MODULES: { href: string; label: string }[] = [
   { href: "/firm-research", label: "AI in Research" },
@@ -47,6 +48,8 @@ export default function Header() {
         </div>
 
         <div className="nav-cta">
+          <SearchTrigger compact className="sm:hidden" />
+          <SearchTrigger className="hidden sm:inline-flex" />
           <Link className="btn btn-primary btn-sm" href="/start">
             Start free
           </Link>

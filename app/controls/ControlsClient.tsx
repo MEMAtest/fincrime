@@ -10,7 +10,7 @@ import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import SourceBadge from "@/components/shared/SourceBadge";
 import ControlDetailModal from "@/components/controls/ControlDetailModal";
-import { controlsForThemes, CONTROL_CATEGORY_LABEL, CONTROL_TYPE_LABEL } from "@/data/controls";
+import { controlsByCategory, CONTROL_CATEGORY_LABEL, CONTROL_TYPE_LABEL } from "@/data/controls";
 import { lessonFor } from "@/data/enforcement/lessons";
 import { enforcementCases } from "@/data/enforcement/cases";
 import { caseSlug } from "@/lib/enforcement/case-slug";
@@ -84,11 +84,11 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
     FIRM_TYPES.some((f) => f.value === initialFirmType) ? (initialFirmType as FirmType) : "all"
   );
   const [enforcementOpen, setEnforcementOpen] = useState(false);
-  const [expandedThemes, setExpandedThemes] = useState<Set<RiskTheme>>(new Set());
+  const [activeThemes, setActiveThemes] = useState<Set<RiskTheme>>(new Set());
   const [openControl, setOpenControl] = useState<string | null>(null);
 
-  const toggleTheme = (theme: RiskTheme) => {
-    setExpandedThemes((prev) => {
+  const toggleThemeFilter = (theme: RiskTheme) => {
+    setActiveThemes((prev) => {
       const next = new Set(prev);
       if (next.has(theme)) next.delete(theme);
       else next.add(theme);
@@ -98,39 +98,43 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
 
   const frameworkOrg = orgForFramework(frameworkFilter);
 
-  // Group the real control catalogue by risk theme, filtered by firm type and
-  // framework. Each theme lists the controls that address it as compact rows
-  // that open the full control specification in a modal (no navigation away, no
-  // flattened rule wall).
-  const grouped = useMemo(() => {
-    const map = new Map<
-      RiskTheme,
-      {
-        controls: ReturnType<typeof controlsForThemes>;
-        frameworkSources: { reference: string; title: string; url: string; source: string }[];
+  // Each control ONCE, grouped by control category, narrowed by the firm-type,
+  // risk-theme (multi-select, OR) and framework filters. Risk theme is now a
+  // filter with per-card badges, so a control that mitigates several themes is
+  // no longer repeated under each one.
+  const categoryGroups = useMemo(
+    () =>
+      controlsByCategory({
+        firmType: firmFilter === "all" ? undefined : firmFilter,
+        themes: [...activeThemes],
+        frameworkOrg: frameworkOrg ?? undefined,
+      }),
+    [firmFilter, activeThemes, frameworkOrg]
+  );
+
+  const totalShown = useMemo(
+    () => categoryGroups.reduce((n, g) => n + g.controls.length, 0),
+    [categoryGroups]
+  );
+
+  // When a framework is selected, surface that standard's specific citations once
+  // (deduplicated by reference), rather than repeating them under every group.
+  const frameworkSources = useMemo(() => {
+    if (!frameworkOrg) return [];
+    const seen = new Set<string>();
+    const out: { reference: string; title: string; url: string }[] = [];
+    for (const g of categoryGroups) {
+      for (const c of g.controls) {
+        for (const s of c.sources) {
+          if (s.org === frameworkOrg && !seen.has(s.reference)) {
+            seen.add(s.reference);
+            out.push({ reference: s.reference, title: s.title, url: s.url });
+          }
+        }
       }
-    >();
-
-    for (const theme of RISK_THEMES) {
-      let controls = controlsForThemes([theme]);
-      if (firmFilter !== "all") controls = controls.filter((c) => c.applicableFirmTypes.includes(firmFilter));
-      if (frameworkOrg) controls = controls.filter((c) => c.sources.some((s) => s.org === frameworkOrg));
-      if (controls.length === 0) continue;
-
-      // When a framework is selected, surface that standard's specific citations.
-      const frameworkSources = frameworkOrg
-        ? controls.flatMap((c) =>
-            c.sources
-              .filter((s) => s.org === frameworkOrg)
-              .map((s) => ({ reference: s.reference, title: s.title, url: s.url, source: c.name }))
-          )
-        : [];
-
-      map.set(theme, { controls, frameworkSources });
     }
-
-    return map;
-  }, [firmFilter, frameworkOrg]);
+    return out;
+  }, [categoryGroups, frameworkOrg]);
 
   return (
     <ToolFrame>
@@ -146,8 +150,8 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
               </h1>
               <p className="mt-4 text-lg text-text-muted max-w-2xl mx-auto">
                 Browse the financial crime controls your firm needs, grouped by
-                risk theme, filtered by firm type and framework, and mapped to
-                real enforcement actions.
+                control category, filtered by firm type, risk theme and framework,
+                and mapped to real enforcement actions.
               </p>
               <p className="mt-3 text-sm text-text-muted max-w-2xl mx-auto">
                 This is the reference catalogue. To adapt controls to your firm and export a register, use the{" "}
@@ -200,6 +204,36 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
               ))}
             </div>
 
+            {/* Risk theme filter (multi-select) */}
+            <div role="group" aria-label="Filter by risk theme" className="flex flex-wrap gap-2 mb-6 justify-center">
+              {RISK_THEMES.map((theme) => {
+                const on = activeThemes.has(theme);
+                const cfg = THEME_CONFIG[theme];
+                return (
+                  <button
+                    key={theme}
+                    onClick={() => toggleThemeFilter(theme)}
+                    aria-pressed={on}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                      on ? "text-white border-transparent" : "bg-white/5 text-text-muted hover:bg-white/10 border-surface-border"
+                    }`}
+                    style={on ? { backgroundColor: cfg.glow } : undefined}
+                  >
+                    <RiskThemeIcon riskTheme={theme} size="sm" animated={false} />
+                    {cfg.label}
+                  </button>
+                );
+              })}
+              {activeThemes.size > 0 && (
+                <button
+                  onClick={() => setActiveThemes(new Set())}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium text-accent hover:underline"
+                >
+                  Clear themes
+                </button>
+              )}
+            </div>
+
             {/* Framework banner */}
             {frameworkOrg && (
               <div className="glass-card rounded-xl px-5 py-4 mb-10 flex flex-wrap items-center gap-3">
@@ -207,8 +241,8 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
                 <p className="text-sm text-text-muted">
                   Showing controls mapped to{" "}
                   <span className="font-semibold text-foreground">{frameworkOrg}</span>. Most
-                  typologies map to several frameworks, so each view differs mainly by the cited
-                  standard shown under each risk theme.
+                  controls map to several frameworks, so this view differs mainly by the cited
+                  standard shown in each control and listed below.
                 </p>
               </div>
             )}
@@ -300,108 +334,103 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
               )}
             </div>
 
-            {/* Controls by Risk Theme */}
-            <h2 className="text-xl font-semibold text-foreground mb-6">
-              Controls by Risk Theme
-            </h2>
-
-            <div className="space-y-4">
-              {RISK_THEMES.map((theme) => {
-                const data = grouped.get(theme);
-                if (!data) return null;
-                const isOpen = expandedThemes.has(theme);
-
-                return (
-                  <div
-                    key={theme}
-                    className="glass-card rounded-2xl overflow-hidden"
-                  >
-                    <button
-                      onClick={() => toggleTheme(theme)}
-                      aria-expanded={isOpen}
-                      className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-surface-hover transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <RiskThemeIcon
-                          riskTheme={theme}
-                          size="sm"
-                          animated={false}
-                        />
-                        <div>
-                          <span className="text-base font-semibold text-foreground">
-                            {THEME_CONFIG[theme].label}
-                          </span>
-                          <span className="ml-2 text-xs text-text-muted">
-                            {data.controls.length} control{data.controls.length === 1 ? "" : "s"}
-                          </span>
-                        </div>
-                      </div>
-                      {isOpen ? (
-                        <ChevronDown className="h-5 w-5 text-text-muted" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5 text-text-muted" />
-                      )}
-                    </button>
-
-                    {isOpen && (
-                      <div className="px-6 pb-6 space-y-3">
-                        <p className="text-sm text-text-muted">
-                          Click a control to open its full specification: objective, threshold and rationale,
-                          owners, systems, test plan and cited sources.
-                        </p>
-                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                          {data.controls.map((c) => (
-                            <button
-                              key={c.slug}
-                              onClick={() => setOpenControl(c.slug)}
-                              className="text-left glass-card rounded-xl p-4 card-hover cursor-pointer h-full flex flex-col"
-                            >
-                              <div className="flex items-start justify-between gap-2 mb-1.5">
-                                <h4 className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1">
-                                  <span>{c.name}</span>
-                                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
-                                </h4>
-                              </div>
-                              <p className="text-xs text-text-muted leading-relaxed line-clamp-2 flex-1">
-                                {c.plainSummary}
-                              </p>
-                              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/5 text-text-muted border border-surface-border">
-                                  {CONTROL_CATEGORY_LABEL[c.category]}
-                                </span>
-                                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-accent/10 text-accent">
-                                  {CONTROL_TYPE_LABEL[c.controlType]}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Framework references (when a framework filter is active) */}
-                        {frameworkOrg && data.frameworkSources.length > 0 && (
-                          <div className="pt-2">
-                            <h3 className="text-sm font-semibold text-foreground mb-2">
-                              {frameworkOrg} references
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                              {data.frameworkSources.map((s, i) => (
-                                <SourceBadge
-                                  key={`${s.reference}-${i}`}
-                                  source={frameworkOrg}
-                                  reference={s.reference}
-                                  url={s.url}
-                                  title={s.title}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            {/* Controls by category */}
+            <div className="flex items-end justify-between mb-2 gap-3 flex-wrap">
+              <h2 className="text-xl font-semibold text-foreground">Controls by category</h2>
+              <span className="text-sm text-text-muted">
+                {totalShown} control{totalShown === 1 ? "" : "s"}
+                {firmFilter !== "all" || activeThemes.size > 0 || frameworkOrg ? " match your filters" : " in the library"}
+              </span>
             </div>
+            <p className="text-sm text-text-muted mb-6">
+              Each control appears once, under its category. The coloured tags show the risk themes it
+              addresses. Click a control to open its full specification: objective, threshold and
+              rationale, owners, systems, test plan and cited sources.
+            </p>
+
+            {categoryGroups.length === 0 ? (
+              <div className="glass-card rounded-2xl px-6 py-12 text-center">
+                <p className="text-sm text-text-muted">
+                  No controls match this combination of firm type, risk theme and framework.
+                </p>
+                <button
+                  onClick={() => { setFirmFilter("all"); setActiveThemes(new Set()); setFrameworkFilter("all"); }}
+                  className="mt-3 text-sm text-accent hover:underline"
+                >
+                  Reset filters
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {categoryGroups.map(({ category, controls }) => (
+                  <section key={category}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <h3 className="text-base font-semibold text-foreground">{CONTROL_CATEGORY_LABEL[category]}</h3>
+                      <span className="text-xs text-text-muted">
+                        {controls.length} control{controls.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      {controls.map((c) => (
+                        <button
+                          key={c.slug}
+                          onClick={() => setOpenControl(c.slug)}
+                          className="text-left glass-card rounded-xl p-4 card-hover cursor-pointer h-full flex flex-col"
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <h4 className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1">
+                              <span>{c.name}</span>
+                              <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                            </h4>
+                          </div>
+                          <p className="text-xs text-text-muted leading-relaxed line-clamp-2 flex-1">
+                            {c.plainSummary}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-accent/10 text-accent">
+                              {CONTROL_TYPE_LABEL[c.controlType]}
+                            </span>
+                            {c.riskThemes.map((t) => (
+                              <span
+                                key={t}
+                                className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border"
+                                style={{
+                                  backgroundColor: `${THEME_CONFIG[t].glow}14`,
+                                  borderColor: `${THEME_CONFIG[t].primary}33`,
+                                  color: THEME_CONFIG[t].primary,
+                                }}
+                              >
+                                {THEME_CONFIG[t].label}
+                              </span>
+                            ))}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+
+                {/* Consolidated framework references (single block when a framework filter is active) */}
+                {frameworkOrg && frameworkSources.length > 0 && (
+                  <section className="pt-2">
+                    <h3 className="text-sm font-semibold text-foreground mb-2">
+                      {frameworkOrg} references in these controls
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {frameworkSources.map((s, i) => (
+                        <SourceBadge
+                          key={`${s.reference}-${i}`}
+                          source={frameworkOrg}
+                          reference={s.reference}
+                          url={s.url}
+                          title={s.title}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
 
             {/* Enforcement benchmarks */}
             <div className="mt-16">

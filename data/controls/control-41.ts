@@ -10,6 +10,9 @@ export const control41: Control = {
     "When financial crime work is outsourced or done by a partner, the firm still owns the risk, so it must check, oversee and be able to evidence the provider is doing the job.",
   objective:
     "Ensure that where financial crime activities are outsourced or delivered through third parties, the firm retains accountability, performs due diligence before engagement, defines control responsibilities and SLAs, and oversees performance on an ongoing basis, so that outsourcing never weakens the firm's controls, in line with reg.21 of the MLR 2017, FATF Recommendation 18 and FCA outsourcing expectations.",
+  plainObjective: "To make sure that when financial crime work is outsourced, the firm keeps accountability, vets the provider up front, sets clear duties and SLAs, and keeps overseeing performance.",
+  plainHowItWorks: "It keeps a register of outsourced activities, vets each provider before hiring including any sub-outsourcing, nails down duties, SLAs and audit rights in the contract, then monitors performance while accountability stays with the firm.",
+  plainWhyThreshold: "Because outsourcing never hands off regulatory responsibility, the firm needs due diligence, contract rights and ongoing oversight, so a full register with quarterly reviews and risk-based assurance is the baseline.",
   riskThemes: [
     "money_laundering",
     "terrorist_financing",

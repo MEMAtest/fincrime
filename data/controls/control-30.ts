@@ -10,6 +10,9 @@ export const control30: Control = {
     "The firm spots when someone other than the real customer has gained control of an account, by watching for sudden changes in device, login and payment behaviour.",
   objective:
     "Detect compromise of a legitimate customer's account, where a third party has obtained credentials or control, and intervene before fraudulent payments leave or the account is repurposed as a mule.",
+  plainObjective: "Spots when someone other than the real customer has taken over their account, and steps in before fraudulent payments leave or the account is turned into a mule.",
+  plainHowItWorks: "It learns each customer's usual devices, locations and payment habits, then scores sessions for takeover signs like a new device plus a fast payee change and payment, forcing step-up and holding risky payments.",
+  plainWhyThreshold: "The new-device, credential-change, new-payee and payment combination is the classic takeover sequence that rarely happens innocently, and the short time window reflects how fast stolen funds are cashed out.",
   riskThemes: ["fraud", "money_laundering"],
   applicableFirmTypes: ["bank", "neobank", "emi", "msb", "crypto", "pi"],
   typologySlugs: ["account-takeover-fraud", "app-fraud-push-payments", "mule-account-activity"],

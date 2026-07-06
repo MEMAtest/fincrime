@@ -10,6 +10,9 @@ export const control15: Control = {
     "Uses blockchain analytics to check where crypto sent or received by a customer has been, and flags links to mixers, illicit services or sanctioned addresses.",
   objective:
     "Detect crypto-asset transactions whose on-chain exposure indicates illicit origin or destination, including mixers, peel chains, darknet markets, scams and sanctioned addresses, so that high-risk crypto flows through the firm are identified, investigated and reported, and travel-rule obligations are supported.",
+  plainObjective: "This control checks where a customer's crypto has been on the blockchain and flags links to mixers, illegal marketplaces or sanctioned wallets, so high-risk crypto is investigated and reported.",
+  plainHowItWorks: "For every crypto deposit and withdrawal, it uses blockchain analytics to trace direct and indirect connections, flagging too much exposure to risky sources, mixing or peel-chain patterns, or missing counterparty data.",
+  plainWhyThreshold: "A direct link to a sanctioned or darknet wallet is unacceptable because there is no innocent reason, while indirect links get a sensible limit since some incidental exposure is unavoidable.",
   riskThemes: [
     "money_laundering",
     "sanctions_evasion",

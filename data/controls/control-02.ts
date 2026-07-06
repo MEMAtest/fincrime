@@ -10,6 +10,9 @@ export const control02: Control = {
     "For any company or trust customer, find out who really owns or controls it (the actual humans), and prove it, before letting them transact.",
   objective:
     "Identify the beneficial owner(s) of a legal person or arrangement and take reasonable measures to verify their identity so that the firm knows the natural persons who ultimately own or control the customer, satisfying reg.28(2)-(4) of the MLR 2017 and supporting transparency of legal persons and arrangements.",
+  plainObjective: "Work out and prove which real people ultimately own or control a company or trust customer, so the firm always knows the humans behind the business.",
+  plainHowItWorks: "It traces the ownership chain down to actual people, flagging anyone with a big enough stake or control, screening them, and refusing to open the account until the structure is mapped and any gaps explained.",
+  plainWhyThreshold: "The 25% ownership mark is the legal default, and expecting the chain to resolve within a few layers reflects that honest businesses rarely stack ownership as deeply as concealment schemes.",
   riskThemes: ["money_laundering", "bribery_corruption", "sanctions_evasion"],
   applicableFirmTypes: [
     "emi",
