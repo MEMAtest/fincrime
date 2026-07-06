@@ -1,24 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import { RISK_THEME_LABEL } from "@/data/typologies/labels";
-import type { RiskTheme, FirmType, ProductType, CustomerType } from "@/data/typologies/types";
-
-interface TypologySummary {
-  id: number;
-  slug: string;
-  title: string;
-  riskTheme: RiskTheme;
-  description: string;
-  applicableFirmTypes: FirmType[];
-  applicableProducts: ProductType[];
-  applicableCustomerTypes: CustomerType[];
-}
+import { allTypologies } from "@/data/typologies";
+import type { RiskTheme } from "@/data/typologies/types";
 
 const ALL_RISK_THEMES: RiskTheme[] = [
   "fraud",
@@ -59,24 +49,12 @@ const PILL_LABELS: Record<string, string> = {
 };
 
 export default function TypologyListPage() {
-  const [typologies, setTypologies] = useState<TypologySummary[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTheme, setActiveTheme] = useState<RiskTheme | null>(null);
   const [query, setQuery] = useState("");
 
-  useEffect(() => {
-    fetch("/api/typology/list")
-      .then((r) => r.json())
-      .then((data) => {
-        setTypologies(Array.isArray(data?.typologies) ? data.typologies : []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return typologies.filter((t) => {
+    return allTypologies.filter((t) => {
       if (activeTheme && t.riskTheme !== activeTheme) return false;
       if (!q) return true;
       const haystack = [
@@ -91,7 +69,7 @@ export default function TypologyListPage() {
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [typologies, activeTheme, query]);
+  }, [activeTheme, query]);
 
   return (
     <ToolFrame>
@@ -102,7 +80,7 @@ export default function TypologyListPage() {
             Typology Catalogue
           </h1>
           <p className="text-text-muted max-w-2xl mx-auto">
-            Browse all {typologies.length} financial crime typologies. Search or
+            Browse all {allTypologies.length} financial crime typologies. Search or
             filter by risk theme, then open a typology for its red flags,
             detection logic, investigation workflow and cited sources.
           </p>
@@ -155,11 +133,6 @@ export default function TypologyListPage() {
             </button>
           ))}
         </div>
-
-        {/* loading state */}
-        {loading && (
-          <div className="text-center py-20 text-text-muted">Loading typologies...</div>
-        )}
 
         {/* grid */}
         <AnimatePresence mode="wait">
@@ -218,7 +191,7 @@ export default function TypologyListPage() {
           </motion.div>
         </AnimatePresence>
 
-        {!loading && filtered.length === 0 && (
+        {filtered.length === 0 && (
           <div className="text-center py-20 text-text-muted">
             No typologies match. Try a different search term or risk theme.
           </div>

@@ -46,7 +46,7 @@
   --foreground: var(--ink);
   --surface-border: var(--line-2);
   --surface-hover: var(--surface-2);
-  --card-bg: #ffffff;
+  --card-bg: rgba(255,255,255,0.05);
   --card-border: var(--line);
   --accent-hover: #0e8a5b;
   --brand-from: var(--accent-bright);
@@ -87,6 +87,7 @@
   --risk-medium: #d97706;
   --risk-low: #16a34a;
   --risk-critical: #b91c1c;
+  --card-bg: #ffffff;
 }
 
 @theme inline {
@@ -123,6 +124,9 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+
+:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+:root[data-theme="light"] :focus-visible { outline-color: var(--accent); }
 
 body {
   margin: 0;
@@ -461,7 +465,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 :root[data-theme="light"] ::-webkit-scrollbar-track { background: #e4eaf2; }
 
 .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-.card-hover:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(16, 185, 129, 0.18); }
+.card-hover:hover { transform: translateY(-2px); box-shadow: 0 12px 40px color-mix(in oklch, var(--accent) 22%, transparent); }
 
 .gradient-text {
   background: linear-gradient(135deg, var(--brand-from) 0%, var(--brand-to) 100%);
@@ -499,6 +503,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 /* Light-mode rewrites for hardcoded white tints used across tool pages */
 :root[data-theme="light"] .border-white\/5  { border-color: rgba(13,35,27,0.08); }
 :root[data-theme="light"] .border-white\/10 { border-color: rgba(13,35,27,0.12); }
+:root[data-theme="light"] .border-white\/15 { border-color: rgba(13,35,27,0.14); }
 :root[data-theme="light"] .border-white\/20 { border-color: rgba(13,35,27,0.18); }
 :root[data-theme="light"] .bg-white\/5      { background-color: rgba(13,35,27,0.04); }
 :root[data-theme="light"] .bg-white\/\[0\.02\]  { background-color: rgba(13,35,27,0.03); }
@@ -514,3 +519,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 @keyframes logo-pulse { 0%,100% { opacity:.6; transform:scale(1); } 50% { opacity:1; transform:scale(1.08); } }
 .logo-pulse { animation: logo-pulse 3s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .logo-pulse { animation: none !important; } html { scroll-behavior: auto; } }
+
+/* Glossary :target highlight - accent ring fades in when jumping to a term */
+@keyframes target-glow { from { box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 50%, transparent); } to { box-shadow: none; } }
+.glass-card:target { animation: target-glow 1.8s ease-out forwards; }

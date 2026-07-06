@@ -28,12 +28,12 @@ export default function ResultCard({
       className={`bg-card-bg rounded-xl border border-card-border shadow-sm p-6 ${className}`}
     >
       <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center">
           <Icon className={`h-4 w-4 ${iconColor}`} />
         </div>
-        <h3 className="text-sm font-semibold text-text-dark">{title}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       </div>
-      <div className="text-sm text-slate-600">{children}</div>
+      <div className="text-sm text-muted">{children}</div>
     </motion.div>
   );
 }

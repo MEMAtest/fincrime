@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useMemo, Suspense } from "react";
+import { useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, Users, Database, ClipboardCheck, FileText,
@@ -64,6 +64,13 @@ function PartnerResults() {
     if (!answers.modelType || !answers.flowType) return null;
     return scorePartnerRisk(answers);
   }, [answers]);
+
+  const [checkedConditions, setCheckedConditions] = useState<Set<string>>(new Set());
+  const toggleCondition = (id: string) => setCheckedConditions(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   const { narrative, loading: narrativeLoading } = useNarrative(
     "/api/partner/narrative",
@@ -197,31 +204,31 @@ function PartnerResults() {
         {/* Card 1: Risk Rating Breakdown */}
         <ResultCard title="Risk Rating Breakdown" icon={ShieldAlert} iconColor="text-red-500" className="md:col-span-2" index={0}>
           <div className="space-y-3">
-            <div className="flex items-center justify-between py-2 border-b border-slate-100">
-              <span>Partner-owned controls</span>
-              <span className="font-mono text-amber-600">{controlSummary.partner} x 5 = {controlSummary.partner * 5} pts</span>
+            <div className="flex items-center justify-between py-2 border-b border-line">
+              <span className="text-foreground">Partner-owned controls</span>
+              <span className="font-mono text-amber-500">{controlSummary.partner} x 5 = {controlSummary.partner * 5} pts</span>
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-slate-100">
-              <span>Unowned controls (gaps)</span>
-              <span className="font-mono text-red-600">{controlSummary.gap} x 10 = {controlSummary.gap * 10} pts</span>
+            <div className="flex items-center justify-between py-2 border-b border-line">
+              <span className="text-foreground">Unowned controls (gaps)</span>
+              <span className="font-mono text-red-400">{controlSummary.gap} x 10 = {controlSummary.gap * 10} pts</span>
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-slate-100">
-              <span>Missing data fields</span>
-              <span className="font-mono text-red-600">{missingDataFields.length} x 6 = {missingDataFields.length * 6} pts</span>
+            <div className="flex items-center justify-between py-2 border-b border-line">
+              <span className="text-foreground">Missing data fields</span>
+              <span className="font-mono text-red-400">{missingDataFields.length} x 6 = {missingDataFields.length * 6} pts</span>
             </div>
-            <div className="flex items-center justify-between py-2 border-b border-slate-100">
-              <span>Flow complexity ({flow.modelType})</span>
-              <span className="font-mono text-slate-600">
+            <div className="flex items-center justify-between py-2 border-b border-line">
+              <span className="text-foreground">Flow complexity ({flow.modelType})</span>
+              <span className="font-mono text-muted">
                 {flow.modelType === "embedded" ? 10 : flow.modelType === "correspondent" ? 15 : 20} pts
               </span>
             </div>
             <div className="flex items-center justify-between py-2">
-              <span>Actor count penalty</span>
-              <span className="font-mono text-slate-600">{Math.max(0, answers.actors.length - 2)} x 4 = {Math.max(0, answers.actors.length - 2) * 4} pts</span>
+              <span className="text-foreground">Actor count penalty</span>
+              <span className="font-mono text-muted">{Math.max(0, answers.actors.length - 2)} x 4 = {Math.max(0, answers.actors.length - 2) * 4} pts</span>
             </div>
-            <div className="flex items-center justify-between pt-3 mt-2 border-t-2 border-slate-200">
-              <span className="font-semibold text-slate-800">Total Risk Score</span>
-              <span className="font-mono font-bold text-lg">{riskScore}</span>
+            <div className="flex items-center justify-between pt-3 mt-2 border-t-2 border-line-2">
+              <span className="font-semibold text-foreground">Total Risk Score</span>
+              <span className="font-mono font-bold text-lg text-foreground">{riskScore}</span>
             </div>
           </div>
         </ResultCard>
@@ -231,18 +238,18 @@ function PartnerResults() {
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 pr-3 font-semibold text-slate-700">Activity</th>
-                  <th className="text-center py-2 px-2 font-semibold text-slate-700">R</th>
-                  <th className="text-center py-2 px-2 font-semibold text-slate-700">A</th>
-                  <th className="text-center py-2 px-2 font-semibold text-slate-700">C</th>
-                  <th className="text-center py-2 px-2 font-semibold text-slate-700">I</th>
+                <tr className="border-b border-line-2">
+                  <th className="text-left py-2 pr-3 font-semibold text-foreground">Activity</th>
+                  <th className="text-center py-2 px-2 font-semibold text-foreground">R</th>
+                  <th className="text-center py-2 px-2 font-semibold text-foreground">A</th>
+                  <th className="text-center py-2 px-2 font-semibold text-foreground">C</th>
+                  <th className="text-center py-2 px-2 font-semibold text-foreground">I</th>
                 </tr>
               </thead>
               <tbody>
                 {flow.raciTemplate.map((entry) => (
-                  <tr key={entry.activity} className="border-b border-slate-100">
-                    <td className="py-2 pr-3 text-slate-700">{entry.activity}</td>
+                  <tr key={entry.activity} className="border-b border-line">
+                    <td className="py-2 pr-3 text-foreground">{entry.activity}</td>
                     <td className="text-center py-2 px-2">
                       <Badge variant="success">{actorLabels[entry.responsible]?.split(" ")[0] || entry.responsible}</Badge>
                     </td>
@@ -275,29 +282,29 @@ function PartnerResults() {
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-red-600 text-xs font-medium mb-2">
+              <p className="text-red-400 text-xs font-medium mb-2">
                 {missingDataFields.length} required field{missingDataFields.length > 1 ? "s" : ""} missing:
               </p>
               {missingDataFields.map((f) => (
                 <div key={f.id} className="flex items-start gap-2">
                   <XCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />
-                  <span className="text-slate-700">{f.field}</span>
+                  <span className="text-foreground">{f.field}</span>
                 </div>
               ))}
             </div>
           )}
 
           {gapControls.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <p className="text-red-600 text-xs font-medium mb-2">
+            <div className="mt-4 pt-4 border-t border-line">
+              <p className="text-red-400 text-xs font-medium mb-2">
                 {gapControls.length} unowned control{gapControls.length > 1 ? "s" : ""}:
               </p>
               {gapControls.map((g) => (
                 <div key={g.id} className="flex items-start gap-2 mt-1">
                   <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                   <div>
-                    <span className="text-slate-700">{g.control}</span>
-                    <span className="text-xs text-slate-400 ml-2">{g.category}</span>
+                    <span className="text-foreground">{g.control}</span>
+                    <span className="text-xs text-text-muted ml-2">{g.category}</span>
                   </div>
                 </div>
               ))}
@@ -307,18 +314,24 @@ function PartnerResults() {
 
         {/* Card 4: Pre-Launch Conditions */}
         <ResultCard title="Pre-Launch Conditions" icon={ClipboardCheck} index={3}>
+          <p className="text-xs text-text-muted mb-3">{checkedConditions.size} of {flow.preLaunchConditions.length} satisfied this session</p>
           <div className="space-y-2">
             {flow.preLaunchConditions.map((plc) => (
-              <div key={plc.id} className="flex items-start gap-2 py-2 border-b border-slate-100 last:border-0">
-                <input type="checkbox" className="mt-1 rounded border-slate-300 text-accent focus:ring-accent" readOnly />
+              <label key={plc.id} className="flex items-start gap-2 py-2 border-b border-line last:border-0 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checkedConditions.has(plc.id)}
+                  onChange={() => toggleCondition(plc.id)}
+                  className="mt-1 rounded border-line-2 text-accent focus:ring-accent/30 cursor-pointer"
+                />
                 <div>
-                  <p className="text-sm text-slate-700">{plc.condition}</p>
+                  <p className={`text-sm transition-colors ${checkedConditions.has(plc.id) ? "text-text-muted line-through" : "text-foreground"}`}>{plc.condition}</p>
                   <div className="flex gap-2 mt-0.5">
                     <span className="text-xs text-accent">{plc.category}</span>
-                    <span className="text-xs text-slate-400">{plc.evidence}</span>
+                    <span className="text-xs text-text-muted">{plc.evidence}</span>
                   </div>
                 </div>
-              </div>
+              </label>
             ))}
           </div>
         </ResultCard>
@@ -328,18 +341,18 @@ function PartnerResults() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 font-semibold text-slate-700">Document</th>
-                  <th className="text-left py-2 font-semibold text-slate-700">Frequency</th>
-                  <th className="text-left py-2 font-semibold text-slate-700">Owner</th>
+                <tr className="border-b border-line-2">
+                  <th className="text-left py-2 font-semibold text-foreground">Document</th>
+                  <th className="text-left py-2 font-semibold text-foreground">Frequency</th>
+                  <th className="text-left py-2 font-semibold text-foreground">Owner</th>
                 </tr>
               </thead>
               <tbody>
                 {flow.governancePack.map((gp) => (
-                  <tr key={gp.id} className="border-b border-slate-100 last:border-0">
-                    <td className="py-2 text-slate-700">{gp.document}</td>
+                  <tr key={gp.id} className="border-b border-line last:border-0">
+                    <td className="py-2 text-foreground">{gp.document}</td>
                     <td className="py-2 text-accent">{gp.frequency}</td>
-                    <td className="py-2 text-slate-500">{gp.owner}</td>
+                    <td className="py-2 text-muted">{gp.owner}</td>
                   </tr>
                 ))}
               </tbody>

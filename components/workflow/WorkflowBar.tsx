@@ -41,7 +41,7 @@ export default function WorkflowBar() {
                 >
                   <span
                     className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-semibold ${
-                      done ? "bg-accent text-white" : isCur ? "border-2 border-accent text-accent" : "border border-white/15 text-text-muted"
+                      done ? "bg-accent text-white" : isCur ? "border-2 border-accent text-accent" : "border border-line-2 text-text-muted"
                     }`}
                   >
                     {done ? <Check className="h-3 w-3" /> : s.n}

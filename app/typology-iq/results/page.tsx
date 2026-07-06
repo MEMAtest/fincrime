@@ -41,6 +41,7 @@ function TypologyResults() {
   const [showAllDetection, setShowAllDetection] = useState(false);
   const [showAllWorkflow, setShowAllWorkflow] = useState(false);
   const [detailSlug, setDetailSlug] = useState<string | null>(null);
+  const [checkedGovernance, setCheckedGovernance] = useState<Record<string, Set<string>>>({});
   const activeChipRef = useRef<HTMLButtonElement>(null);
 
   const answers = useMemo(() => {
@@ -346,15 +347,15 @@ function TypologyResults() {
                 <ResultCard title="Detection Logic" icon={Cpu} index={2}>
                   <div className="space-y-3">
                     {detectionRules.map((rule) => (
-                      <div key={rule.id} className="p-3 bg-slate-50 rounded-lg">
+                      <div key={rule.id} className="p-3 bg-surface rounded-lg">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-mono text-xs text-slate-400">{rule.id}</span>
+                          <span className="font-mono text-xs text-text-muted">{rule.id}</span>
                           <Badge variant={priorityVariant(rule.priority)}>
                             {rule.priority}
                           </Badge>
                         </div>
-                        <p className="font-medium text-slate-800 text-sm mb-1">{rule.name}</p>
-                        <p className="text-xs text-slate-500">{rule.logic}</p>
+                        <p className="font-medium text-foreground text-sm mb-1">{rule.name}</p>
+                        <p className="text-xs text-muted">{rule.logic}</p>
                         {rule.threshold && (
                           <p className="text-xs text-accent mt-1">Threshold: {rule.threshold}</p>
                         )}
@@ -381,13 +382,13 @@ function TypologyResults() {
                           {ws.step}
                         </div>
                         <div>
-                          <p className="font-medium text-slate-800 text-sm">{ws.title}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">{ws.description}</p>
+                          <p className="font-medium text-foreground text-sm">{ws.title}</p>
+                          <p className="text-xs text-muted mt-0.5">{ws.description}</p>
                           <div className="flex gap-3 mt-1">
                             {ws.sla && (
                               <span className="text-xs text-accent">SLA: {ws.sla}</span>
                             )}
-                            <span className="text-xs text-slate-400">{ws.responsible}</span>
+                            <span className="text-xs text-text-muted">{ws.responsible}</span>
                           </div>
                         </div>
                       </div>
@@ -408,10 +409,10 @@ function TypologyResults() {
                 <ResultCard title="Effectiveness Metrics" icon={BarChart3} index={4}>
                   <div className="space-y-3">
                     {typology.metrics.map((m) => (
-                      <div key={m.name} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                      <div key={m.name} className="flex items-center justify-between py-2 border-b border-line last:border-0">
                         <div>
-                          <p className="font-medium text-slate-800 text-sm">{m.name}</p>
-                          <p className="text-xs text-slate-400">{m.description}</p>
+                          <p className="font-medium text-foreground text-sm">{m.name}</p>
+                          <p className="text-xs text-text-muted">{m.description}</p>
                         </div>
                         <span className="text-sm font-mono text-accent shrink-0 ml-3">{m.target}</span>
                       </div>
@@ -420,22 +421,39 @@ function TypologyResults() {
                 </ResultCard>
 
                 {/* Card 6: Governance Checklist */}
-                <ResultCard title="Governance Checklist" icon={ClipboardCheck} index={5}>
-                  <div className="space-y-2">
-                    {typology.governanceChecklist.map((g) => (
-                      <div key={g.id} className="flex items-start gap-2 py-2 border-b border-slate-100 last:border-0">
-                        <input type="checkbox" className="mt-1 rounded border-slate-300 text-accent focus:ring-accent" readOnly />
-                        <div>
-                          <p className="text-sm text-slate-700">{g.item}</p>
-                          <div className="flex gap-2 mt-0.5">
-                            <span className="text-xs text-accent">{g.frequency}</span>
-                            <span className="text-xs text-slate-400">Owner: {g.owner}</span>
-                          </div>
-                        </div>
+                {(() => {
+                  const slug = typology.slug;
+                  const checked = checkedGovernance[slug] ?? new Set<string>();
+                  const toggleItem = (id: string) => setCheckedGovernance(prev => {
+                    const cur = new Set(prev[slug] ?? []);
+                    if (cur.has(id)) cur.delete(id); else cur.add(id);
+                    return { ...prev, [slug]: cur };
+                  });
+                  return (
+                    <ResultCard title="Governance Checklist" icon={ClipboardCheck} index={5}>
+                      <p className="text-xs text-text-muted mb-3">{checked.size} of {typology.governanceChecklist.length} completed this session</p>
+                      <div className="space-y-2">
+                        {typology.governanceChecklist.map((g) => (
+                          <label key={g.id} className="flex items-start gap-2 py-2 border-b border-line last:border-0 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={checked.has(g.id)}
+                              onChange={() => toggleItem(g.id)}
+                              className="mt-1 rounded border-line-2 text-accent focus:ring-accent/30 cursor-pointer"
+                            />
+                            <div>
+                              <p className={`text-sm transition-colors ${checked.has(g.id) ? "text-text-muted line-through" : "text-foreground"}`}>{g.item}</p>
+                              <div className="flex gap-2 mt-0.5">
+                                <span className="text-xs text-accent">{g.frequency}</span>
+                                <span className="text-xs text-text-muted">Owner: {g.owner}</span>
+                              </div>
+                            </div>
+                          </label>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </ResultCard>
+                    </ResultCard>
+                  );
+                })()}
               </ResultsGrid>
             ),
           },
