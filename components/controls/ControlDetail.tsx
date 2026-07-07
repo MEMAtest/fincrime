@@ -12,6 +12,7 @@ import { RatingSelect, MaturityBar } from "@/components/controls/ControlBits";
 import { getTypologyBySlug } from "@/data/typologies";
 import { caseSlug } from "@/lib/enforcement/case-slug";
 import { fmtGbp, findEnforcementCase } from "@/lib/enforcement/select";
+import { lessonFor } from "@/data/enforcement/lessons";
 import type { Control, ControlOverride, ControlRating } from "@/data/controls/types";
 import type { SourceOrg } from "@/data/typologies/types";
 
@@ -53,23 +54,31 @@ export default function ControlDetail({
   const evidenceTab = (
     <div className="space-y-6">
       <section>
-        <div className="flex items-center gap-2 mb-2"><Scale className="h-4 w-4 text-emerald-500" /><h4 className="text-sm font-semibold text-foreground">Enforcement precedent</h4></div>
+        <div className="flex items-center gap-2 mb-2"><Scale className="h-4 w-4 text-accent" /><h4 className="text-sm font-semibold text-foreground">Enforcement precedent</h4></div>
         {cases.length ? (
           <div className="grid sm:grid-cols-2 gap-3">
-            {cases.map((ec) => (
-              <Link key={`${ec.firm}-${ec.year}`} href={`/enforcement/${caseSlug(ec.firm, ec.year)}`} className="glass-card rounded-xl p-3 card-hover">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-medium text-foreground leading-tight">{ec.firm}</span>
-                  <span className="text-sm font-bold text-emerald-500 shrink-0">{fmtGbp(ec.amountGbp)}</span>
-                </div>
-                <span className="text-xs text-text-muted">{ec.regulator} · {ec.year}</span>
-              </Link>
-            ))}
+            {cases.map((ec) => {
+              const lesson = lessonFor(ec.firm, ec.year);
+              return (
+                <Link key={`${ec.firm}-${ec.year}`} href={`/enforcement/${caseSlug(ec.firm, ec.year)}`} className="glass-card rounded-xl p-3 card-hover block">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <span className="text-sm font-medium text-foreground leading-tight line-clamp-2">{ec.firm}</span>
+                    <span className="text-sm font-bold text-accent shrink-0 tabular-nums">{fmtGbp(ec.amountGbp)}</span>
+                  </div>
+                  <span className="text-xs text-text-muted">{ec.regulator} · {ec.year}</span>
+                  {lesson && (
+                    <p className="text-xs text-text-muted mt-1.5 leading-relaxed line-clamp-2">
+                      {lesson.rootCause}
+                    </p>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         ) : <p className="text-sm text-text-muted">No enforcement case is mapped to this control yet.</p>}
       </section>
       <section>
-        <div className="flex items-center gap-2 mb-2"><BookOpen className="h-4 w-4 text-emerald-500" /><h4 className="text-sm font-semibold text-foreground">Cited sources</h4></div>
+        <div className="flex items-center gap-2 mb-2"><BookOpen className="h-4 w-4 text-accent" /><h4 className="text-sm font-semibold text-foreground">Cited sources</h4></div>
         <div className="flex flex-wrap gap-2">
           {c.sources.map((s) => <SourceBadge key={`${s.org}-${s.reference}`} source={s.org as SourceOrg} reference={s.reference} url={s.url} title={s.title} />)}
         </div>
