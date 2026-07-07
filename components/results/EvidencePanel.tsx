@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Scale, ListChecks, BookOpen, ShieldCheck, ChevronDown, ArrowUpRight } from "lucide-react";
 import { casesForThemes, fmtGbp, totalPenaltiesForThemes, countCasesForThemes } from "@/lib/enforcement/select";
 import { lessonFor } from "@/data/enforcement/lessons";
+import { caseSlug } from "@/lib/enforcement/case-slug";
 import { INDICATORS_BY_THEME, FRAMEWORK_SOURCES } from "@/data/sources";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import ReferenceLink from "@/components/shared/ReferenceLink";
@@ -39,41 +40,44 @@ export default function EvidencePanel({ themes, typology, compact = false, moreH
       {/* Real enforcement cases */}
       <section>
         <div className="flex items-center gap-2 mb-2">
-          <Scale className="h-5 w-5 text-emerald-500" />
+          <Scale className="h-5 w-5 text-accent" />
           <h3 className="text-lg font-semibold text-foreground">Real enforcement: what failure costs</h3>
         </div>
         {totalPenalties > 0 && (
           <p className="text-sm text-text-muted mb-4">
-            UK regulators have fined firms <span className="font-semibold text-emerald-500">{fmtGbp(totalPenalties)}</span> across the cases tagged to {themeLabel}.
+            UK regulators have fined firms <span className="font-semibold text-accent">{fmtGbp(totalPenalties)}</span> across the cases tagged to {themeLabel}.
           </p>
         )}
         <div className="grid sm:grid-cols-2 gap-4">
           {visible.map((c) => {
             const lesson = lessonFor(c.firm, c.year);
             const controls = lesson?.preventedBy ?? fallbackControls;
+            const slug = caseSlug(c.firm, c.year);
             return (
               <div key={`${c.firm}-${c.year}`} className="glass-card rounded-xl p-4">
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <div>
-                    <div className="font-semibold text-foreground leading-tight">{c.firm}</div>
+                  <div className="min-w-0">
+                    <Link href={`/enforcement/${slug}`} className="font-semibold text-foreground leading-tight hover:text-accent transition-colors line-clamp-2 block">
+                      {c.firm}
+                    </Link>
                     <div className="text-xs text-text-muted">
                       {c.regulator} · {c.year}
                     </div>
                   </div>
-                  <span className="shrink-0 text-sm font-bold text-emerald-500 tabular-nums">{c.fine}</span>
+                  <span className="shrink-0 text-sm font-bold text-accent tabular-nums">{c.fine}</span>
                 </div>
                 <p className="text-sm text-text-muted leading-relaxed">{lesson?.rootCause ?? c.summary}</p>
 
                 {controls.length > 0 && (
-                  <div className="mt-3 rounded-lg bg-emerald-500/[0.06] border border-emerald-500/15 p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-500 flex items-center gap-1.5">
+                  <div className="mt-3 rounded-lg bg-accent/[0.06] border border-accent/15 p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-accent flex items-center gap-1.5">
                       <ShieldCheck className="h-3.5 w-3.5" />
                       {lesson ? "What would have caught this" : "Controls in this typology that address this"}
                     </p>
                     <ul className="mt-1.5 space-y-1">
                       {controls.map((ctrl, j) => (
                         <li key={j} className="text-xs text-text-muted flex gap-1.5">
-                          <span className="mt-1.5 h-1 w-1 rounded-full bg-emerald-400 shrink-0" />
+                          <span className="mt-1.5 h-1 w-1 rounded-full bg-accent shrink-0" />
                           <span>{ctrl}</span>
                         </li>
                       ))}
@@ -86,7 +90,7 @@ export default function EvidencePanel({ themes, typology, compact = false, moreH
                     url={c.sourceUrl}
                     label="Final notice"
                     heading={`${c.firm} (${c.regulator} ${c.year})`}
-                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-emerald-500 hover:text-emerald-400"
+                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-hover"
                     showIcon
                   />
                 ) : null}
