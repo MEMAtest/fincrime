@@ -46,11 +46,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     synced.current = true;
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
-      if (stored && stored !== readDomTheme()) {
-        applyTheme(stored);
+      if (stored) {
+        if (stored !== readDomTheme()) applyTheme(stored);
+      } else {
+        // Dark-canonical: default to dark on first visit
+        applyTheme("dark");
       }
     } catch {
-      // localStorage unavailable
+      // localStorage unavailable — dark-canonical fallback
+      applyTheme("dark");
     }
   }, []);
 
