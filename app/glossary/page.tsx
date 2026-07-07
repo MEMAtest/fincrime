@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ToolFrame from "@/components/layout/ToolFrame";
 import SourceBadge from "@/components/shared/SourceBadge";
+import ToolPageHeader from "@/components/shared/ToolPageHeader";
 import { GLOSSARY } from "@/data/glossary";
 
 export const metadata: Metadata = {
@@ -15,13 +16,12 @@ export default function GlossaryPage() {
     <ToolFrame>
       <main className="flex-1">
         <section className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
-            Financial crime <span className="gradient-text">glossary</span>
-          </h1>
-          <p className="mt-3 text-text-muted max-w-2xl">
-            Plain-English definitions of the terms used across the lab. Each is cited to an authoritative
-            source; open the badge to see and copy the reference. This is guidance, not legal advice.
-          </p>
+          <ToolPageHeader
+            eyebrow="REFERENCE · GLOSSARY"
+            title="Financial crime"
+            titleAccent="glossary"
+            subtitle="Plain-English definitions of the terms used across the lab. Each is cited to an authoritative source; open the badge to see and copy the reference. This is guidance, not legal advice."
+          />
 
           <div className="mt-8 space-y-4">
             {entries.map((e) => (

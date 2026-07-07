@@ -22,6 +22,7 @@ import NextSteps from "@/components/shared/NextSteps";
 import TypologyDetailModal from "@/components/typologies/TypologyDetailModal";
 import { track } from "@vercel/analytics";
 import { useNarrative } from "@/lib/useNarrative";
+import { useTheme } from "@/components/theme/ThemeProvider";
 import { allTypologies } from "@/data/typologies";
 import { totalEnforcementCases, enforcementBenchmarks } from "@/lib/enforcement/select";
 import SourceBadge from "@/components/shared/SourceBadge";
@@ -38,6 +39,7 @@ function TypologyResults() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+  const { theme } = useTheme();
   const [showAllDetection, setShowAllDetection] = useState(false);
   const [showAllWorkflow, setShowAllWorkflow] = useState(false);
   const [detailSlug, setDetailSlug] = useState<string | null>(null);
@@ -212,14 +214,18 @@ function TypologyResults() {
                 aria-checked={isActive}
                 tabIndex={isActive ? 0 : -1}
                 onClick={() => selectTypology(m.typology.slug)}
-                className={`shrink-0 whitespace-nowrap inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-colors cursor-pointer ${
-                  isActive ? "text-white border-transparent" : "glass-card text-text-muted hover:text-foreground"
+                className={`shrink-0 whitespace-nowrap inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                  isActive ? "ring-1 ring-inset" : "glass-card text-text-muted hover:text-foreground"
                 }`}
-                style={isActive ? { backgroundColor: cfg.glow } : undefined}
+                style={isActive ? {
+                  backgroundColor: `${cfg.glow}18`,
+                  borderColor: `${cfg.glow}70`,
+                  color: theme === "dark" ? cfg.primary : cfg.secondary,
+                } : undefined}
               >
                 <RiskThemeIcon riskTheme={m.typology.riskTheme} size="sm" animated={false} />
                 <span className="max-w-[180px] truncate">{m.typology.title}</span>
-                <span className={`text-[11px] font-mono ${isActive ? "text-white/90" : "text-text-muted"}`}>{m.score}</span>
+                <span className="text-[11px] font-mono opacity-70">{m.score}</span>
               </button>
             );
           })}

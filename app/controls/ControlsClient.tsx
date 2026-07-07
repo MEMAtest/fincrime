@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { ArrowRight, ArrowUpRight, ChevronDown, ChevronRight, AlertTriangle, Scale, Wrench } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
+import ToolPageHeader from "@/components/shared/ToolPageHeader";
 import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
 import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
@@ -139,32 +140,19 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
   return (
     <ToolFrame>
       <main className="flex-1">
-        {/* Hero */}
-        <section className="relative overflow-hidden py-16 sm:py-20">
-          <div className="absolute inset-0 bg-gradient-to-b from-accent/5 via-transparent to-transparent" />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div className="text-center max-w-3xl mx-auto">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
-                Controls Reference{" "}
-                <span className="gradient-text">Library</span>
-              </h1>
-              <p className="mt-4 text-lg text-text-muted max-w-2xl mx-auto">
-                Browse the financial crime controls your firm needs, grouped by
-                control category, filtered by firm type, risk theme and framework,
-                and mapped to real enforcement actions.
-              </p>
-              <p className="mt-3 text-sm text-text-muted max-w-2xl mx-auto">
-                This is the reference catalogue. To adapt controls to your firm and export a register, use the{" "}
-                <Link href="/control-builder" className="text-accent hover:underline">Control Builder</Link>.
-              </p>
-              <div className="mt-5 flex justify-center">
-                <Link href="/control-builder" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent text-white font-medium text-sm hover:bg-accent-hover transition-colors">
-                  <Wrench className="h-4 w-4" /> Build a control register
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10">
+          <ToolPageHeader
+            eyebrow="03 · CONTROLS LIBRARY"
+            title="Controls Reference"
+            titleAccent="Library"
+            subtitle="Browse the financial crime controls your firm needs, grouped by category, filtered by firm type, risk theme and framework, and mapped to real enforcement actions. To adapt controls to your firm and export a register, use the Control Builder."
+            actions={
+              <Link href="/control-builder" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-accent text-white font-medium text-sm hover:bg-accent-hover transition-colors">
+                <Wrench className="h-4 w-4" /> Build a register
+              </Link>
+            }
+          />
+        </div>
 
         <section className="pb-20 sm:pb-28">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -215,9 +203,9 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
                     onClick={() => toggleThemeFilter(theme)}
                     aria-pressed={on}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                      on ? "text-white border-transparent" : "bg-white/5 text-text-muted hover:bg-white/10 border-surface-border"
+                      on ? "" : "bg-white/5 text-text-muted hover:bg-white/10 border-surface-border"
                     }`}
-                    style={on ? { backgroundColor: cfg.glow } : undefined}
+                    style={on ? { backgroundColor: `${cfg.glow}18`, borderColor: `${cfg.glow}70`, color: cfg.primary } : undefined}
                   >
                     <RiskThemeIcon riskTheme={theme} size="sm" animated={false} />
                     {cfg.label}

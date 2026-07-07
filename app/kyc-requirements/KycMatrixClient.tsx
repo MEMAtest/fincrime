@@ -23,6 +23,7 @@ import {
   CATEGORY_TITLE, CATEGORY_ORDER,
 } from "@/data/kyc/types";
 import { JURISDICTION_SUMMARY } from "@/data/kyc/summaries";
+import ToolPageHeader from "@/components/shared/ToolPageHeader";
 
 const RISK_OPTIONS: { value: RiskLevel; label: string }[] = [
   { value: "low", label: "Lower risk (SDD)" },
@@ -202,30 +203,25 @@ export default function KycMatrixClient({
     <ToolFrame>
       <main className="flex-1">
         <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-4 flex-wrap mb-2">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                KYC / CDD Requirements <span className="gradient-text">Matrix</span>
-              </h1>
-              <p className="mt-1 text-sm text-text-muted max-w-2xl">
-                A working reference and checklist. Pick one or more entity types, jurisdictions and risk levels to see a
-                combined, de-duplicated view of what to collect, what the rules say, and tick off what you have. Every
-                requirement is mapped to its primary-source regulatory reference.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Button variant="secondary" size="sm" onClick={share}>
-                {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Share2 className="h-4 w-4" />}
-                {copied ? "Copied" : "Share"}
-              </Button>
-              <PDFExportButton
-                module="kyc_requirements"
-                assessmentData={{ entities: ents, jurisdictions: jurs, risks: rks, completed: reqs.filter((r) => done.has(r.key)).map((r) => r.key) }}
-                formats={["pdf", "docx"]}
-              />
-            </div>
-          </div>
+          <ToolPageHeader
+            eyebrow="02 · KYC / CDD MATRIX"
+            title="KYC / CDD Requirements"
+            titleAccent="Matrix"
+            subtitle="A working reference and checklist. Pick one or more entity types, jurisdictions and risk levels to see a combined, de-duplicated view of what to collect, what the rules say, and tick off what you have. Every requirement is mapped to its primary-source regulatory reference."
+            actions={
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button variant="secondary" size="sm" onClick={share}>
+                  {copied ? <Check className="h-4 w-4 text-accent" /> : <Share2 className="h-4 w-4" />}
+                  {copied ? "Copied" : "Share"}
+                </Button>
+                <PDFExportButton
+                  module="kyc_requirements"
+                  assessmentData={{ entities: ents, jurisdictions: jurs, risks: rks, completed: reqs.filter((r) => done.has(r.key)).map((r) => r.key) }}
+                  formats={["pdf", "docx"]}
+                />
+              </div>
+            }
+          />
 
           {/* Selector bar (relative z-20 so the open dropdowns paint above the
               glass-card summaries below, which each form their own stacking context) */}

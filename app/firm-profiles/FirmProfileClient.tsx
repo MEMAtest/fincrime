@@ -22,6 +22,7 @@ import {
   countCasesForFirmType, totalEnforcementCases, enforcementBenchmarks,
 } from "@/lib/enforcement/select";
 import type { FirmType, RiskTheme } from "@/data/typologies/types";
+import ToolPageHeader from "@/components/shared/ToolPageHeader";
 
 // A single severity ramp for risk-level pills/bars, so colour means severity
 // consistently across the product (red = higher risk), not the risk category.
@@ -71,11 +72,12 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Intro (one line) */}
-      <div className="mb-3">
-        <p className="text-[11px] uppercase tracking-wider text-accent font-medium">Firm Profiles</p>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground">Financial crime risk by business model</h1>
-      </div>
+      <ToolPageHeader
+        eyebrow="01 · FIRM PROFILES"
+        title="Financial crime risk"
+        titleAccent="by business model"
+        subtitle="Select a firm type to see its inherent risk matrix, regulatory obligations, applicable typologies, and suggested controls."
+      />
 
       {/* Firm-type switcher */}
       <div className="flex gap-1.5 mb-4 overflow-x-auto sm:flex-wrap -mx-4 px-4 sm:mx-0 sm:px-0 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label="Firm type">
@@ -219,10 +221,10 @@ export default function FirmProfileClient({ initialType }: { initialType: FirmTy
                 <button
                   key={theme}
                   onClick={() => { setThemeFilter(active ? null : theme); setShowAllTypologies(false); }}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                    active ? "text-white" : "glass-card text-text-muted hover:text-foreground"
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-medium transition-all cursor-pointer ${
+                    active ? "" : "glass-card text-text-muted hover:text-foreground"
                   }`}
-                  style={active ? { backgroundColor: cfg.glow } : undefined}
+                  style={active ? { backgroundColor: `${cfg.glow}18`, borderColor: `${cfg.glow}70`, color: cfg.primary } : undefined}
                 >
                   <RiskThemeIcon riskTheme={theme} size="sm" animated={false} />
                   {RISK_THEME_LABEL[theme]}

@@ -9,6 +9,7 @@ import { enforcementCases } from "@/data/enforcement/cases";
 import { lessonFor } from "@/data/enforcement/lessons";
 import { effectiveFirmTypes, fmtGbp } from "@/lib/enforcement/select";
 import { caseSlug } from "@/lib/enforcement/case-slug";
+import ToolPageHeader from "@/components/shared/ToolPageHeader";
 import { controlsForCase } from "@/data/controls";
 import type { RiskTheme, FirmType } from "@/data/typologies/types";
 
@@ -59,14 +60,12 @@ export default function EnforcementHubClient() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <div className="mb-6">
-        <p className="text-[11px] uppercase tracking-wider text-accent font-medium mb-1">Enforcement</p>
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">What failed, and the controls that would have caught it</h1>
-        <p className="text-text-muted text-sm max-w-3xl mt-2 leading-relaxed">
-          Real FCA enforcement actions, each broken down into what went wrong and the financial crime controls
-          that would have prevented it. Open a case to see the controls, then design them for your firm.
-        </p>
-      </div>
+      <ToolPageHeader
+        eyebrow="04 · ENFORCEMENT TRACKER"
+        title="What failed,"
+        titleAccent="and the fix"
+        subtitle="Real FCA enforcement actions, each broken down into what went wrong and the financial crime controls that would have prevented it. Open a case to see the controls, then design them for your firm."
+      />
 
       {/* KPI strip */}
       <div className="glass-card rounded-2xl p-4 mb-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -93,10 +92,10 @@ export default function EnforcementHubClient() {
             <button
               key={t}
               onClick={() => pickTheme(active ? null : t)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer ${
-                active ? "text-white" : "glass-card text-text-muted hover:text-foreground"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all cursor-pointer ${
+                active ? "" : "glass-card text-text-muted hover:text-foreground"
               }`}
-              style={active ? { backgroundColor: cfg.glow } : undefined}
+              style={active ? { backgroundColor: `${cfg.glow}18`, borderColor: `${cfg.glow}70`, color: cfg.primary } : undefined}
             >
               <RiskThemeIcon riskTheme={t} size="sm" animated={false} /> {RISK_THEME_LABEL[t]}
             </button>

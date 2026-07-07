@@ -14,38 +14,43 @@ export interface BarDatum {
 export default function BarChart({
   data,
   format = (n) => String(n),
-  barColor = "#10b981",
 }: {
   data: BarDatum[];
   format?: (n: number) => string;
-  barColor?: string;
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
 
   return (
     <div className="space-y-3">
-      {data.map((d) => {
-        const pct = Math.max(2, (d.value / max) * 100);
-        return (
-          <div key={d.label} className="flex items-center gap-3">
-            <div className="w-32 shrink-0 text-xs text-text-muted truncate" title={d.label}>
-              {d.label}
+      {/* hairline baseline */}
+      <div className="relative">
+        {data.map((d) => {
+          const pct = Math.max(2, (d.value / max) * 100);
+          return (
+            <div key={d.label} className="flex items-center gap-3 mb-2.5 last:mb-0">
+              <div className="w-32 shrink-0 text-xs text-text-muted truncate" title={d.label}>
+                {d.label}
+              </div>
+              <div className="flex-1 relative h-5 rounded bg-surface overflow-hidden">
+                <div
+                  className="h-full rounded transition-[width] duration-700 ease-out"
+                  style={{
+                    width: `${pct}%`,
+                    background: d.color
+                      ? d.color
+                      : "linear-gradient(90deg, var(--accent), var(--accent-bright))",
+                  }}
+                />
+              </div>
+              <div className="w-14 shrink-0 text-right text-xs font-semibold text-foreground tabular-nums">
+                {format(d.value)}
+              </div>
             </div>
-            <div className="flex-1 h-6 rounded-md bg-surface overflow-hidden">
-              <div
-                className="h-full rounded-md transition-[width] duration-700 ease-out"
-                style={{
-                  width: `${pct}%`,
-                  background: `linear-gradient(90deg, ${d.color ?? barColor}, ${d.color ?? "#14b8a6"})`,
-                }}
-              />
-            </div>
-            <div className="w-16 shrink-0 text-right text-xs font-semibold text-foreground tabular-nums">
-              {format(d.value)}
-            </div>
-          </div>
-        );
-      })}
+          );
+        })}
+        {/* hairline baseline rule */}
+        <div className="absolute left-[140px] right-[68px] bottom-0 h-px bg-[var(--line-2)]" />
+      </div>
     </div>
   );
 }

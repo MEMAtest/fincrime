@@ -34,14 +34,14 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
         if (e.target === overlayRef.current) onClose();
       }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
+      <div className="bg-[var(--bg-1)] border border-[var(--line-2)] rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+          className="absolute top-4 right-4 text-text-muted hover:text-foreground cursor-pointer"
         >
           <X className="h-5 w-5" />
         </button>
-        <h3 className="text-lg font-semibold text-text-dark mb-4">{title}</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
         {children}
       </div>
     </div>

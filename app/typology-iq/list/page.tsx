@@ -117,14 +117,19 @@ export default function TypologyListPage() {
             <button
               key={theme}
               onClick={() => setActiveTheme(activeTheme === theme ? null : theme)}
-              className={`inline-flex items-center gap-2 shrink-0 whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-2 shrink-0 whitespace-nowrap px-4 py-2 rounded-full border text-sm font-medium transition-all cursor-pointer ${
                 activeTheme === theme
-                  ? "shadow-md text-white"
+                  ? ""
                   : "glass-card text-text-muted hover:text-foreground"
               }`}
               style={
                 activeTheme === theme
-                  ? { backgroundColor: THEME_CONFIG[theme].glow, boxShadow: `0 4px 20px ${THEME_CONFIG[theme].glow}30` }
+                  ? {
+                      backgroundColor: `${THEME_CONFIG[theme].glow}18`,
+                      borderColor: `${THEME_CONFIG[theme].glow}70`,
+                      color: THEME_CONFIG[theme].primary,
+                      boxShadow: `0 4px 20px ${THEME_CONFIG[theme].glow}20`,
+                    }
                   : undefined
               }
             >

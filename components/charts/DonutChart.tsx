@@ -47,12 +47,10 @@ export default function DonutChart({
               stroke={s.color}
               strokeWidth={thickness}
               strokeLinecap="butt"
-              strokeDasharray={`${s.dash} ${circ - s.dash}`}
               strokeDashoffset={-s.offset}
-              initial={reduce ? { opacity: 1 } : { opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.08 }}
+              initial={reduce ? { strokeDasharray: `${s.dash} ${circ - s.dash}` } : { strokeDasharray: `0 ${circ}` }}
+              animate={{ strokeDasharray: `${s.dash} ${circ - s.dash}` }}
+              transition={{ duration: 0.6, delay: i * 0.1, ease: "easeOut" }}
             />
           ))}
         </g>
