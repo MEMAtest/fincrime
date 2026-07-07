@@ -10,6 +10,7 @@ import { lessonFor } from "@/data/enforcement/lessons";
 import { effectiveFirmTypes, fmtGbp } from "@/lib/enforcement/select";
 import { caseSlug } from "@/lib/enforcement/case-slug";
 import ToolPageHeader from "@/components/shared/ToolPageHeader";
+import DonutChart from "@/components/charts/DonutChart";
 import { controlsForCase } from "@/data/controls";
 import type { RiskTheme, FirmType } from "@/data/typologies/types";
 
@@ -67,19 +68,38 @@ export default function EnforcementHubClient() {
         subtitle="Real FCA enforcement actions, each broken down into what went wrong and the financial crime controls that would have prevented it. Open a case to see the controls, then design them for your firm."
       />
 
-      {/* KPI strip */}
-      <div className="glass-card rounded-2xl p-4 mb-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Enforcement cases", value: String(kpis.count) },
-          { label: "Total penalties", value: fmtGbp(kpis.total) },
-          { label: "Median fine", value: fmtGbp(kpis.median) },
-          { label: "Largest", value: fmtGbp(kpis.max) },
-        ].map((k) => (
-          <div key={k.label} className="text-center">
-            <div className="text-xl font-bold text-foreground tabular-nums">{k.value}</div>
-            <div className="text-[11px] text-text-muted mt-0.5">{k.label}</div>
-          </div>
-        ))}
+      {/* KPI strip + theme breakdown donut */}
+      <div className="glass-card rounded-2xl p-4 mb-8 flex flex-col sm:flex-row gap-6">
+        {/* KPIs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
+          {[
+            { label: "Enforcement cases", value: String(kpis.count) },
+            { label: "Total penalties", value: fmtGbp(kpis.total) },
+            { label: "Median fine", value: fmtGbp(kpis.median) },
+            { label: "Largest", value: fmtGbp(kpis.max) },
+          ].map((k) => (
+            <div key={k.label} className="text-center">
+              <div className="text-xl font-bold text-foreground tabular-nums">{k.value}</div>
+              <div className="text-[11px] text-text-muted mt-0.5">{k.label}</div>
+            </div>
+          ))}
+        </div>
+        {/* Theme distribution donut — always shows ALL cases as reference */}
+        <div className="border-t sm:border-t-0 sm:border-l border-surface-border sm:pl-6 pt-4 sm:pt-0 shrink-0">
+          <p className="text-[11px] uppercase tracking-wider text-text-muted mb-3">Theme mix (all cases)</p>
+          <DonutChart
+            size={100}
+            thickness={16}
+            centerLabel={String(sorted.length)}
+            data={ALL_THEMES
+              .map((t) => ({
+                label: RISK_THEME_LABEL[t],
+                value: sorted.filter((c) => c.riskThemes.includes(t)).length,
+                color: THEME_CONFIG[t].glow,
+              }))
+              .filter((d) => d.value > 0)}
+          />
+        </div>
       </div>
 
       {/* Theme filter */}
