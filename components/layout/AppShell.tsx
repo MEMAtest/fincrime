@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Home, ClipboardCheck, Crosshair, Blocks, Sparkles, Building2, ShieldCheck, UserCheck,
@@ -179,7 +179,9 @@ export default function AppShell({
         )}
 
         {/* The four-stage journey spine (self-hides on non-workflow routes) */}
-        <WorkflowBar />
+        <Suspense fallback={null}>
+          <WorkflowBar />
+        </Suspense>
 
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col">{children}</div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import WorkflowBar from "@/components/workflow/WorkflowBar";
@@ -57,7 +58,9 @@ export default function Header() {
         </div>
       </nav>
       </div>
-      <WorkflowBar />
+      <Suspense fallback={null}>
+        <WorkflowBar />
+      </Suspense>
     </>
   );
 }

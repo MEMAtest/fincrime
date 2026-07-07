@@ -197,9 +197,40 @@ export default function CommandPalette({
         {/* Results */}
         <div ref={listRef} id="cmdk-list" role="listbox" aria-label="Search results" className="overflow-y-auto flex-1 py-2">
           {flat.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm text-text-muted">
-              No results for &ldquo;{query.trim()}&rdquo;.
-            </p>
+            <div>
+              <p className="px-4 pt-8 pb-4 text-center text-sm text-text-muted">
+                No results for &ldquo;{query.trim()}&rdquo;
+              </p>
+              {/* Rescue: always show Go to tools so it's never a dead end */}
+              {[
+                { group: "Go to" as SearchGroup, items: index.filter((i) => i.group === "Go to") },
+                { group: "Typologies" as SearchGroup, items: index.filter((i) => i.group === "Typologies").slice(0, 3) },
+              ].map(({ group, items }) =>
+                items.length ? (
+                  <div key={group} className="mb-1">
+                    <p className="px-4 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
+                      {group}
+                    </p>
+                    {items.map((item) => {
+                      const Icon = GROUP_ICON[item.group];
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => commit(item)}
+                          className="w-full flex items-center gap-3 px-4 py-2 text-left cursor-pointer transition-colors hover:bg-accent/10"
+                        >
+                          <Icon className="h-4 w-4 shrink-0 text-text-muted" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm text-foreground truncate">{item.title}</span>
+                            <span className="block text-xs text-text-muted truncate">{item.subtitle}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null
+              )}
+            </div>
           ) : (
             groups.map(({ group, items }) => (
               <div key={group} className="mb-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
@@ -51,6 +51,13 @@ const PILL_LABELS: Record<string, string> = {
 export default function TypologyListPage() {
   const [activeTheme, setActiveTheme] = useState<RiskTheme | null>(null);
   const [query, setQuery] = useState("");
+
+  // Read ?theme= on mount so deep-links from enforcement case pages work.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const t = p.get("theme") as RiskTheme | null;
+    if (t && ALL_RISK_THEMES.includes(t)) setActiveTheme(t);
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

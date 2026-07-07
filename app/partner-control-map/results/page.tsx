@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import {
@@ -44,6 +44,8 @@ const actorLabels: Record<Actor, string> = {
 
 function PartnerResults() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const answers = useMemo(() => {
     let controlOverrides: Record<string, ControlOwnership> = {};
@@ -72,6 +74,12 @@ function PartnerResults() {
     return next;
   });
 
+  const handleTabChange = (id: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("tab", id);
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+  };
+
   const { narrative, loading: narrativeLoading } = useNarrative(
     "/api/partner/narrative",
     result
@@ -90,11 +98,31 @@ function PartnerResults() {
 
   if (!result) {
     return (
-      <div className="text-center py-20">
-        <p className="text-text-muted">Missing parameters. Please complete the wizard first.</p>
-        <Link href="/partner-control-map" className="text-accent mt-4 inline-block">
-          Start over
-        </Link>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-20">
+        <div className="glass-card rounded-2xl p-8 text-center">
+          <div className="marker mb-5 justify-center">
+            <span className="tech"><span className="ix">◇</span><span className="bar" />PARTNER CONTROL MAP</span>
+            <span className="rule" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground mb-2">Complete the wizard to see results</h2>
+          <p className="text-sm text-text-muted mb-6 max-w-md mx-auto leading-relaxed">
+            The Partner Control Map defines who owns each financial crime control across a partner payment flow, generating a RACI matrix, data gap analysis and pre-launch governance pack.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/partner-control-map"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-accent text-white font-medium text-sm hover:bg-accent-hover transition-colors"
+            >
+              Start the wizard
+            </Link>
+            <Link
+              href="/partner-control-map/results?modelType=embedded&flowType=cross_border_payout&actors=your_firm,partner,correspondent_bank,beneficiary_bank&dataReceived=full_name,account_number,purpose_of_payment"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg glass-card text-foreground font-medium text-sm hover:text-accent transition-colors"
+            >
+              Try a worked example
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -191,8 +219,10 @@ function PartnerResults() {
       {/* Flow Intelligence (AI-assisted, distinguished from cited fact) */}
       <NarrativeCard heading="Flow Intelligence" narrative={narrative} loading={narrativeLoading} />
 
-      {/* Tabbed results: Controls · Evidence · Benchmarks */}
+      {/* Tabbed results: Controls · Evidence · Benchmarks. Tab id is mirrored to ?tab= for deep-linking. */}
       <ResultTabs
+        initialId={searchParams.get("tab") ?? "controls"}
+        onActiveChange={handleTabChange}
         tabs={[
           {
             id: "controls",

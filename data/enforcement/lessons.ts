@@ -136,6 +136,321 @@ export const CASE_LESSONS: CaseLesson[] = [
       "Governance over incident handling and customer treatment",
     ],
   },
+  // ── 33 new entries ───────────────────────────────────────────────────────
+  {
+    firm: "John Wood Group PLC", year: 2026,
+    rootCause: "The firm published misleading information, breaching Listing Principle 1 by failing to meet its disclosure obligations.",
+    preventedBy: [
+      "Three Lines of Defence & Accountability",
+      "Independent Assurance & Control Testing",
+      "Board & Management Information Reporting",
+    ],
+  },
+  {
+    firm: "Santander plc", year: 2014,
+    rootCause: "The firm gave unsuitable investment advice and issued financial promotions that were not clear, fair or non-misleading.",
+    preventedBy: [
+      "Independent Assurance & Control Testing",
+      "Staff Training & Awareness",
+      "Three Lines of Defence & Accountability",
+    ],
+  },
+  {
+    firm: "Metro Bank Plc", year: 2022,
+    rootCause: "The firm breached Listing Rules by publishing misleading information, failing to meet market disclosure requirements.",
+    preventedBy: [
+      "Three Lines of Defence & Accountability",
+      "Independent Assurance & Control Testing",
+      "Board & Management Information Reporting",
+    ],
+  },
+  {
+    firm: "7722656 Canada Inc formerly trading as Swift Trade Inc", year: 2014,
+    rootCause: "The firm executed trades to create a false or misleading impression in the market for profit, constituting market abuse.",
+    preventedBy: [
+      "Mirror & Matched-Trade Detection",
+      "Independent Assurance & Control Testing",
+      "Three Lines of Defence & Accountability",
+    ],
+  },
+  {
+    firm: "JLT Specialty Limited", year: 2022,
+    rootCause: "The firm failed to maintain adequate anti-bribery, corruption and financial crime controls in its insurance operations.",
+    preventedBy: [
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Agent & Distributor Oversight",
+      "Independent Assurance & Control Testing",
+      "Three Lines of Defence & Accountability",
+    ],
+  },
+  {
+    firm: "Guaranty Trust Bank (UK) Limited (GT Bank)", year: 2023,
+    rootCause: "The firm failed to maintain adequate controls to manage the risk of financial crime in its wholesale banking operations.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Ongoing CDD & Periodic Review",
+    ],
+  },
+  {
+    firm: "Standard Bank PLC", year: 2014,
+    rootCause: "The firm lacked adequate AML policies for corporate customers connected to politically exposed persons.",
+    preventedBy: [
+      "PEP Identification & Enhanced Due Diligence",
+      "PEP Screening",
+      "Enhanced Due Diligence Programme",
+      "Beneficial Ownership Identification & Verification",
+    ],
+  },
+  {
+    firm: "ADM Investor Services International Limited", year: 2023,
+    rootCause: "The firm had serious financial crime control failings across its wholesale intermediary and broking operations.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Ghana International Bank Plc", year: 2022,
+    rootCause: "The firm breached the Money Laundering Regulations in its corporate banking by failing to meet required AML standards.",
+    preventedBy: [
+      "Customer Identification & Verification (CIP/CDD)",
+      "Customer Risk Assessment & Rating",
+      "Ongoing CDD & Periodic Review",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+    ],
+  },
+  {
+    firm: "EFG Private Bank", year: 2013,
+    rootCause: "The firm failed to take reasonable care to establish and maintain effective AML controls for high-risk customers.",
+    preventedBy: [
+      "Enhanced Due Diligence Programme",
+      "Customer Risk Assessment & Rating",
+      "Activity vs Expected Profile Monitoring",
+      "Ongoing CDD & Periodic Review",
+    ],
+  },
+  {
+    firm: "Al Rayan Bank PLC", year: 2023,
+    rootCause: "The firm breached PRIN 3 by failing to maintain adequate financial crime controls in its retail banking operations.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Ongoing CDD & Periodic Review",
+      "Firm-Wide Financial Crime Risk Assessment",
+    ],
+  },
+  {
+    firm: "Sonali Bank (UK) Limited", year: 2016,
+    rootCause: "The firm had governance failures, failed to be open with the regulator, and lacked adequate financial crime controls.",
+    preventedBy: [
+      "Three Lines of Defence & Accountability",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Board & Management Information Reporting",
+      "Staff Training & Awareness",
+    ],
+  },
+  {
+    firm: "Bastion Capital London Limited", year: 2023,
+    rootCause: "The firm failed to act with skill and care and lacked adequate financial crime controls in its trading operations.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Credit Suisse International", year: 2014,
+    rootCause: "The firm failed to ensure its financial promotions for the Cliquet Product were clear, fair and not misleading.",
+    preventedBy: [
+      "Independent Assurance & Control Testing",
+      "Three Lines of Defence & Accountability",
+      "Staff Training & Awareness",
+    ],
+  },
+  {
+    firm: "The TJM Partnership Limited (Formerly known as Neovision Global Capital Limited) (In Liquidation)", year: 2022,
+    rootCause: "The firm failed to act with skill and care and lacked adequate financial crime controls in trading.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Mako Financial Markets Partnership LLP", year: 2025,
+    rootCause: "The firm failed to act with skill and care and lacked adequate financial crime controls in its trading firm operations.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Gatehouse Bank plc", year: 2022,
+    rootCause: "The firm breached the Money Laundering Regulations in retail banking, failing to meet required AML standards.",
+    preventedBy: [
+      "Customer Identification & Verification (CIP/CDD)",
+      "Customer Risk Assessment & Rating",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Ongoing CDD & Periodic Review",
+    ],
+  },
+  {
+    firm: "Yorkshire Building Society", year: 2014,
+    rootCause: "The firm distributed financial promotions for the Cliquet Product that were not clear, fair or non-misleading.",
+    preventedBy: [
+      "Independent Assurance & Control Testing",
+      "Agent & Distributor Oversight",
+      "Three Lines of Defence & Accountability",
+    ],
+  },
+  {
+    firm: "Gurpreet Singh Chadda", year: 2013,
+    rootCause: "The individual deliberately misled vulnerable customers for personal financial gain, failing to act with integrity.",
+    preventedBy: [
+      "Independent Assurance & Control Testing",
+      "Three Lines of Defence & Accountability",
+      "Staff Training & Awareness",
+    ],
+  },
+  {
+    firm: "Canara Bank", year: 2018,
+    rootCause: "The firm breached Principle 3 and SYSC by failing to maintain adequate financial crime systems and controls.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Barclays Bank plc", year: 2022,
+    rootCause: "The firm breached PRIN 2 by failing to act with due skill and care over financial crime in its corporate banking sector.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Ongoing CDD & Periodic Review",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Sunrise Brokers LLP", year: 2021,
+    rootCause: "The firm failed to act with skill, care and diligence and lacked adequate financial crime controls in trading.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Mark Bentley-Leek", year: 2013,
+    rootCause: "The individual gave misleading investment advice to clients, failing to act honestly and in their best interests.",
+    preventedBy: [
+      "Independent Assurance & Control Testing",
+      "Three Lines of Defence & Accountability",
+      "Staff Training & Awareness",
+    ],
+  },
+  {
+    firm: "Guaranty Trust Bank (UK) Limited", year: 2013,
+    rootCause: "The firm had failings in its AML controls for high-risk customers, lacking adequate due diligence and monitoring.",
+    preventedBy: [
+      "Enhanced Due Diligence Programme",
+      "Customer Risk Assessment & Rating",
+      "Activity vs Expected Profile Monitoring",
+      "Ongoing CDD & Periodic Review",
+    ],
+  },
+  {
+    firm: "Mustafa Dervish", year: 2013,
+    rootCause: "The individual gave misleading investment advice to clients, failing to act honestly and in their best interests.",
+    preventedBy: [
+      "Independent Assurance & Control Testing",
+      "Three Lines of Defence & Accountability",
+      "Staff Training & Awareness",
+    ],
+  },
+  {
+    firm: "Arian Financial LLP", year: 2025,
+    rootCause: "The firm breached PRIN 2 and PRIN 3 by failing to act with skill and care and lacking financial crime controls.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Sapien Capital Limited", year: 2021,
+    rootCause: "The firm breached PRIN 2 and PRIN 3 by failing to maintain adequate financial crime controls in its trading operations.",
+    preventedBy: [
+      "Customer Risk Assessment & Rating",
+      "Firm-Wide Financial Crime Risk Assessment",
+      "Transaction-Monitoring Scenario Coverage Assurance",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Daniel James Plunkett", year: 2014,
+    rootCause: "The individual placed orders to influence the Gold Fixing, breaching proper market conduct and integrity standards.",
+    preventedBy: [
+      "Mirror & Matched-Trade Detection",
+      "Three Lines of Defence & Accountability",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Hall and Hanley Limited (HHL)", year: 2020,
+    rootCause: "The firm misled consumers and treated them unfairly in claims management, breaching conduct of authorised persons rules.",
+    preventedBy: [
+      "Staff Training & Awareness",
+      "Independent Assurance & Control Testing",
+      "Three Lines of Defence & Accountability",
+    ],
+  },
+  {
+    firm: "Professional Personal Claims Limited", year: 2019,
+    rootCause: "The firm misled consumers in the claims management sector, breaching conduct of authorised persons rules.",
+    preventedBy: [
+      "Staff Training & Awareness",
+      "Independent Assurance & Control Testing",
+      "Three Lines of Defence & Accountability",
+    ],
+  },
+  {
+    firm: "Steven Smith", year: 2016,
+    rootCause: "The individual was knowingly concerned in financial crime and lacked the fitness and propriety of an approved person.",
+    preventedBy: [
+      "Three Lines of Defence & Accountability",
+      "Staff Training & Awareness",
+      "Independent Assurance & Control Testing",
+    ],
+  },
+  {
+    firm: "Douglas Jones", year: 2013,
+    rootCause: "The individual failed to ensure mortgage application controls and altered client files to mislead the regulator.",
+    preventedBy: [
+      "Onboarding Fraud & Identity Controls",
+      "Independent Assurance & Control Testing",
+      "Three Lines of Defence & Accountability",
+    ],
+  },
+  {
+    firm: "City & Provincial", year: 2014,
+    rootCause: "The individual deliberately provided false and misleading information in their own mortgage application.",
+    preventedBy: [
+      "Onboarding Fraud & Identity Controls",
+      "Independent Assurance & Control Testing",
+    ],
+  },
 ];
 
 const lessonIndex: Record<string, CaseLesson> = {};

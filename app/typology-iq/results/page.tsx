@@ -79,6 +79,12 @@ function TypologyResults() {
     p.set("active", slug);
     router.replace(`${pathname}?${p.toString()}`, { scroll: false });
   };
+
+  const handleTabChange = (id: string) => {
+    const p = new URLSearchParams(searchParams.toString());
+    p.set("tab", id);
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
+  };
   const onChipsKeyDown = (e: React.KeyboardEvent) => {
     if (!active || (e.key !== "ArrowRight" && e.key !== "ArrowLeft")) return;
     e.preventDefault();
@@ -110,11 +116,31 @@ function TypologyResults() {
 
   if (!active) {
     return (
-      <div className="text-center py-20">
-        <p className="text-text-muted">Missing parameters. Please complete the wizard first.</p>
-        <Link href="/typology-iq" className="text-accent mt-4 inline-block">
-          Start over
-        </Link>
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-20">
+        <div className="glass-card rounded-2xl p-8 text-center">
+          <div className="marker mb-5 justify-center">
+            <span className="tech"><span className="ix">◇</span><span className="bar" />TYPOLOGY IQ</span>
+            <span className="rule" />
+          </div>
+          <h2 className="text-xl font-semibold text-foreground mb-2">Complete the wizard to see results</h2>
+          <p className="text-sm text-text-muted mb-6 max-w-md mx-auto leading-relaxed">
+            TypologyIQ maps your firm profile to financial crime typologies using a deterministic scoring model. Each result shows detection logic, governance checklists and real enforcement evidence.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/typology-iq"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-accent text-white font-medium text-sm hover:bg-accent-hover transition-colors"
+            >
+              Start the wizard
+            </Link>
+            <Link
+              href="/typology-iq/results?firmType=emi&product=prepaid_card&customerType=retail&riskThemes=money_laundering,fraud"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg glass-card text-foreground font-medium text-sm hover:text-accent transition-colors"
+            >
+              Try a worked example
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -323,8 +349,10 @@ function TypologyResults() {
         scoringNote="In TypologyIQ the weights are firm type 30, product 25, customer 20, risk theme 25."
       />
 
-      {/* Tabbed results: Controls · Evidence · Benchmarks */}
+      {/* Tabbed results: Controls · Evidence · Benchmarks. Tab id is mirrored to ?tab= for deep-linking. */}
       <ResultTabs
+        initialId={searchParams.get("tab") ?? "controls"}
+        onActiveChange={handleTabChange}
         tabs={[
           {
             id: "controls",
