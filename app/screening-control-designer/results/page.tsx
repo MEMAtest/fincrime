@@ -95,7 +95,7 @@ function ScreeningResults() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
-        <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 text-xs font-medium">
+        <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-accent/15 text-accent border border-accent/30 text-xs font-medium">
           {SCREENING_CATEGORY_LABEL[answers.category]}
         </span>
         <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-surface border border-surface-border text-xs font-medium text-foreground">

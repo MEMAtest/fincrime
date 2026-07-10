@@ -34,7 +34,7 @@ const RISK_OPTIONS: { value: RiskLevel; label: string }[] = [
 type FilterKey = "required" | "conditional" | "not_applicable" | "edd";
 
 const STATUS_PILL: Record<string, string> = {
-  required: "bg-emerald-500/12 text-emerald-500",
+  required: "bg-accent/12 text-accent",
   conditional: "bg-amber-500/12 text-amber-500",
   not_applicable: "bg-white/10 text-text-muted",
   edd: "bg-risk-high/12 text-risk-high",
@@ -178,7 +178,7 @@ export default function KycMatrixClient({
   const groups = CATEGORY_ORDER.map((cat) => ({ cat, all: reqs.filter((r) => r.category === cat) })).filter((g) => g.all.length > 0);
 
   const statBar: { key: FilterKey; label: string; value: number; icon: typeof CheckCircle2; color: string }[] = [
-    { key: "required", label: "Required", value: counts.required, icon: CheckCircle2, color: "text-emerald-500" },
+    { key: "required", label: "Required", value: counts.required, icon: CheckCircle2, color: "text-accent" },
     { key: "conditional", label: "Conditional", value: counts.conditional, icon: HelpCircle, color: "text-amber-500" },
     { key: "not_applicable", label: "Not applicable", value: counts.not_applicable, icon: MinusCircle, color: "text-text-muted" },
     { key: "edd", label: "EDD triggers", value: counts.edd, icon: AlertTriangle, color: "text-risk-high" },
@@ -327,7 +327,7 @@ export default function KycMatrixClient({
                         <ul className="mt-2 space-y-1 flex-1">
                           {topTitles.map((t) => (
                             <li key={t} className="text-[11px] text-text-muted leading-snug flex gap-1">
-                              <Check className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" />
+                              <Check className="h-3 w-3 text-accent mt-0.5 shrink-0" />
                               <span className="line-clamp-1">{t}</span>
                             </li>
                           ))}
@@ -371,14 +371,14 @@ export default function KycMatrixClient({
 
           {/* Checklist progress */}
           <div className="glass-card rounded-xl p-3 mt-3 flex items-center gap-4">
-            <ListChecks className="h-5 w-5 text-emerald-500 shrink-0" />
+            <ListChecks className="h-5 w-5 text-accent shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="flex justify-between text-xs mb-1">
                 <span className="font-medium text-foreground">Onboarding checklist</span>
-                <span className="text-text-muted">Collected <span className="font-semibold text-emerald-500">{collected}</span> / {reqs.length}</span>
+                <span className="text-text-muted">Collected <span className="font-semibold text-accent">{collected}</span> / {reqs.length}</span>
               </div>
               <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${reqs.length ? Math.round((collected / reqs.length) * 100) : 0}%` }} />
+                <div className="h-full bg-accent rounded-full" style={{ width: `${reqs.length ? Math.round((collected / reqs.length) * 100) : 0}%` }} />
               </div>
             </div>
             <span className="text-[11px] text-text-muted hidden sm:block">Tracked in this browser</span>
@@ -452,7 +452,7 @@ export default function KycMatrixClient({
                       <span className="text-base font-semibold text-foreground">{CATEGORY_TITLE[cat]}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-emerald-500">{req} Required</span>
+                      <span className="text-xs text-accent">{req} Required</span>
                       <span className="text-xs text-amber-500">{cond} Conditional</span>
                       <span className="text-xs text-text-muted">{na} N/A</span>
                       {isOpen ? <ChevronDown className="h-5 w-5 text-text-muted" /> : <ChevronRight className="h-5 w-5 text-text-muted" />}
@@ -470,12 +470,12 @@ export default function KycMatrixClient({
                         const isDone = done.has(r.key);
                         const partial = multiScenario && r.appliesTo.length < merged.scenarios.length;
                         return (
-                          <div key={r.key} className={`rounded-xl border overflow-hidden ${isDone ? "border-emerald-500/40 bg-emerald-500/5" : "border-surface-border"}`}>
+                          <div key={r.key} className={`rounded-xl border overflow-hidden ${isDone ? "border-accent/40 bg-accent/5" : "border-surface-border"}`}>
                             <div className="flex items-stretch">
                               <label className="flex items-center px-3 cursor-pointer border-r border-surface-border" title="Mark collected">
                                 <input type="checkbox" checked={isDone} onChange={() => toggleDone(r.key)}
                                   aria-label={`Mark "${r.title}" collected`}
-                                  className="h-4 w-4 rounded border-surface-border text-emerald-500 focus:ring-emerald-500 cursor-pointer" />
+                                  className="h-4 w-4 rounded border-surface-border text-accent focus:ring-accent cursor-pointer" />
                               </label>
                               <button onClick={() => toggleReq(r.key)} aria-expanded={open}
                                 className="flex-1 flex items-start justify-between gap-4 px-4 py-3 text-left hover:bg-surface-hover transition-colors">

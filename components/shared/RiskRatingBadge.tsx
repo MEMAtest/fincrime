@@ -6,8 +6,8 @@ const riskConfig: Record<RiskLevel, { icon: typeof CheckCircle; label: string; c
   low: {
     icon: CheckCircle,
     label: "Low Risk",
-    color: "text-emerald-700",
-    bg: "bg-emerald-50 border-emerald-200",
+    color: "text-accent",
+    bg: "bg-accent/10 border-accent/20",
   },
   medium: {
     icon: AlertTriangle,

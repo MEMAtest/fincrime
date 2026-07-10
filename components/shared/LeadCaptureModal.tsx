@@ -111,8 +111,8 @@ export default function LeadCaptureModal({
     return (
       <Modal open={open} onClose={onClose} title="Download Complete">
         <div className="text-center py-4">
-          <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Download className="h-6 w-6 text-emerald-600" />
+          <div className="w-12 h-12 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-3">
+            <Download className="h-6 w-6 text-accent" />
           </div>
           <p className="text-slate-700 mb-2">Your {docLabel} has been downloaded.</p>
           <p className="text-sm text-slate-500">

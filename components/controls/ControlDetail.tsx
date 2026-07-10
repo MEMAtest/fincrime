@@ -132,8 +132,8 @@ export default function ControlDetail({
           const done = tested.includes(i);
           return (
             <li key={i}>
-              <button onClick={() => onToggleTest(i)} className={`w-full text-left flex items-start gap-2.5 rounded-lg border p-3 transition-colors ${done ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-surface-border hover:bg-surface-hover"}`}>
-                <span className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center shrink-0 ${done ? "border-emerald-500 bg-emerald-500 text-white" : "border-surface-border"}`}>{done && <Check className="h-3 w-3" />}</span>
+              <button onClick={() => onToggleTest(i)} className={`w-full text-left flex items-start gap-2.5 rounded-lg border p-3 transition-colors ${done ? "border-accent/40 bg-accent/[0.06]" : "border-surface-border hover:bg-surface-hover"}`}>
+                <span className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center shrink-0 ${done ? "border-accent bg-accent text-white" : "border-surface-border"}`}>{done && <Check className="h-3 w-3" />}</span>
                 <span className={`text-sm ${done ? "text-text-muted line-through" : "text-foreground"}`}>{step}</span>
               </button>
             </li>
@@ -267,7 +267,7 @@ export default function ControlDetail({
           <div className="flex items-center justify-between mb-1.5"><span className={label}>What good looks like</span></div>
           <ul className="space-y-1">
             {c.whatGoodLooksLike.map((g, i) => (
-              <li key={i} className="text-xs text-text-muted flex gap-1.5"><ShieldCheck className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" /><span>{g}</span></li>
+              <li key={i} className="text-xs text-text-muted flex gap-1.5"><ShieldCheck className="h-3 w-3 text-accent mt-0.5 shrink-0" /><span>{g}</span></li>
             ))}
           </ul>
         </div>

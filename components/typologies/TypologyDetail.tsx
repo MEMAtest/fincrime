@@ -145,7 +145,7 @@ export default function TypologyDetail({ typology, compact = false }: { typology
               <div className="space-y-8">
                 <EvidencePanel themes={[typology.riskTheme]} typology={typology} />
                 <section>
-                  <div className="flex items-center gap-2 mb-3"><BookOpen className="h-5 w-5 text-emerald-500" /><h3 className="text-lg font-semibold text-foreground">Primary sources for this typology</h3></div>
+                  <div className="flex items-center gap-2 mb-3"><BookOpen className="h-5 w-5 text-accent" /><h3 className="text-lg font-semibold text-foreground">Primary sources for this typology</h3></div>
                   <div className="flex flex-wrap gap-2">
                     {typology.sources.map((s) => (<SourceBadge key={`${s.org}-${s.reference}`} source={s.org as SourceOrg} reference={s.reference} url={s.url} title={s.title} />))}
                   </div>

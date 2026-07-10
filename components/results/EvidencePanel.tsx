@@ -106,14 +106,14 @@ export default function EvidencePanel({ themes, typology, compact = false, moreH
           </p>
           {compact ? (
             matchedCount > visible.length && (
-              <Link href={moreHref} className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500 hover:text-emerald-400">
+              <Link href={moreHref} className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-bright">
                 See all enforcement for these themes <ArrowUpRight className="h-3.5 w-3.5" />
               </Link>
             )
           ) : cases.length > 4 && (
             <button
               onClick={() => setShowAll((s) => !s)}
-              className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500 hover:text-emerald-400 cursor-pointer"
+              className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-bright cursor-pointer"
             >
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAll ? "rotate-180" : ""}`} />
               {showAll ? "Show fewer" : `Show ${cases.length - 4} more`}
@@ -126,19 +126,19 @@ export default function EvidencePanel({ themes, typology, compact = false, moreH
       {!compact && indicators.length > 0 ? (
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <ListChecks className="h-5 w-5 text-emerald-500" />
+            <ListChecks className="h-5 w-5 text-accent" />
             <h3 className="text-lg font-semibold text-foreground">Red-flag indicators, cited</h3>
           </div>
           <ul className="space-y-2.5">
             {indicators.map((ind) => (
               <li key={ind.indicator} className="flex items-start gap-3 text-sm">
-                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
                 <span className="text-foreground">{ind.indicator}</span>
                 <ReferenceLink
                   url={ind.url}
                   label={ind.source}
                   heading={ind.indicator}
-                  className="shrink-0 text-xs font-medium text-emerald-500 hover:text-emerald-400 whitespace-nowrap"
+                  className="shrink-0 text-xs font-medium text-accent hover:text-accent-bright whitespace-nowrap"
                 />
               </li>
             ))}
@@ -150,7 +150,7 @@ export default function EvidencePanel({ themes, typology, compact = false, moreH
       {!compact && (
         <section>
           <div className="flex items-center gap-2 mb-4">
-            <BookOpen className="h-5 w-5 text-emerald-500" />
+            <BookOpen className="h-5 w-5 text-accent" />
             <h3 className="text-lg font-semibold text-foreground">Authoritative frameworks</h3>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -160,7 +160,7 @@ export default function EvidencePanel({ themes, typology, compact = false, moreH
                 url={f.url}
                 label={f.title}
                 heading={f.title}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-surface-border text-xs font-medium text-foreground hover:border-emerald-500/40"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-surface-border text-xs font-medium text-foreground hover:border-accent/40"
                 showIcon
               />
             ))}

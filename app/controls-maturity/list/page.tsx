@@ -36,8 +36,8 @@ export default function MaturityListPage() {
                 const Icon = AREA_ICON[f.area];
                 return (
                   <div key={f.slug} className="tile p-6 flex flex-col">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 flex items-center justify-center mb-4">
-                      <Icon className="h-5 w-5 text-emerald-400" />
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-accent/20 to-accent-bright/20 border border-accent/30 flex items-center justify-center mb-4">
+                      <Icon className="h-5 w-5 text-accent" />
                     </div>
                     <h2 className="text-base font-semibold text-foreground mb-1">{CONTROL_AREA_LABEL[f.area]}</h2>
                     <p className="text-sm text-text-muted leading-relaxed flex-1">{f.description}</p>

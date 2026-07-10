@@ -14,7 +14,7 @@ export function isOverrideSet(v: unknown): boolean {
 export const RATING_ORDER: ControlRating[] = ["not_assessed", "weak", "adequate", "strong"];
 
 export const RATING_META: Record<ControlRating, { label: string; badge: string; dot: string }> = {
-  strong: { label: "Strong", badge: "text-emerald-600 bg-emerald-50 border border-emerald-200", dot: "bg-emerald-500" },
+  strong: { label: "Strong", badge: "text-accent bg-accent/10 border border-accent/20", dot: "bg-accent" },
   adequate: { label: "Adequate", badge: "text-amber-600 bg-amber-50 border border-amber-200", dot: "bg-amber-500" },
   weak: { label: "Weak", badge: "text-red-600 bg-red-50 border border-red-200", dot: "bg-red-500" },
   not_assessed: { label: "Not assessed", badge: "text-slate-500 bg-slate-50 border border-slate-200", dot: "bg-slate-300" },
@@ -62,7 +62,7 @@ export function RatingSelect({
 export const STATUS_ORDER: ControlStatus[] = ["not_started", "in_progress", "needs_review", "gaps", "implemented"];
 
 export const STATUS_META: Record<ControlStatus, { label: string; badge: string; dot: string }> = {
-  implemented: { label: "Implemented", badge: "text-emerald-600 bg-emerald-50 border border-emerald-200", dot: "bg-emerald-500" },
+  implemented: { label: "Implemented", badge: "text-accent bg-accent/10 border border-accent/20", dot: "bg-accent" },
   in_progress: { label: "In Progress", badge: "text-amber-600 bg-amber-50 border border-amber-200", dot: "bg-amber-500" },
   needs_review: { label: "Needs Review", badge: "text-violet-600 bg-violet-50 border border-violet-200", dot: "bg-violet-500" },
   gaps: { label: "Gaps", badge: "text-red-600 bg-red-50 border border-red-200", dot: "bg-red-500" },

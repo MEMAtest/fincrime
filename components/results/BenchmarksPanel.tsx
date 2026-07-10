@@ -53,7 +53,7 @@ export default function BenchmarksPanel({
 
       <section className="glass-card rounded-xl p-6">
         <div className="flex items-center gap-2 mb-5">
-          <BarChart3 className="h-5 w-5 text-emerald-500" />
+          <BarChart3 className="h-5 w-5 text-accent" />
           <h3 className="text-base font-semibold text-foreground">
             Financial-crime enforcement by risk theme
           </h3>
@@ -64,7 +64,7 @@ export default function BenchmarksPanel({
       {yearBars.length > 1 ? (
         <section className="glass-card rounded-xl p-6">
           <div className="flex items-center gap-2 mb-5">
-            <TrendingUp className="h-5 w-5 text-emerald-500" />
+            <TrendingUp className="h-5 w-5 text-accent" />
             <h3 className="text-base font-semibold text-foreground">
               Total penalties by year
             </h3>

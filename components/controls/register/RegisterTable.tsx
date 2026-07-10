@@ -182,7 +182,7 @@ export default function RegisterTable({
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
         <Kpi icon={ShieldCheck} tint="text-accent" bg="bg-accent/10" label="Total Controls" value={kpis.total} sub={`Across ${kpis.catCount} categories`} />
-        <Kpi icon={CheckCircle2} tint="text-emerald-500" bg="bg-emerald-500/10" label="Implemented" value={kpis.implemented} sub={pct(kpis.implemented, kpis.total)} />
+        <Kpi icon={CheckCircle2} tint="text-accent" bg="bg-accent/10" label="Implemented" value={kpis.implemented} sub={pct(kpis.implemented, kpis.total)} />
         <Kpi icon={Clock3} tint="text-amber-500" bg="bg-amber-500/10" label="In Progress" value={kpis.inProgress} sub={pct(kpis.inProgress, kpis.total)} />
         <Kpi icon={AlertTriangle} tint="text-red-500" bg="bg-red-500/10" label="Gaps" value={kpis.gaps} sub={pct(kpis.gaps, kpis.total)} />
         <Kpi icon={Eye} tint="text-violet-500" bg="bg-violet-500/10" label="Needs Review" value={kpis.needsReview} sub={pct(kpis.needsReview, kpis.total)} />

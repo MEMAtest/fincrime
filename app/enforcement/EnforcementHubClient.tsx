@@ -153,7 +153,7 @@ export default function EnforcementHubClient() {
                   <span>{c.firm}</span>
                   <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
                 </h3>
-                <span className="text-sm font-bold text-emerald-500 tabular-nums shrink-0">{c.fine}</span>
+                <span className="text-sm font-bold text-accent tabular-nums shrink-0">{c.fine}</span>
               </div>
               <p className="text-xs text-text-muted">{c.regulator} · {c.year}</p>
               <div className="flex flex-wrap gap-1 my-2">

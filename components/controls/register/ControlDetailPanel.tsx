@@ -107,7 +107,7 @@ export default function ControlDetailPanel({
             <section>
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-sm font-semibold text-foreground">Testing</p>
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${tested.length === c.testPlan.length && c.testPlan.length > 0 ? "text-emerald-600 bg-emerald-50 border border-emerald-200" : "text-slate-500 bg-slate-50 border border-slate-200"}`}>
+                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${tested.length === c.testPlan.length && c.testPlan.length > 0 ? "text-accent bg-accent/10 border border-accent/20" : "text-text-muted bg-surface border border-surface-border"}`}>
                   {tested.length === c.testPlan.length && c.testPlan.length > 0 ? "Pass" : "In session"}
                 </span>
               </div>
@@ -132,20 +132,20 @@ export default function ControlDetailPanel({
         {tab === "evidence" && (
           <>
             <section>
-              <div className="flex items-center gap-2 mb-2"><Scale className="h-4 w-4 text-emerald-500" /><h4 className="text-sm font-semibold text-foreground">Enforcement precedent</h4></div>
+              <div className="flex items-center gap-2 mb-2"><Scale className="h-4 w-4 text-accent" /><h4 className="text-sm font-semibold text-foreground">Enforcement precedent</h4></div>
               {cases.length ? (
                 <div className="space-y-2">
                   {cases.map((ec) => (
                     <Link key={`${ec.firm}-${ec.year}`} href={`/enforcement/${caseSlug(ec.firm, ec.year)}`} className="glass-card rounded-xl p-3 card-hover flex items-start justify-between gap-2">
                       <span className="min-w-0"><span className="block text-sm font-medium text-foreground leading-tight truncate">{ec.firm}</span><span className="text-xs text-text-muted">{ec.regulator} · {ec.year}</span></span>
-                      <span className="text-sm font-bold text-emerald-500 shrink-0">{fmtGbp(ec.amountGbp)}</span>
+                      <span className="text-sm font-bold text-accent shrink-0">{fmtGbp(ec.amountGbp)}</span>
                     </Link>
                   ))}
                 </div>
               ) : <p className="text-sm text-text-muted">No enforcement case is mapped to this control yet.</p>}
             </section>
             <section>
-              <div className="flex items-center gap-2 mb-2"><BookOpen className="h-4 w-4 text-emerald-500" /><h4 className="text-sm font-semibold text-foreground">Cited sources</h4></div>
+              <div className="flex items-center gap-2 mb-2"><BookOpen className="h-4 w-4 text-accent" /><h4 className="text-sm font-semibold text-foreground">Cited sources</h4></div>
               <div className="flex flex-wrap gap-2">
                 {c.sources.map((s) => <SourceBadge key={`${s.org}-${s.reference}`} source={s.org as SourceOrg} reference={s.reference} url={s.url} title={s.title} />)}
               </div>
@@ -174,8 +174,8 @@ export default function ControlDetailPanel({
                 const done = tested.includes(i);
                 return (
                   <li key={i}>
-                    <button onClick={() => onToggleTest(i)} className={`w-full text-left flex items-start gap-2.5 rounded-lg border p-3 transition-colors ${done ? "border-emerald-500/40 bg-emerald-500/[0.06]" : "border-surface-border hover:bg-surface-hover"}`}>
-                      <span className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center shrink-0 ${done ? "border-emerald-500 bg-emerald-500 text-white" : "border-surface-border"}`}>{done && <Check className="h-3 w-3" />}</span>
+                    <button onClick={() => onToggleTest(i)} className={`w-full text-left flex items-start gap-2.5 rounded-lg border p-3 transition-colors ${done ? "border-accent/40 bg-accent/[0.06]" : "border-surface-border hover:bg-surface-hover"}`}>
+                      <span className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center shrink-0 ${done ? "border-accent bg-accent text-white" : "border-surface-border"}`}>{done && <Check className="h-3 w-3" />}</span>
                       <span className={`text-sm ${done ? "text-text-muted line-through" : "text-foreground"}`}>{step}</span>
                     </button>
                   </li>

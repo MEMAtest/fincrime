@@ -53,7 +53,7 @@ function LevelScale({ current, target }: { current: MaturityLevel; target: Matur
           <div key={lvl} className="flex-1 text-center">
             <div
               className={`h-2.5 rounded-full ${
-                filled ? "bg-emerald-500" : inGap ? "bg-emerald-500/30" : "bg-surface-border"
+                filled ? "bg-accent" : inGap ? "bg-accent/30" : "bg-surface-border"
               }`}
             />
             <div className="mt-1.5 text-[10px] text-text-muted truncate">{MATURITY_LABEL[lvl]}</div>
@@ -120,7 +120,7 @@ function MaturityResults() {
       </div>
 
       <div className="mb-6">
-        <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 text-xs font-medium">
+        <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-accent/15 text-accent border border-accent/30 text-xs font-medium">
           {CONTROL_AREA_LABEL[answers.area]}
         </span>
       </div>
@@ -145,7 +145,7 @@ function MaturityResults() {
         <LevelScale current={currentLevel} target={targetLevel} />
         <div className="flex items-center justify-between mt-4 text-sm">
           <span className="text-text-muted">Current: <span className="text-foreground font-medium">{MATURITY_LABEL[currentLevel]}</span></span>
-          <span className="text-text-muted">Gap: <span className="text-emerald-500 font-medium">{gapScore} pts ({result.gapLevels} level{result.gapLevels === 1 ? "" : "s"})</span></span>
+          <span className="text-text-muted">Gap: <span className="text-accent font-medium">{gapScore} pts ({result.gapLevels} level{result.gapLevels === 1 ? "" : "s"})</span></span>
           <span className="text-text-muted">Target: <span className="text-foreground font-medium">{MATURITY_LABEL[targetLevel]}</span></span>
         </div>
       </div>
@@ -210,10 +210,10 @@ function MaturityResults() {
                       const isCurrent = l.level === currentLevel;
                       const isTarget = l.level === targetLevel;
                       return (
-                        <div key={l.level} className={`p-2.5 rounded-lg ${isCurrent ? "bg-emerald-50 border border-emerald-200" : "bg-slate-50"}`}>
+                        <div key={l.level} className={`p-2.5 rounded-lg ${isCurrent ? "bg-accent/10 border border-accent/20" : "bg-slate-50"}`}>
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-slate-800">{MATURITY_LABEL[l.level]}</span>
-                            {isCurrent && <span className="text-[10px] uppercase text-emerald-600 font-semibold">Current</span>}
+                            {isCurrent && <span className="text-[10px] uppercase text-accent font-semibold">Current</span>}
                             {isTarget && !isCurrent && <span className="text-[10px] uppercase text-accent font-semibold">Target</span>}
                           </div>
                           <p className="text-xs text-slate-500 mt-1">{l.descriptor}</p>
