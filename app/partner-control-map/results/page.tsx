@@ -5,7 +5,7 @@ import { useMemo, useState, Suspense } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, Users, Database, ClipboardCheck, FileText,
-  ArrowLeft, ShieldAlert, CheckCircle, XCircle, Layers, Scale, BarChart3,
+  ArrowLeft, ShieldAlert, CheckCircle, XCircle, Layers, Scale, BarChart3, ShieldCheck, ArrowRight, Link2, Check,
 } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import ResultCard from "@/components/results/ResultCard";
@@ -68,6 +68,13 @@ function PartnerResults() {
   }, [answers]);
 
   const [checkedConditions, setCheckedConditions] = useState<Set<string>>(new Set());
+  const [linkCopied, setLinkCopied] = useState(false);
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
   const toggleCondition = (id: string) => setCheckedConditions(prev => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -140,10 +147,20 @@ function PartnerResults() {
           <ArrowLeft className="h-4 w-4" />
           Back to wizard
         </Link>
-        <PDFExportButton
-          module="partner_control_map"
-          assessmentData={{ ...answers, narrative }}
-        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={copyLink}
+            title="Copy link to these results"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-card text-xs font-medium text-text-muted hover:text-accent hover:border-accent/40 transition-colors"
+          >
+            {linkCopied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Link2 className="h-3.5 w-3.5" />}
+            {linkCopied ? "Copied!" : "Copy link"}
+          </button>
+          <PDFExportButton
+            module="partner_control_map"
+            assessmentData={{ ...answers, narrative }}
+          />
+        </div>
       </div>
 
       {/* Summary Banner */}
@@ -338,6 +355,14 @@ function PartnerResults() {
                   </div>
                 </div>
               ))}
+              <a
+                href="/control-builder"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-hover transition-colors"
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Design controls for these gaps
+                <ArrowRight className="h-3 w-3" />
+              </a>
             </div>
           )}
         </ResultCard>
@@ -410,6 +435,19 @@ function PartnerResults() {
 
       <NextSteps
         items={[
+          ...(gapControls.length > 0
+            ? [{
+                title: `Design your ${gapControls.length} gap control${gapControls.length === 1 ? "" : "s"}`,
+                body: "Open the Control Builder to assign owners, set thresholds, and export a governance-ready register.",
+                href: "/control-builder",
+                icon: ShieldCheck,
+              }]
+            : [{
+                title: "No gaps: build your governance pack",
+                body: "All controls are assigned. Open the Control Builder to formalise thresholds and export.",
+                href: "/control-builder",
+                icon: ShieldCheck,
+              }]),
           { title: "Map AML typologies to controls", body: "See which typologies apply to your firm and the detection controls.", href: "/typology-iq", icon: Scale },
           { title: "Browse the Controls Library", body: "Controls grouped by risk theme, mapped to real enforcement.", href: "/controls", icon: Layers },
           { title: "Check KYC requirements", body: "What to collect by entity type and jurisdiction, each cited.", href: "/kyc-requirements", icon: ClipboardCheck },

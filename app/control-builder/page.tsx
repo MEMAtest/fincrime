@@ -21,6 +21,7 @@ export default async function ControlBuilderPage({ searchParams }: { searchParam
   const from = one(sp.from);
   const caseParam = one(sp.case);
   const firmType = one(sp.firmType);
+  const controlsParam = one(sp.controls); // comma-separated slugs, e.g. from maturity/partner CTAs
 
   let initialSlugs: string[] = [];
   let contextLabel: string | undefined;
@@ -60,6 +61,16 @@ export default async function ControlBuilderPage({ searchParams }: { searchParam
   if (control && caseParam) {
     const cs = getEnforcementCaseBySlug(caseParam);
     if (cs) contextLabel = `Designed from the ${cs.firm} (${cs.year}) enforcement case`;
+  }
+
+  // Multi-slug pre-population: ?controls=slug1,slug2,... (from maturity/partner CTAs)
+  if (!initialSlugs.length && controlsParam) {
+    const slugList = controlsParam.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 20);
+    const found = slugList.map((s) => getControlBySlug(s)).filter((c): c is NonNullable<typeof c> => c !== undefined);
+    if (found.length) {
+      initialSlugs = found.map((c) => c.slug);
+      contextLabel = `${found.length} control${found.length === 1 ? "" : "s"} pre-selected for this area`;
+    }
   }
 
   if (!initialSlugs.length && firmType && firmType in FIRM_TYPE_LABEL) {

@@ -5,7 +5,7 @@ import { useMemo, useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, Cpu, GitBranch, ClipboardCheck, BarChart3,
-  ArrowLeft, ChevronDown, ChevronUp, Layers, Scale, Wrench, Maximize2,
+  ArrowLeft, ChevronDown, ChevronUp, Layers, Scale, Wrench, Maximize2, Link2, Check,
 } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import ResultCard from "@/components/results/ResultCard";
@@ -44,6 +44,14 @@ function TypologyResults() {
   const [showAllWorkflow, setShowAllWorkflow] = useState(false);
   const [detailSlug, setDetailSlug] = useState<string | null>(null);
   const [checkedGovernance, setCheckedGovernance] = useState<Record<string, Set<string>>>({});
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
   const activeChipRef = useRef<HTMLButtonElement>(null);
 
   const answers = useMemo(() => {
@@ -169,10 +177,20 @@ function TypologyResults() {
           <ArrowLeft className="h-4 w-4" />
           Back to wizard
         </Link>
-        <PDFExportButton
-          module="typology_iq"
-          assessmentData={{ ...answers, activeSlug: typology.slug, narrative }}
-        />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={copyLink}
+            title="Copy link to these results"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-card text-xs font-medium text-text-muted hover:text-accent hover:border-accent/40 transition-colors"
+          >
+            {linkCopied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Link2 className="h-3.5 w-3.5" />}
+            {linkCopied ? "Copied!" : "Copy link"}
+          </button>
+          <PDFExportButton
+            module="typology_iq"
+            assessmentData={{ ...answers, activeSlug: typology.slug, narrative }}
+          />
+        </div>
       </div>
 
       {/* How TypologyIQ works (collapsed by default) */}

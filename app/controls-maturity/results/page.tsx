@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, Suspense } from "react";
 import Link from "next/link";
 import {
-  Gauge, ListChecks, Route, BarChart3, ClipboardCheck, ArrowLeft, Layers, Scale,
+  Gauge, ListChecks, Route, BarChart3, ClipboardCheck, ArrowLeft, Layers, Scale, ShieldCheck,
 } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import ResultCard from "@/components/results/ResultCard";
@@ -26,6 +26,17 @@ import { scoreMaturity } from "@/data/scoring/maturity-scoring";
 import { MATURITY_LABEL, MATURITY_ORDER, CONTROL_AREA_LABEL } from "@/data/maturity/types";
 import type { ControlArea, MaturityLevel } from "@/data/maturity/types";
 import type { SourceOrg } from "@/data/typologies/types";
+import { allControls } from "@/data/controls";
+import type { ControlCategory } from "@/data/controls";
+
+const MATURITY_AREA_CATEGORY: Record<ControlArea, ControlCategory> = {
+  governance: "governance_reporting",
+  cdd_kyc: "customer_due_diligence",
+  transaction_monitoring: "transaction_monitoring",
+  screening: "screening",
+  reporting: "governance_reporting",
+  training: "governance_reporting",
+};
 
 const LEVELS: MaturityLevel[] = ["initial", "developing", "defined", "managed", "optimised"];
 
@@ -90,6 +101,14 @@ function MaturityResults() {
   }
 
   const { framework, currentLevel, targetLevel, currentScore, targetScore, gapScore, remediation } = result;
+
+  const areaCategory = MATURITY_AREA_CATEGORY[answers.area];
+  const buildSlugs = allControls
+    .filter((c) => c.category === areaCategory)
+    .slice(0, 8)
+    .map((c) => c.slug)
+    .join(",");
+  const buildHref = buildSlugs ? `/control-builder?controls=${buildSlugs}` : "/control-builder";
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -254,6 +273,14 @@ function MaturityResults() {
 
       <NextSteps
         items={[
+          ...(result.gapLevels > 0
+            ? [{
+                title: `Build controls to close the ${CONTROL_AREA_LABEL[answers.area]} gap`,
+                body: `Open the Control Builder with controls pre-selected for ${CONTROL_AREA_LABEL[answers.area]}, then rate and export.`,
+                href: buildHref,
+                icon: ShieldCheck,
+              }]
+            : []),
           { title: "Map AML typologies to controls", body: "See which typologies apply to your firm and the detection controls.", href: "/typology-iq", icon: Scale },
           { title: "Browse the Controls Library", body: "Controls grouped by risk theme, mapped to real enforcement.", href: "/controls", icon: Layers },
           { title: "Check KYC requirements", body: "What to collect by entity type and jurisdiction, each cited.", href: "/kyc-requirements", icon: ClipboardCheck },

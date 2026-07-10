@@ -44,6 +44,12 @@ export const metadata: Metadata = {
     siteName: "FinCrime Control Lab",
     type: "website",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "FinCrime Control Lab: Financial crime, controlled.",
+    description:
+      "Free financial crime control design tools powered by FATF, Wolfsberg, and FCA frameworks.",
+  },
 };
 
 const themeInit = `

@@ -575,6 +575,23 @@ export default function KycMatrixClient({
             This matrix is for guidance only and is not legal advice; use it alongside your organisation&apos;s policies and
             procedures and verify against the cited primary source. Incoming changes (e.g. EU AMLR from 2027) are tagged where relevant.
           </p>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <a
+              href="/control-builder"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg glass-card text-sm font-medium text-foreground hover:text-accent hover:border-accent/40 transition-colors"
+            >
+              <Layers className="h-4 w-4 text-accent" />
+              Build CDD controls
+            </a>
+            <a
+              href="/controls-maturity"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg glass-card text-sm font-medium text-foreground hover:text-accent hover:border-accent/40 transition-colors"
+            >
+              <Gavel className="h-4 w-4 text-accent" />
+              Assess your CDD maturity
+            </a>
+          </div>
         </section>
       </main>
       </ToolFrame>

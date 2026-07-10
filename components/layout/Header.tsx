@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import WorkflowBar from "@/components/workflow/WorkflowBar";
 import SearchTrigger from "@/components/search/SearchTrigger";
@@ -19,6 +20,7 @@ const NAV_MODULES: { href: string; label: string }[] = [
 
 export default function Header() {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <>
@@ -51,12 +53,48 @@ export default function Header() {
         <div className="nav-cta">
           <SearchTrigger compact className="sm:hidden" />
           <SearchTrigger className="hidden sm:inline-flex" />
-          <Link className="btn btn-primary btn-sm" href="/start">
+          <Link className="btn btn-primary btn-sm hidden lg:inline-flex" href="/start">
             Start free
           </Link>
           <ThemeToggle />
+          <button
+            className="lg:hidden p-2 -mr-1 text-text-muted hover:text-foreground transition-colors"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
       </nav>
+
+      {mobileOpen && (
+        <div className="lg:hidden border-t border-[var(--line)] bg-[var(--bg-0)] px-4 pb-4 pt-2">
+          {NAV_MODULES.map((m) => {
+            const active = pathname === m.href || pathname.startsWith(`${m.href}/`);
+            return (
+              <Link
+                key={m.href}
+                href={m.href}
+                onClick={() => setMobileOpen(false)}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center py-3 text-sm border-b border-[var(--line)]/50 last:border-0 transition-colors ${
+                  active ? "text-accent font-medium" : "text-foreground hover:text-accent"
+                }`}
+              >
+                {m.label}
+              </Link>
+            );
+          })}
+          <Link
+            href="/start"
+            onClick={() => setMobileOpen(false)}
+            className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
+          >
+            Start free
+          </Link>
+        </div>
+      )}
       </div>
       <Suspense fallback={null}>
         <WorkflowBar />

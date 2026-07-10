@@ -5,7 +5,7 @@ import { useMemo, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, SlidersHorizontal, Cpu, GitBranch, BarChart3,
-  ClipboardCheck, ArrowLeft, Layers, Scale,
+  ClipboardCheck, ArrowLeft, Layers, Scale, ShieldCheck,
 } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import ResultCard from "@/components/results/ResultCard";
@@ -82,7 +82,16 @@ function ScreeningResults() {
         <Link href="/screening-control-designer" className="flex items-center gap-1.5 text-sm text-text-muted hover:text-accent transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to wizard
         </Link>
-        <PDFExportButton module="screening_controls" assessmentData={{ ...answers, narrative }} />
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/control-builder?control=${control.slug}${answers.firmType ? `&firmType=${answers.firmType}` : ""}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-medium hover:bg-accent-hover transition-colors"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Add to register
+          </Link>
+          <PDFExportButton module="screening_controls" assessmentData={{ ...answers, narrative }} />
+        </div>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
@@ -259,6 +268,12 @@ function ScreeningResults() {
 
       <NextSteps
         items={[
+          {
+            title: "Add this control to your register",
+            body: `Open ${control.title} in the Control Builder, set thresholds and owners, then export.`,
+            href: `/control-builder?control=${control.slug}${answers.firmType ? `&firmType=${answers.firmType}` : ""}`,
+            icon: ShieldCheck,
+          },
           { title: "Map AML typologies to controls", body: "See which typologies apply to your firm and the detection controls.", href: "/typology-iq", icon: Scale },
           { title: "Browse the Controls Library", body: "Controls grouped by risk theme, mapped to real enforcement.", href: "/controls", icon: Layers },
           { title: "Check KYC requirements", body: "What to collect by entity type and jurisdiction, each cited.", href: "/kyc-requirements", icon: ClipboardCheck },
