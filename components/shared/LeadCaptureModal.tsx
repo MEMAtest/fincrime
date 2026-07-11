@@ -7,6 +7,7 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { Download, Loader2 } from "lucide-react";
 import type { PDFModule, ExportFormat } from "./PDFExportButton";
+import { trackOwnedEvent } from "@/lib/owned-analytics";
 
 const MODULE_LABEL: Record<PDFModule, string> = {
   typology_iq: "TypologyIQ",
@@ -70,6 +71,7 @@ export default function LeadCaptureModal({
       });
 
       if (!leadRes.ok) throw new Error("Failed to submit");
+      trackOwnedEvent("lead_submitted", { flow: "document_export", module });
 
       // 2. Generate and download the document
       const pdfRes = await fetch("/api/export/pdf", {
@@ -97,6 +99,7 @@ export default function LeadCaptureModal({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      trackOwnedEvent("download_completed", { flow: "document_export", module, format });
 
       setSuccess(true);
       onSuccess?.();

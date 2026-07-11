@@ -87,6 +87,11 @@ export default function RootLayout({
           </CommandPaletteProvider>
         </ThemeProvider>
         <Analytics />
+        <script
+          defer
+          src="https://owned-portfolio-analytics.mema-consultants.workers.dev/tracker.js"
+          data-project="fincrime"
+        />
       </body>
     </html>
   );
