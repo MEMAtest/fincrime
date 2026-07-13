@@ -32,6 +32,9 @@ import { typology31 } from "./typology-31";
 import { typology32 } from "./typology-32";
 import { typology33 } from "./typology-33";
 import { typology34 } from "./typology-34";
+import { typology35 } from "./typology-35";
+import { typology36 } from "./typology-36";
+import { typology37 } from "./typology-37";
 import type { Typology } from "./types";
 
 export const allTypologies: Typology[] = [
@@ -69,6 +72,9 @@ export const allTypologies: Typology[] = [
   typology32,
   typology33,
   typology34,
+  typology35,
+  typology36,
+  typology37,
 ];
 
 export function getTypologyBySlug(slug: string): Typology | undefined {

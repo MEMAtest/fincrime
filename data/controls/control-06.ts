@@ -25,6 +25,8 @@ export const control06: Control = {
     "pep-grand-corruption-proceeds",
     "real-estate-high-value-goods-integration",
     "tax-haven-transfers",
+    "offshore-trust-layering-professional-enablers",
+    "state-linked-infrastructure-corruption",
   ],
   enforcementRefs: [
     { firm: "EFG Private Bank", year: 2013 },

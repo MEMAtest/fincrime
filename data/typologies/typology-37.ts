@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology37: Typology = {
+  id: 37,
+  slug: "state-linked-infrastructure-corruption",
+  title: "State-Linked Infrastructure Corruption",
+  riskTheme: "bribery_corruption",
+  description:
+    "Politically connected individuals and their associates extract bribes and kickbacks from construction and infrastructure contracts awarded by state or quasi-state entities. Proceeds flow through intermediary consultants, inflated invoices and nominee corporate structures before being layered into the financial system, often passing through private banking accounts and cross-border transfers before integration into apparently legitimate assets.",
+  applicableFirmTypes: ["bank", "wealth_manager", "pi"],
+  applicableProducts: ["cross_border_payments", "domestic_payments", "fx_transfers"],
+  applicableCustomerTypes: ["politically_exposed", "high_net_worth", "corporates", "agents_intermediaries"],
+  controlObjective:
+    "Detect bribery proceeds from construction and infrastructure contracts being channelled through nominees, inflated invoices and consultant intermediaries by state-connected individuals and their associates.",
+  dataRequired: [
+    "PEP status and role of the customer and all beneficial owners and connected parties",
+    "Identity of counterparties making payments and their relationship to state procurement",
+    "Nature and documentation of any consultancy or construction services referenced in invoices",
+    "Market benchmarks for the stated goods or services to assess pricing reasonableness",
+    "Timing of payments relative to known public contract award announcements",
+    "Source of wealth and source of funds documentation for significant inflows",
+    "Destination of outgoing transfers and the receiving party's relationship to the customer",
+    "Adverse media and corruption-risk screening results for all parties",
+  ],
+  detectionLogic: [
+    {
+      id: "SIC-37-R1",
+      name: "PEP-linked account receiving construction-sector payments",
+      logic: "Inflows to an account where the beneficial owner or a connected person holds a PEP designation, originating from construction or infrastructure sector entities operating in or linked to the PEP's home or connected jurisdiction",
+      threshold: "PEP-linked account receiving construction-sector payments from a high-risk or connected jurisdiction",
+      priority: "critical",
+    },
+    {
+      id: "SIC-37-R2",
+      name: "Inflated or undocumented consultancy invoices",
+      logic: "Series of payments referencing construction, consultancy or agency services where invoice amounts are materially inconsistent with market rates, or the counterparty lacks demonstrable operational substance and no service delivery is documented",
+      threshold: "Invoice values more than 40% above sector benchmarks, or counterparty with no verifiable business substance",
+      priority: "high",
+    },
+    {
+      id: "SIC-37-R3",
+      name: "Agent payment coinciding with contract award",
+      logic: "Payment to a consultant or agent coinciding with or shortly following a publicly announced public procurement award in the counterparty's jurisdiction, without documented service delivery attributable to that payment",
+      threshold: "Payment to an agent within 30 days of an announced public contract award in the relevant jurisdiction",
+      priority: "high",
+    },
+    {
+      id: "SIC-37-R4",
+      name: "Cross-border transfer of proceeds to secrecy jurisdiction",
+      logic: "Large or structured outgoing transfers from the account to jurisdictions associated with weak AML enforcement or banking secrecy, following receipt of construction-sector or state-linked funds",
+      threshold: "Outgoing cross-border transfer to a secrecy or low-enforcement jurisdiction within 30 days of a qualifying inflow",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "PEP and Counterparty Assessment",
+      description: "Identify PEP status of all beneficial owners and connected parties. Screen all counterparties against adverse media, PEP and sanctions lists. Document the source and sector of inflows.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Invoice and Commercial Rationale Review",
+      description: "Verify that referenced construction or consultancy services are documented and commercially reasonable. Assess whether the counterparty has genuine operational substance and whether pricing is consistent with market rates.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Source of Funds and Wealth Check",
+      description: "Establish and corroborate source of funds and source of wealth for significant inflows. Assess consistency with the customer's declared income, role and business activities.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "MLRO Review",
+      description: "MLRO assesses bribery, corruption and money-laundering exposure. Determines whether a SAR is required and whether the relationship should be exited. Senior management sign-off required to continue.",
+      sla: "72 hours",
+      responsible: "MLRO",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "File SAR as required. Consider relationship exit. Update PEP and construction-sector monitoring rules to capture similar patterns.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "PEP account monitoring coverage", target: "100%", description: "Proportion of PEP accounts with active enhanced monitoring in place" },
+    { name: "Construction-sector inflow alert volume", target: "Monitor trend", description: "Monthly count of alerts on construction or infrastructure sector inflows to PEP-linked accounts" },
+    { name: "Invoice-rationale review completion", target: "100%", description: "Proportion of flagged consultancy or agent invoices subject to documented commercial-rationale review" },
+    { name: "SARs filed on bribery grounds", target: "Monitor trend", description: "SARs filed specifically citing bribery or corruption suspicion" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "PEP detection and EDD procedures reviewed", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-02", item: "Construction and infrastructure sector risk assessment reviewed", frequency: "Semi-annual", owner: "Compliance" },
+    { id: "GOV-03", item: "Adverse-media and negative-news screening scope reviewed", frequency: "Annual", owner: "Financial Crime Systems" },
+    { id: "GOV-04", item: "Bribery and corruption red-flag indicator guidance reviewed", frequency: "Annual", owner: "MLRO" },
+    { id: "GOV-05", item: "Agent and consultant oversight standards reviewed", frequency: "Annual", owner: "Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "FATF Recommendations", title: "FATF Guidance on Politically Exposed Persons", url: "https://www.fatf-gafi.org/en/publications/Fatfrecommendations/Fatf-recommendations.html" },
+    { org: "FCA", reference: "FCG 3.2", title: "FCA Financial Crime Guide: Customer Due Diligence", url: "https://www.handbook.fca.org.uk/handbook/FCG/3/" },
+    { org: "JMLSG", reference: "Part I s5", title: "JMLSG Guidance: Enhanced Due Diligence for PEPs", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "reg.35", title: "Money Laundering Regulations 2017: Politically Exposed Persons", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/35" },
+  ],
+};

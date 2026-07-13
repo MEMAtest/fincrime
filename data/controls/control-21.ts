@@ -15,7 +15,7 @@ export const control21: Control = {
   plainWhyThreshold: "Because news is so noisy, the trigger pairs a name-match floor with topic and source-credibility filters, keeping the name bar loose enough to catch variant spellings while categories handle relevance.",
   riskThemes: ["money_laundering", "bribery_corruption", "fraud", "sanctions_evasion"],
   applicableFirmTypes: ["bank", "wealth_manager", "emi", "pi", "neobank", "crypto", "insurance", "msb"],
-  typologySlugs: ["pep-grand-corruption-proceeds", "romance-investment-scams", "front-company-bo-obfuscation"],
+  typologySlugs: ["pep-grand-corruption-proceeds", "romance-investment-scams", "front-company-bo-obfuscation", "state-linked-infrastructure-corruption"],
   enforcementRefs: [{ firm: "Credit Suisse International, Credit Suisse Securities (Europe) Ltd, and Credit Suisse AG", year: 2021 }],
   dataInputs: [
     "Customer name, date of birth, nationality and key identifiers at onboarding",

@@ -15,7 +15,7 @@ export const control22: Control = {
   plainWhyThreshold: "The match level catches transliterated and shortened names in cross-border messages while keeping the hold queue workable, and identifier or country hard-blocks skip the name score because they are near-certain.",
   riskThemes: ["sanctions_evasion", "terrorist_financing", "proliferation_financing"],
   applicableFirmTypes: ["bank", "emi", "pi", "msb", "neobank", "crypto"],
-  typologySlugs: ["sanctions-evasion-via-intermediaries", "high-risk-corridor-remittances", "proliferation-financing"],
+  typologySlugs: ["sanctions-evasion-via-intermediaries", "high-risk-corridor-remittances", "proliferation-financing", "wmd-programme-financing-third-country-banking"],
   enforcementRefs: [{ firm: "Standard Chartered Bank", year: 2019 }],
   dataInputs: [
     "Payment message fields: ordering and beneficiary names, addresses, account numbers, BIC/IBAN and intermediary bank identifiers",

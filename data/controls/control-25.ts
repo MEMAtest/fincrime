@@ -15,7 +15,7 @@ export const control25: Control = {
   plainWhyThreshold: "The 85% match floor matches the firm's other screening, the 25% price band catches serious mispricing while allowing normal variation, and dual-use or sanctioned-port hits always trigger review.",
   riskThemes: ["money_laundering", "sanctions_evasion", "proliferation_financing", "tax_evasion"],
   applicableFirmTypes: ["bank", "emi", "pi", "msb"],
-  typologySlugs: ["trade-based-money-laundering", "dual-use-export-procurement-diversion", "sanctions-evasion-via-intermediaries"],
+  typologySlugs: ["trade-based-money-laundering", "dual-use-export-procurement-diversion", "sanctions-evasion-via-intermediaries", "wmd-programme-financing-third-country-banking"],
   enforcementRefs: [{ firm: "Standard Chartered Bank", year: 2019 }],
   dataInputs: [
     "Trade documents: invoices, bills of lading, packing lists, letters of credit, certificates of origin",

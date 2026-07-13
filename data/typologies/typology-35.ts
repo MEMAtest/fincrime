@@ -1,0 +1,111 @@
+import { Typology } from "./types";
+
+export const typology35: Typology = {
+  id: 35,
+  slug: "offshore-trust-layering-professional-enablers",
+  title: "Offshore Trust Layering via Professional Enablers",
+  riskTheme: "tax_evasion",
+  description:
+    "Wealthy individuals use networks of professional enablers including lawyers, accountants and trust administrators to establish multi-jurisdictional trust and corporate structures that conceal beneficial ownership of income-generating assets, disguise the true origin of wealth, and facilitate the evasion of tax obligations. Funds move through nominee trustees, opaque holding vehicles and secrecy-jurisdiction accounts before distribution to the ultimate beneficiary.",
+  applicableFirmTypes: ["bank", "wealth_manager", "pi", "emi"],
+  applicableProducts: ["cross_border_payments", "fx_transfers", "e_money_accounts"],
+  applicableCustomerTypes: ["high_net_worth", "corporates", "agents_intermediaries"],
+  controlObjective:
+    "Detect multi-jurisdictional trust and corporate structures established by professional enablers to conceal beneficial ownership and facilitate tax evasion by high-net-worth individuals.",
+  dataRequired: [
+    "Full beneficial ownership chain including settlors, trustees, protectors and beneficiaries",
+    "Jurisdiction of trust and each underlying entity, and whether any are on non-cooperative or secrecy lists",
+    "Identity and professional registration of all intermediaries acting as nominees or trustees",
+    "Source of wealth documentation for trust contributions and asset transfers",
+    "Nature, valuation and income-generating capacity of underlying assets held in trust",
+    "Distribution history and beneficiary relationship to the settlor",
+    "Tax-residency declarations and automatic exchange of information (AEOI/CRS) status",
+    "Links to jurisdictions with limited tax-information-exchange agreements",
+  ],
+  detectionLogic: [
+    {
+      id: "OTL-35-R1",
+      name: "Complex trust in secrecy jurisdiction",
+      logic: "Layered trust or holding structure where the trust jurisdiction, trustee location or an underlying entity is registered in a non-cooperative, secrecy or high-risk jurisdiction with limited tax information exchange",
+      threshold: "Any trust with 3+ entity layers or a secrecy/non-cooperative-jurisdiction link",
+      priority: "critical",
+    },
+    {
+      id: "OTL-35-R2",
+      name: "Professional intermediary as nominee with no operational substance",
+      logic: "Lawyer, accountant or trust administrator acting as nominee director or trustee with no evidence of active management, combined with a customer linked to a high-risk jurisdiction or high-corruption-risk sector",
+      threshold: "Nominee professional with no substantive role + high-risk jurisdiction or sector indicator",
+      priority: "high",
+    },
+    {
+      id: "OTL-35-R3",
+      name: "Distributions inconsistent with declared asset base",
+      logic: "Distributions from trust to beneficiaries that are disproportionate to the declared size, nature or investment return of the underlying assets, suggesting undisclosed assets or income streams within the structure",
+      threshold: "Distribution exceeding 50% of declared asset base within 12 months absent a documented asset disposal",
+      priority: "high",
+    },
+    {
+      id: "OTL-35-R4",
+      name: "Beneficial ownership opacity after CDD",
+      logic: "Inability to identify the ultimate beneficiary after tracing through multiple trustee and corporate layers, or customer reluctance to provide documentation on trust structure, beneficial owners or settlor identity",
+      threshold: "Ultimate beneficial owner unverifiable after two documented CDD requests",
+      priority: "high",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Structure Mapping",
+      description: "Document all entities in the trust structure, their jurisdictions, roles of trustees, settlors, protectors and beneficiaries, and identify all professional intermediaries.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Source of Wealth Verification",
+      description: "Obtain and corroborate source-of-wealth documentation for trust contributions and assets. Assess consistency of declared asset values with distributions and any public information.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Professional Enabler Due Diligence",
+      description: "Screen all nominees and professional intermediaries against adverse media, sanctions and PEP lists. Assess whether their role is substantive or purely nominal.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 4,
+      title: "Beneficial Ownership Determination",
+      description: "Identify ultimate beneficial owners to natural persons. If unresolvable, escalate to senior management with a recommendation on whether to proceed or exit.",
+      sla: "48 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 5,
+      title: "MLRO Review and SAR Decision",
+      description: "MLRO assesses whether the structure constitutes a red flag for tax evasion, whether a DAML or SAR is required, and whether exit is appropriate.",
+      sla: "5 business days",
+      responsible: "MLRO",
+    },
+  ],
+  metrics: [
+    { name: "Trust structure alert volume", target: "Monitor trend", description: "Monthly count of offshore trust layering alerts" },
+    { name: "Source-of-wealth check completion", target: ">95%", description: "Proportion of trust relationships with documented and corroborated source of wealth" },
+    { name: "Beneficial-owner resolution rate", target: ">90%", description: "Proportion of trust alerts where beneficial owner is successfully identified" },
+    { name: "SARs filed", target: "Monitor trend", description: "SARs filed on tax-evasion grounds following trust structure review" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Offshore trust and complex-structure policy reviewed", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-02", item: "Secrecy and non-cooperative jurisdiction list updated", frequency: "Quarterly", owner: "Financial Crime Systems" },
+    { id: "GOV-03", item: "Professional-enabler due diligence standards reviewed", frequency: "Annual", owner: "Compliance" },
+    { id: "GOV-04", item: "Beneficial-ownership verification procedures reviewed", frequency: "Semi-annual", owner: "MLRO" },
+    { id: "GOV-05", item: "Tax-evasion red-flag indicator guidance refreshed", frequency: "Annual", owner: "Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendations 24/25", title: "Transparency and Beneficial Ownership of Legal Persons and Arrangements", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "JMLSG", reference: "Part I s5", title: "JMLSG Guidance: Enhanced Due Diligence", url: "https://www.jmlsg.org.uk/guidance/current-guidance/" },
+    { org: "MLR", reference: "reg.33", title: "Money Laundering Regulations 2017: Enhanced Customer Due Diligence", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/33" },
+    { org: "FCA", reference: "FCG 3.2", title: "FCA Financial Crime Guide: Customer Due Diligence", url: "https://www.handbook.fca.org.uk/handbook/FCG/3/" },
+  ],
+};

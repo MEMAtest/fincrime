@@ -33,6 +33,7 @@ export const control08: Control = {
     "front-company-bo-obfuscation",
     "high-risk-corridor-remittances",
     "tax-haven-transfers",
+    "offshore-trust-layering-professional-enablers",
   ],
   enforcementRefs: [
     { firm: "Standard Chartered Bank", year: 2019 },

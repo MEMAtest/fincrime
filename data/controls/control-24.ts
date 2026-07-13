@@ -15,7 +15,7 @@ export const control24: Control = {
   plainWhyThreshold: "Because the firm leans on the partner bank's controls for people it never sees, the bar is thorough due diligence and senior accountability, not one number, with nesting gated.",
   riskThemes: ["sanctions_evasion", "money_laundering", "terrorist_financing", "proliferation_financing"],
   applicableFirmTypes: ["bank", "emi", "pi", "msb"],
-  typologySlugs: ["sanctions-evasion-via-intermediaries", "nested-msb-agent-risk", "high-risk-corridor-remittances"],
+  typologySlugs: ["sanctions-evasion-via-intermediaries", "nested-msb-agent-risk", "high-risk-corridor-remittances", "wmd-programme-financing-third-country-banking"],
   enforcementRefs: [
     { firm: "Standard Chartered Bank", year: 2019 },
     { firm: "Ghana International Bank Plc", year: 2022 },

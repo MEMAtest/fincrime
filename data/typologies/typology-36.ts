@@ -1,0 +1,112 @@
+import { Typology } from "./types";
+
+export const typology36: Typology = {
+  id: 36,
+  slug: "wmd-programme-financing-third-country-banking",
+  title: "WMD Programme Financing via Third-Country Banking",
+  riskTheme: "proliferation_financing",
+  description:
+    "Entities controlled by or acting on behalf of weapons of mass destruction programmes exploit gaps in correspondent and cross-border payment screening by routing funds and procurement payments through third-country banking intermediaries, obscuring the true originator, beneficiary and purpose. Shell companies, misclassified goods descriptions, and layered correspondent relationships are used to access the international financial system.",
+  applicableFirmTypes: ["bank", "pi", "emi"],
+  applicableProducts: ["cross_border_payments", "trade_finance", "fx_transfers"],
+  applicableCustomerTypes: ["corporates", "agents_intermediaries", "smes"],
+  controlObjective:
+    "Detect payment flows and correspondent-banking relationships used by proliferation-linked entities to access the financial system through third-country intermediaries and nested banking relationships.",
+  dataRequired: [
+    "True originator and ultimate beneficiary across all payment hops",
+    "Instructing and receiving bank jurisdictions and correspondent chain",
+    "Goods or service descriptions in any linked trade documentation",
+    "Beneficial ownership of all corporate counterparties in the payment chain",
+    "Screening results against proliferation-financing and sanctions designations for all parties",
+    "Vessel names, ports and routing in any associated trade finance",
+    "Stated business purpose and commercial rationale for the payment",
+    "Prior payment history and established correspondent relationship details",
+  ],
+  detectionLogic: [
+    {
+      id: "WMD-36-R1",
+      name: "Proliferation-jurisdiction originator via third-country relay",
+      logic: "Wire transfer or trade payment where the instructing bank, originator or beneficiary has links to a proliferation-sensitive jurisdiction, routed via a third-country intermediary in a lower-risk country to obscure the true origin or destination",
+      threshold: "Any payment with proliferation-jurisdiction party links routed via third-country relay without end-party identification",
+      priority: "critical",
+    },
+    {
+      id: "WMD-36-R2",
+      name: "Nested correspondent exposure to proliferation-risk counterparty",
+      logic: "Respondent bank in a correspondent relationship provides payment services to nested banks or customers with links to proliferation-sensitive jurisdictions, without adequate disclosure of end-party identity",
+      threshold: "Nested exposure to proliferation-sensitive jurisdiction without verified end-party identification",
+      priority: "high",
+    },
+    {
+      id: "WMD-36-R3",
+      name: "Controlled-goods payment to sanctioned or sensitive destination",
+      logic: "Payment for goods or services that fall within controlled or military-use product categories, directed toward a jurisdiction subject to proliferation-linked sanctions or named on a proliferation watchlist",
+      threshold: "Any payment for controlled-goods categories to a sanctioned or proliferation-sensitive destination",
+      priority: "high",
+    },
+    {
+      id: "WMD-36-R4",
+      name: "Opaque beneficial owner in dual-use sector",
+      logic: "Corporate customer in defence, aerospace or dual-use technology sectors where the beneficial owner cannot be verified, or where links exist to state-owned entities in proliferation-sensitive countries",
+      threshold: "Unverifiable beneficial owner in dual-use sector with any proliferation-risk-country connection",
+      priority: "medium",
+    },
+  ],
+  workflowSteps: [
+    {
+      step: 1,
+      title: "Originator and Route Analysis",
+      description: "Identify the true originator, instructing bank and full payment route. Screen all parties, banks and intermediaries against proliferation-financing and sanctions designation lists.",
+      sla: "4 hours",
+      responsible: "L1 Analyst",
+    },
+    {
+      step: 2,
+      title: "Correspondent Due Diligence Review",
+      description: "Assess whether the respondent's AML programme adequately addresses proliferation-financing risk, including nested and pass-through exposure. Request end-party identification where missing.",
+      sla: "24 hours",
+      responsible: "L2 Analyst",
+    },
+    {
+      step: 3,
+      title: "Goods and End-Use Assessment",
+      description: "Where trade-linked, verify goods classification, end-use declaration and export licence status. Assess whether goods descriptions are consistent with stated purpose and destination.",
+      sla: "48 hours",
+      responsible: "L2 Analyst / Trade Compliance",
+    },
+    {
+      step: 4,
+      title: "MLRO and Sanctions Determination",
+      description: "MLRO and sanctions function determine OFSI reporting obligations and whether to block or decline the transaction pending resolution. Document the rationale in full.",
+      sla: "72 hours",
+      responsible: "MLRO / Sanctions Officer",
+    },
+    {
+      step: 5,
+      title: "Control Response",
+      description: "File OFSI report and SAR as required. Block or decline the transaction. Update proliferation-financing screening rules and report to senior management.",
+      sla: "5 business days",
+      responsible: "MLRO / Compliance",
+    },
+  ],
+  metrics: [
+    { name: "Proliferation screening coverage", target: "100%", description: "Proportion of cross-border payments screened against proliferation and sanctions designations" },
+    { name: "Third-country relay alert volume", target: "Monitor trend", description: "Monthly count of alerts on payments with third-country relay and proliferation-jurisdiction links" },
+    { name: "Nested-exposure reviews completed", target: "100%", description: "Proportion of correspondent-bank reviews that include a proliferation-financing risk assessment" },
+    { name: "OFSI reports filed", target: "Monitor trend", description: "OFSI reports filed following proliferation-financing screening outcomes" },
+  ],
+  governanceChecklist: [
+    { id: "GOV-01", item: "Proliferation-linked sanctions and designation lists validated", frequency: "Ongoing", owner: "Sanctions Officer" },
+    { id: "GOV-02", item: "Correspondent bank proliferation-financing risk assessment reviewed", frequency: "Annual", owner: "Correspondent Banking / Compliance" },
+    { id: "GOV-03", item: "Third-country relay and nested-exposure monitoring rules reviewed", frequency: "Semi-annual", owner: "Financial Crime Systems" },
+    { id: "GOV-04", item: "Proliferation-financing detection outcomes reported to MLRO", frequency: "Quarterly", owner: "MLRO" },
+    { id: "GOV-05", item: "Dual-use and controlled-goods goods-code reference data updated", frequency: "Quarterly", owner: "Trade Compliance" },
+  ],
+  sources: [
+    { org: "FATF", reference: "Recommendation 7", title: "Targeted Financial Sanctions Related to Proliferation Financing", url: "https://www.fatf-gafi.org/en/recommendations.html" },
+    { org: "OFSI", reference: "OFSI", title: "Financial Sanctions Guidance", url: "https://www.gov.uk/government/organisations/office-of-financial-sanctions-implementation" },
+    { org: "Wolfsberg", reference: "Wolfsberg Principles", title: "Correspondent Banking Principles", url: "https://www.wolfsberg-principles.com/" },
+    { org: "FCA", reference: "FCG 7", title: "FCA Financial Crime Guide: Financial Sanctions", url: "https://www.handbook.fca.org.uk/handbook/FCG/7/" },
+    { org: "MLR", reference: "reg.33", title: "Money Laundering Regulations 2017: Enhanced Customer Due Diligence", url: "https://www.legislation.gov.uk/uksi/2017/692/regulation/33" },
+  ],
+};

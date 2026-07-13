@@ -15,7 +15,7 @@ export const control31: Control = {
   plainWhyThreshold: "Agents concentrate risk because the firm relies on them for front-line checks, so re-vetting and volume and corridor baselines catch an agent going rogue or a hidden nested operator.",
   riskThemes: ["money_laundering", "terrorist_financing", "sanctions_evasion"],
   applicableFirmTypes: ["msb", "emi", "pi", "bank"],
-  typologySlugs: ["nested-msb-agent-risk", "high-risk-corridor-remittances", "third-party-round-tripping"],
+  typologySlugs: ["nested-msb-agent-risk", "high-risk-corridor-remittances", "third-party-round-tripping", "state-linked-infrastructure-corruption"],
   enforcementRefs: [{ firm: "Commerzbank AG", year: 2020 }],
   dataInputs: [
     "Agent onboarding due diligence (ownership, licensing, AML programme assessment)",

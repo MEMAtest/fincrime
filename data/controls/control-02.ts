@@ -28,6 +28,7 @@ export const control02: Control = {
     "front-company-bo-obfuscation",
     "shell-company-indicators",
     "third-party-round-tripping",
+    "offshore-trust-layering-professional-enablers",
   ],
   enforcementRefs: [
     { firm: "Al Rayan Bank PLC", year: 2023 },

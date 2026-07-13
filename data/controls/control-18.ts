@@ -15,7 +15,7 @@ export const control18: Control = {
   plainWhyThreshold: "The match level is set to catch spelling and transliteration variants without burying analysts in false alarms, while exact identifier hits block automatically because they are almost always genuine.",
   riskThemes: ["sanctions_evasion", "terrorist_financing", "proliferation_financing"],
   applicableFirmTypes: ["emi", "pi", "bank", "msb", "crypto", "neobank", "wealth_manager", "insurance"],
-  typologySlugs: ["sanctions-evasion-via-intermediaries", "proliferation-financing"],
+  typologySlugs: ["sanctions-evasion-via-intermediaries", "proliferation-financing", "wmd-programme-financing-third-country-banking"],
   enforcementRefs: [{ firm: "Starling Bank Limited", year: 2024 }],
   dataInputs: [
     "Customer name, date of birth, nationality, registered address and known aliases at onboarding",

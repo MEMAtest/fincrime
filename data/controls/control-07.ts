@@ -26,6 +26,7 @@ export const control07: Control = {
   typologySlugs: [
     "pep-grand-corruption-proceeds",
     "bribery-facilitation-payments",
+    "state-linked-infrastructure-corruption",
   ],
   enforcementRefs: [
     { firm: "Standard Bank PLC", year: 2014 },
