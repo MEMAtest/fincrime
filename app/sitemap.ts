@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { allTypologies } from "@/data/typologies";
 import { enforcementCaseSlugs } from "@/lib/enforcement/case-slug";
+import { insightArticles } from "@/data/insights";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://fincrime.memaconsultants.com";
@@ -14,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const typologyPages = allTypologies.map((t) => page(`/typology-iq/t/${t.slug}`, 0.7));
   const enforcementPages = enforcementCaseSlugs.map((slug) => page(`/enforcement/${slug}`, 0.7));
+  const insightPages = insightArticles.map((a) => page(`/insights/${a.slug}`, 0.8));
 
   return [
     page("", 1),
@@ -29,9 +31,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page("/screening-control-designer", 0.8),
     page("/controls-maturity", 0.8),
     page("/firm-research", 0.8),
+    page("/insights", 0.9),
     page("/glossary", 0.7),
     page("/methodology", 0.7),
     ...typologyPages,
     ...enforcementPages,
+    ...insightPages,
   ];
 }

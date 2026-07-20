@@ -16,6 +16,7 @@ const NAV_MODULES: { href: string; label: string }[] = [
   { href: "/firm-profiles", label: "Firm Profiles" },
   { href: "/controls", label: "Controls" },
   { href: "/kyc-requirements", label: "KYC Matrix" },
+  { href: "/insights", label: "Insights" },
 ];
 
 export default function Header() {
