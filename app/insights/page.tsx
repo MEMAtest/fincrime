@@ -32,7 +32,7 @@ export default function InsightsPage() {
               <Link
                 key={article.slug}
                 href={`/insights/${article.slug}`}
-                className="block glass-card rounded-2xl p-6 hover:border-accent/40 transition-colors group"
+                className="block glass-card rounded-2xl p-4 sm:p-6 hover:border-accent/40 transition-colors group"
               >
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">

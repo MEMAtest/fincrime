@@ -43,7 +43,7 @@ export default async function InsightArticlePage({ params }: Props) {
           {/* Back link */}
           <Link
             href="/insights"
-            className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-accent transition-colors mb-8"
+            className="inline-flex items-center gap-1.5 py-2 text-xs text-text-muted hover:text-accent transition-colors mb-6"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             All insights
@@ -52,7 +52,7 @@ export default async function InsightArticlePage({ params }: Props) {
           {/* Header */}
           <header className="mb-10">
             <div className="flex items-center gap-3 mb-4">
-              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+              <span className="text-xs font-medium text-text-muted uppercase tracking-wider">
                 {new Date(article.publishDate).toLocaleDateString("en-GB", {
                   day: "numeric",
                   month: "long",
@@ -60,7 +60,7 @@ export default async function InsightArticlePage({ params }: Props) {
                 })}
               </span>
               <span className="text-[var(--line)]">·</span>
-              <span className="flex items-center gap-1 text-[11px] text-text-muted">
+              <span className="flex items-center gap-1 text-xs text-text-muted">
                 <Clock className="h-3 w-3" />
                 {article.readingMinutes} min read
               </span>

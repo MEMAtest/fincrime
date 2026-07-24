@@ -54,12 +54,12 @@ export default function Header() {
         <div className="nav-cta">
           <SearchTrigger compact className="sm:hidden" />
           <SearchTrigger className="hidden sm:inline-flex" />
-          <Link className="btn btn-primary btn-sm hidden lg:inline-flex" href="/start">
+          <Link className="btn btn-primary btn-sm hidden min-[1101px]:inline-flex" href="/start">
             Start free
           </Link>
           <ThemeToggle />
           <button
-            className="lg:hidden p-2 -mr-1 text-text-muted hover:text-foreground transition-colors"
+            className="nav-hamburger p-2 -mr-1 text-text-muted hover:text-foreground transition-colors"
             onClick={() => setMobileOpen((v) => !v)}
             aria-label={mobileOpen ? "Close menu" : "Open menu"}
             aria-expanded={mobileOpen}
@@ -70,7 +70,7 @@ export default function Header() {
       </nav>
 
       {mobileOpen && (
-        <div className="lg:hidden border-t border-[var(--line)] bg-[var(--bg-0)] px-4 pb-4 pt-2">
+        <div className="nav-hamburger border-t border-[var(--line)] bg-[var(--bg-0)] px-4 pb-4 pt-2 max-h-[calc(100vh-80px)] overflow-y-auto">
           {NAV_MODULES.map((m) => {
             const active = pathname === m.href || pathname.startsWith(`${m.href}/`);
             return (
