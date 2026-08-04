@@ -4,8 +4,8 @@ import { useState, Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Home, ClipboardCheck, Crosshair, Blocks, Sparkles, Building2, ShieldCheck, UserCheck,
-  Scale, Network, FileText, Settings, HelpCircle, PanelLeftClose,
-  PanelLeftOpen, ChevronDown, ChevronRight, Menu, X,
+  Scale, Network, FileText, Settings, HelpCircle, PanelLeftClose, ListChecks, LayoutDashboard,
+  ScanSearch, PanelLeftOpen, ChevronDown, ChevronRight, Menu, X,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import WorkflowBar from "@/components/workflow/WorkflowBar";
@@ -22,12 +22,12 @@ export interface Crumb {
   onClick?: () => void;
 }
 
-// Canonical tool names, ordered by the four-stage journey (Profile, Risks,
-// Build, Govern). One name per destination so the marketing pages, the sidebar
-// and every deep link agree.
+// Canonical tool names. One name per destination so the marketing pages, the
+// sidebar and every deep link agree.
 export type SidebarId =
   | "home" | "firm-research" | "firm-profiles" | "typology-iq" | "enforcement"
-  | "control-builder" | "controls-library" | "partner-map" | "kyc" | "maturity"
+  | "control-builder" | "controls-library" | "screening-designer" | "partner-map" | "kyc" | "maturity"
+  | "assess-pra" | "workspace"
   | "reports" | "settings" | "help";
 
 interface SidebarItem {
@@ -38,22 +38,50 @@ interface SidebarItem {
   soon?: boolean;    // not yet built: shown, non-navigating
 }
 
-const PRIMARY: SidebarItem[] = [
-  { id: "home", label: "Home", icon: Home, href: "/" },
-  { id: "firm-research", label: "AI Research", icon: Sparkles, href: "/firm-research" },
-  { id: "firm-profiles", label: "Firm Profiles", icon: Building2, href: "/firm-profiles" },
-  { id: "typology-iq", label: "TypologyIQ", icon: Crosshair, href: "/typology-iq" },
-  { id: "enforcement", label: "Enforcement", icon: Scale, href: "/enforcement" },
-  { id: "control-builder", label: "Control Builder", icon: Blocks, href: "/control-builder" },
-  { id: "controls-library", label: "Controls Library", icon: ShieldCheck, href: "/controls" },
-  { id: "partner-map", label: "Partner Map", icon: Network, href: "/partner-control-map" },
-  { id: "kyc", label: "KYC Matrix", icon: UserCheck, href: "/kyc-requirements" },
-  { id: "maturity", label: "Controls Maturity", icon: ClipboardCheck, href: "/controls-maturity" },
-];
+interface SidebarGroup {
+  label: string;
+  items: SidebarItem[];
+}
 
-const SECONDARY: SidebarItem[] = [
-  { id: "reports", label: "Reports", icon: FileText, soon: true },
-  { id: "settings", label: "Settings", icon: Settings, soon: true },
+// Home stays ungrouped, at the top, per the plan. Everything else is grouped
+// into the Design / Assess / Assure / Govern journey stages.
+const HOME_ITEM: SidebarItem = { id: "home", label: "Home", icon: Home, href: "/" };
+
+const GROUPS: SidebarGroup[] = [
+  {
+    label: "Design",
+    items: [
+      { id: "firm-profiles", label: "Firm Profiles", icon: Building2, href: "/firm-profiles" },
+      { id: "typology-iq", label: "TypologyIQ", icon: Crosshair, href: "/typology-iq" },
+      { id: "controls-library", label: "Controls Library", icon: ShieldCheck, href: "/controls" },
+      { id: "control-builder", label: "Control Builder", icon: Blocks, href: "/control-builder" },
+      { id: "screening-designer", label: "Screening Designer", icon: ScanSearch, href: "/screening-control-designer" },
+      { id: "partner-map", label: "Partner Map", icon: Network, href: "/partner-control-map" },
+      { id: "kyc", label: "KYC Matrix", icon: UserCheck, href: "/kyc-requirements" },
+    ],
+  },
+  {
+    label: "Assess",
+    items: [
+      { id: "assess-pra", label: "Product Risk Assessments", icon: ListChecks, href: "/assess/product-risk" },
+      { id: "firm-research", label: "AI Research", icon: Sparkles, href: "/firm-research" },
+    ],
+  },
+  {
+    label: "Assure",
+    items: [
+      { id: "maturity", label: "Controls Maturity", icon: ClipboardCheck, href: "/controls-maturity" },
+      { id: "enforcement", label: "Enforcement", icon: Scale, href: "/enforcement" },
+    ],
+  },
+  {
+    label: "Govern",
+    items: [
+      { id: "workspace", label: "Workspace", icon: LayoutDashboard, href: "/workspace" },
+      { id: "reports", label: "Reports", icon: FileText, soon: true },
+      { id: "settings", label: "Settings", icon: Settings, soon: true },
+    ],
+  },
 ];
 
 export default function AppShell({
@@ -90,14 +118,31 @@ export default function AppShell({
     return <button key={item.id} type="button" aria-disabled className={`${base} cursor-default opacity-70`} title={collapsed ? `${item.label} (coming soon)` : undefined}>{inner}</button>;
   };
 
+  // Home ungrouped up top, then Design / Assess / Assure / Govern. Shared by
+  // the desktop aside and the mobile drawer so they never drift apart.
+  const renderNav = () => (
+    <>
+      {renderItem(HOME_ITEM)}
+      <div className="my-3 border-t border-surface-border" />
+      {GROUPS.map((group, i) => (
+        <div key={group.label} className={i > 0 ? "mt-3 pt-3 border-t border-surface-border" : undefined}>
+          {!collapsed && (
+            <p className="px-3 pb-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-text-muted/60">
+              {group.label}
+            </p>
+          )}
+          <div className="space-y-1">{group.items.map(renderItem)}</div>
+        </div>
+      ))}
+    </>
+  );
+
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
       <aside className={`hidden lg:flex flex-col shrink-0 border-r border-surface-border bg-surface/60 backdrop-blur-sm transition-[width] duration-200 ${collapsed ? "w-16" : "w-60"}`}>
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
-          {PRIMARY.map(renderItem)}
-          <div className="my-3 border-t border-surface-border" />
-          {SECONDARY.map(renderItem)}
+          {renderNav()}
         </div>
         <div className="p-3 space-y-1 border-t border-surface-border">
           <Link href="/methodology" className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-text-muted hover:bg-surface-hover hover:text-foreground transition-colors ${collapsed ? "justify-center px-0" : ""}`} title={collapsed ? "Help" : undefined}>
@@ -124,9 +169,7 @@ export default function AppShell({
               <button onClick={() => setMobileNav(false)} aria-label="Close menu" className="h-8 w-8 rounded-lg grid place-items-center text-text-muted hover:bg-surface-hover"><X className="h-4 w-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-1" onClick={() => setMobileNav(false)}>
-              {PRIMARY.map(renderItem)}
-              <div className="my-3 border-t border-surface-border" />
-              {SECONDARY.map(renderItem)}
+              {renderNav()}
             </div>
           </div>
         </div>

@@ -45,6 +45,8 @@ export interface SearchItem {
 /** The tools / sections a user can jump to (superset of the sidebar). */
 const TOOLS: { title: string; subtitle: string; href: string; kw?: string }[] = [
   { title: "Home", subtitle: "Overview and all tools", href: "/", kw: "start dashboard" },
+  { title: "Workspace / My Work", subtitle: "Open assessments, decisions and actions in your workspace", href: "/workspace", kw: "my work workspace home decisions required overdue actions activity" },
+  { title: "Product Risk Assessments", subtitle: "Assess, approve and evidence a product's financial crime risk", href: "/assess/product-risk", kw: "pra product risk assessment approve decision conditions" },
   { title: "AI Firm Research", subtitle: "Draft a firm risk profile with AI", href: "/firm-research", kw: "ai research firm profile suggest risks" },
   { title: "Firm Profiles", subtitle: "Business models and inherent risk", href: "/firm-profiles", kw: "emi pi bank msb crypto business model" },
   { title: "TypologyIQ", subtitle: "Match typologies to controls", href: "/typology-iq", kw: "wizard typology match assessment" },

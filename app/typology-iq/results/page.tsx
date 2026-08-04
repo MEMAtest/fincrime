@@ -5,7 +5,7 @@ import { useMemo, useState, useRef, useEffect, Suspense } from "react";
 import Link from "next/link";
 import {
   Target, Database, Cpu, GitBranch, ClipboardCheck, BarChart3,
-  ArrowLeft, ChevronDown, ChevronUp, Layers, Scale, Wrench, Maximize2, Link2, Check,
+  ArrowLeft, ChevronDown, ChevronUp, Layers, Scale, Wrench, Maximize2, Link2, Check, FolderInput,
 } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import ResultCard from "@/components/results/ResultCard";
@@ -186,6 +186,14 @@ function TypologyResults() {
             {linkCopied ? <Check className="h-3.5 w-3.5 text-accent" /> : <Link2 className="h-3.5 w-3.5" />}
             {linkCopied ? "Copied!" : "Copy link"}
           </button>
+          <Link
+            href={`/assess/product-risk/new?typologies=${matches.map((m) => m.typology.slug).join(",")}`}
+            title="Carry these matched typologies into a new product risk assessment"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-card text-xs font-medium text-text-muted hover:text-accent hover:border-accent/40 transition-colors"
+          >
+            <FolderInput className="h-3.5 w-3.5" />
+            Add to product risk assessment
+          </Link>
           <PDFExportButton
             module="typology_iq"
             assessmentData={{ ...answers, activeSlug: typology.slug, narrative }}

@@ -6,6 +6,7 @@ import {
   ShieldCheck, CheckCircle2, Clock3, AlertTriangle, Eye, Flag, Bookmark, Info,
 } from "lucide-react";
 import PDFExportButton from "@/components/shared/PDFExportButton";
+import SaveToWorkspaceButton from "./SaveToWorkspaceButton";
 import ControlDetailPanel from "./ControlDetailPanel";
 import { isReferenceModalOpen } from "@/lib/modal-registry";
 import { StatusBadge, PriorityBadge, STATUS_META } from "@/components/controls/ControlBits";
@@ -159,6 +160,7 @@ export default function RegisterTable({
             <input value={search} onChange={(e) => { setSearch(e.target.value); onFilterChange(); }} placeholder="Search controls by name or keyword..." className="w-64 pl-9 pr-3 py-2 rounded-lg bg-white/5 border border-surface-border text-sm text-foreground focus:outline-none focus:border-accent" />
           </div>
           <PDFExportButton module="control_register" assessmentData={exportData} formats={["pdf"]} />
+          <SaveToWorkspaceButton controls={controls} overrides={overrides} />
           <button onClick={onAdd} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent text-white font-medium text-sm hover:bg-accent-hover transition-colors">
             <Plus className="h-4 w-4" /> Add control
           </button>

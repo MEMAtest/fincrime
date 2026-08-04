@@ -18,12 +18,15 @@ const ROUTE_MAP: { prefix: string; id?: SidebarId; label: string }[] = [
   { prefix: "/typology-iq", id: "typology-iq", label: "TypologyIQ" },
   { prefix: "/kyc-requirements", id: "kyc", label: "KYC Matrix" },
   { prefix: "/controls-maturity", id: "maturity", label: "Controls Maturity" },
-  { prefix: "/screening-control-designer", label: "Screening Designer" },
+  { prefix: "/screening-control-designer", id: "screening-designer", label: "Screening Designer" },
   { prefix: "/enforcement", id: "enforcement", label: "Enforcement" },
   { prefix: "/controls", id: "controls-library", label: "Controls Library" },
   { prefix: "/glossary", label: "Glossary" },
   { prefix: "/methodology", id: "help", label: "Methodology" },
   { prefix: "/partner-control-map", id: "partner-map", label: "Partner Map" },
+  // Longest-prefix first: /assess/product-risk before any shorter /assess entry.
+  { prefix: "/assess/product-risk", id: "assess-pra", label: "Product Risk Assessments" },
+  { prefix: "/workspace", id: "workspace", label: "Workspace" },
 ];
 
 // A leaf label for known deep routes, so e.g. TypologyIQ results reads
@@ -31,6 +34,7 @@ const ROUTE_MAP: { prefix: string; id?: SidebarId; label: string }[] = [
 const LEAF: { suffix: string; label: string }[] = [
   { suffix: "/results", label: "Results" },
   { suffix: "/list", label: "Catalogue" },
+  { suffix: "/new", label: "New" },
 ];
 
 export default function ToolFrame({ children, breadcrumb }: { children: ReactNode; breadcrumb?: Crumb[] }) {
