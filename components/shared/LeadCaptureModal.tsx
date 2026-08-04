@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import { Download, Loader2 } from "lucide-react";
 import type { PDFModule, ExportFormat } from "./PDFExportButton";
 import { trackOwnedEvent } from "@/lib/owned-analytics";
+import { readStoredWorkspace, workspaceAuthHeaders } from "@/lib/workspace-client";
 
 const MODULE_LABEL: Record<PDFModule, string> = {
   typology_iq: "TypologyIQ",
@@ -16,6 +17,7 @@ const MODULE_LABEL: Record<PDFModule, string> = {
   controls_maturity: "ControlsMaturity",
   kyc_requirements: "KYCRequirements",
   control_register: "ControlRegister",
+  pra_assessment: "ProductRiskAssessment",
 };
 
 interface LeadCaptureModalProps {
@@ -73,10 +75,17 @@ export default function LeadCaptureModal({
       if (!leadRes.ok) throw new Error("Failed to submit");
       trackOwnedEvent("lead_submitted", { flow: "document_export", module });
 
-      // 2. Generate and download the document
+      // 2. Generate and download the document. If an anonymous workspace
+      // already exists in this browser (e.g. exporting a PRA committee
+      // pack), carry its auth headers so the route can opportunistically
+      // attribute this lead's email to the workspace - read-only, never
+      // bootstraps a new workspace just to export a free-tool PDF.
       const pdfRes = await fetch("/api/export/pdf", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...workspaceAuthHeaders(readStoredWorkspace()),
+        },
         body: JSON.stringify({
           module,
           assessmentData,

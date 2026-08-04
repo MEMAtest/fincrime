@@ -5,7 +5,11 @@ import { generateScreeningPDF } from "@/lib/pdf/screening-pdf";
 import { generateMaturityPDF } from "@/lib/pdf/maturity-pdf";
 import { generateKycPDF } from "@/lib/pdf/kyc-pdf";
 import { generateControlRegisterPDF } from "@/lib/pdf/control-register-pdf";
+import { generatePraPDF } from "@/lib/pdf/pra-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
+import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
+import { updateWorkspace } from "@/lib/repo/workspace";
+import type { PraExportPayload } from "@/components/pra/types";
 import { getControlBySlug } from "@/data/controls";
 import type { ControlOverride } from "@/data/controls/types";
 import { buildMergedRequirements } from "@/data/kyc/merge";
@@ -28,7 +32,34 @@ const MODULE_TITLE: Record<string, string> = {
   controls_maturity: "Controls Maturity Assessment",
   kyc_requirements: "KYC / CDD Requirements Matrix",
   control_register: "Control Register",
+  pra_assessment: "Product Risk Assessment",
 };
+
+/** Loose runtime check of the core fields the PRA committee pack needs before handing the payload to jsPDF - the client (not a DB row) is the source of truth here, so this is the only validation. */
+function isValidPraExportPayload(value: unknown): value is PraExportPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  const opLoad = v.opLoad as Record<string, unknown> | null;
+  return (
+    typeof v.productName === "string" &&
+    Array.isArray(v.risks) &&
+    v.risks.every((r) => r && typeof r === "object" && Array.isArray((r as Record<string, unknown>).controls)) &&
+    Array.isArray(v.gaps) &&
+    Array.isArray(v.conditions) &&
+    Array.isArray(v.actions) &&
+    Array.isArray(v.evidence) &&
+    Array.isArray(v.flows) &&
+    Array.isArray(v.customers) &&
+    Array.isArray(v.jurisdictions) &&
+    Array.isArray(v.channels) &&
+    typeof opLoad === "object" &&
+    opLoad !== null &&
+    typeof opLoad.alertsPerMonth === "number" &&
+    typeof opLoad.analystHoursPerMonth === "number" &&
+    typeof opLoad.fte === "number" &&
+    typeof opLoad.monthlyCostGbp === "number"
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +68,12 @@ export async function POST(request: NextRequest) {
 
     if (!module || !assessmentData) {
       return NextResponse.json({ error: "Missing module or assessmentData" }, { status: 400 });
+    }
+
+    // email drives delivery AND the workspace owner_email backfill below, so
+    // reject anything that is not a plausible address string outright.
+    if (email !== undefined && (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
+      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
 
     let pdfBuffer: Buffer;
@@ -181,8 +218,39 @@ export async function POST(request: NextRequest) {
       }
       pdfBuffer = generateControlRegisterPDF({ entries, context: typeof context === "string" ? context : undefined });
       filename = `MEMA-ControlRegister-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "pra_assessment") {
+      // The client sends the full assessment-detail payload it already holds
+      // (assessment + product + risks + controls + decision + conditions +
+      // actions + person names + op-load summary + narrative) rather than an
+      // id, so this route does not need workspace auth to rebuild anything -
+      // it just validates the shape and renders it.
+      if (!isValidPraExportPayload(assessmentData)) {
+        return NextResponse.json({ error: "Missing or invalid PRA assessment data" }, { status: 400 });
+      }
+      pdfBuffer = generatePraPDF(assessmentData);
+      const slug = assessmentData.productName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "assessment";
+      filename = `MEMA-PRA-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
+    }
+
+    // If this export is happening inside a known anonymous workspace (its
+    // auth headers verify) and that workspace has no owner_email yet, opportunistically
+    // attribute it to this lead-capture email. Best-effort only: never blocks
+    // or fails the export if verification or the update errors.
+    if (email) {
+      try {
+        const workspace = await getAuthenticatedWorkspace(request);
+        if (workspace && !workspace.owner_email) {
+          await updateWorkspace(workspace.id, { ownerEmail: email }, "lead_capture");
+        }
+      } catch (error) {
+        console.error("Workspace owner_email backfill error:", error);
+      }
     }
 
     // Send PDF via email (non-blocking)

@@ -11,7 +11,8 @@ export type PDFModule =
   | "screening_controls"
   | "controls_maturity"
   | "kyc_requirements"
-  | "control_register";
+  | "control_register"
+  | "pra_assessment";
 
 export type ExportFormat = "pdf" | "docx";
 
