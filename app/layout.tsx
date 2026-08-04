@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import FieldBackground from "@/components/field/FieldBackground";
 import CommandPaletteProvider from "@/components/search/CommandPaletteProvider";
+import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -81,10 +82,12 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <FieldBackground />
-          <CommandPaletteProvider>
-            {children}
-          </CommandPaletteProvider>
+          <WorkspaceProvider>
+            <FieldBackground />
+            <CommandPaletteProvider>
+              {children}
+            </CommandPaletteProvider>
+          </WorkspaceProvider>
         </ThemeProvider>
         <Analytics />
         <script
