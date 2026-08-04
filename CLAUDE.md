@@ -1,9 +1,19 @@
 # FinCrime Control Lab
 
 ## Project Overview
-Standalone Next.js 16 app for financial crime control design tools. Two modules:
+Standalone Next.js 16 app: free financial-crime control design tools plus an anonymous workspace layer for formal assessments. Key modules:
 - **TypologyIQ** - Maps AML typologies to detection controls based on firm type, product, customer, and risk theme
 - **PartnerControlMap** - Defines partner payment flow control ownership with RACI, data gaps, and governance
+- **Screening Designer / Controls Maturity / KYC Matrix / Controls Library / Control Builder / Enforcement** - the rest of the free toolkit
+- **PRA Workspace** (`/assess/product-risk`) - 8-step product risk assessment journey: profile, flows, inherent risks, control mapping, gaps and operational load, residual risk vs appetite, recommendation and decision, committee pack
+- **Workspace home** (`/workspace`) - My Work: open assessments, decisions required, overdue actions, recent activity
+
+## Workspace model (no auth)
+- Anonymous tenant: `workspaces` row with sha256 `token_hash`; the client keeps `{id, token}` in localStorage under `fincrime-workspace`
+- API auth: `x-workspace-id` + `x-workspace-token` headers, verified by `withWorkspace()` in `lib/workspace-auth.ts`
+- `WorkspaceProvider` (mounted in `app/layout.tsx`) bootstraps a workspace lazily on first save; the free tools stay fully anonymous
+- Reviewers/approvers are named people records (`workspace_people`), not logins
+- Repos in `lib/repo/*` scope every query by `workspace_id`; mutations write `audit_log` and, for controls, `object_versions`
 
 ## Tech Stack
 - Next.js 16 (App Router, Turbopack)
@@ -24,16 +34,19 @@ Standalone Next.js 16 app for financial crime control design tools. Two modules:
 - Lead capture is required before PDF download (email-gated)
 
 ## Database
-- Host: 89.167.95.173:5432
+- Host: 89.167.95.173:5432 (prod), `postgres://localhost/fincrime_dev` for local dev (set in `.env.local`)
 - Database: fincrime_lab
 - User: fincrime_app
-- Schema: `db/schema.sql`
-- 4 tables: typologies, partner_flows, assessments, lead_capture
+- Base schema: `db/schema.sql` (typologies, partner_flows, assessments, lead_capture)
+- Workspace schema: `db/migrations/*.sql`, applied with `npm run db:migrate` (tracked in `schema_migrations`); migration 001 adds workspaces, workspace_people, products, pra_assessments, assessment_risks, assessment_controls, workspace_controls, decisions, conditions, actions, evidence, comments, object_versions, audit_log
 
 ## Commands
 - `npm run dev` - Start dev server (Turbopack)
 - `npm run build` - Production build
 - `npm run start` - Start production server
+- `npm test` - Vitest unit tests (scoring modules)
+- `npm run db:migrate` - Apply db/migrations against DATABASE_URL
+- `node e2e-runner.mjs --only=6` - API-only PRA lifecycle e2e against a local `next start` (needs a fresh build and a migrated local DB)
 
 ## Environment Variables
 See `.env.local.example` for all required variables.
