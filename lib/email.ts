@@ -11,6 +11,9 @@ const ses = new SESClient({
 const FROM_EMAIL = process.env.FROM_EMAIL || "noreply@memaconsultants.com";
 const FROM_NAME = process.env.FROM_NAME || "MEMA FinCrime Lab";
 
+// compliance@memaconsultants.com does not exist; internal notifications go to contact@ instead.
+export const INTERNAL_EMAIL = "contact@memaconsultants.com";
+
 function encodeBase64(data: Buffer): string {
   return data.toString("base64");
 }

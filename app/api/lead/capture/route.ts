@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
 
     // Send internal notification (non-blocking)
     try {
-      const { sendSimpleEmail } = await import("@/lib/email");
+      const { sendSimpleEmail, INTERNAL_EMAIL } = await import("@/lib/email");
       sendSimpleEmail({
-        to: "compliance@memaconsultants.com",
+        to: INTERNAL_EMAIL,
         subject: `FinCrime Lab Lead: ${email}`,
         html: `
           <h2>New FinCrime Lab Lead</h2>
