@@ -1,0 +1,44 @@
+name: DB migrate
+
+# Applies db/migrations/*.sql to the production database (Hetzner fincrime_lab).
+# Runs automatically when a push touches db/migrations/, and on demand via
+# workflow_dispatch. GitHub Actions runner IPs are allowlisted on the DB
+# firewall (gha_actions ipset); local machines are not, which is why this
+# runs here and not from a laptop.
+#
+# Requires the repo secret DATABASE_URL (postgresql://fincrime_app:...@89.167.95.173:5432/fincrime_lab?sslmode=no-verify).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "db/migrations/**"
+  workflow_dispatch:
+
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pg only
+        run: npm install --no-save pg
+
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret is not set; skipping." >&2
+            exit 1
+          fi
+          node scripts/db-migrate.mjs
