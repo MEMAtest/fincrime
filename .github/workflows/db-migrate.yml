@@ -19,6 +19,10 @@ concurrency:
   group: db-migrate
   cancel-in-progress: false
 
+# This job needs no GitHub API access at all - drop the default token scope.
+permissions:
+  contents: read
+
 jobs:
   migrate:
     runs-on: ubuntu-latest
@@ -31,7 +35,9 @@ jobs:
           node-version: 20
 
       - name: Install pg only
-        run: npm install --no-save pg
+        # Pinned major: this is the one job holding prod DB credentials, so
+        # do not resolve an unpinned latest at run time.
+        run: npm install --no-save pg@8
 
       - name: Apply migrations
         env:

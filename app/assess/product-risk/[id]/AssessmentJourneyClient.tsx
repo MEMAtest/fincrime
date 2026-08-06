@@ -208,8 +208,14 @@ export default function AssessmentJourneyClient({
         summaryPatchInFlight.current = false;
       });
     }
+    // `assessment` must be a dep: patchAssessment coalesces concurrent runs
+    // via summaryPatchInFlight, and without it the run that was skipped while
+    // a patch was in flight never re-fires, leaving residual_summary and
+    // appetite_result persisted one change behind (stale committee pack).
+    // Convergence is safe - the comparison is field-wise and the server
+    // echoes back exactly what was sent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, risks, controls, workspaceControlById, appetiteThresholds]);
+  }, [step, risks, controls, workspaceControlById, appetiteThresholds, assessment]);
 
   /** Shared PATCH-and-refresh helper: every assessment-level save (step change, recommendation, status, residual summary) goes through here so state stays consistent. */
   async function patchAssessment(

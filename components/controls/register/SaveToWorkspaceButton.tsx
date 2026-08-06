@@ -50,7 +50,9 @@ export default function SaveToWorkspaceButton({
       controls.map((c) => {
         const o = overrides[c.slug] ?? {};
         const effectivenessRating = o.overallRating ?? o.operatingEffectiveness ?? o.designEffectiveness ?? o.rating;
-        const lastTestedAt = isoDate(o.lastReviewed ?? o.lastReview);
+        // Gate each candidate separately: a non-ISO lastReviewed must not mask
+        // a valid ISO lastReview behind it.
+        const lastTestedAt = isoDate(o.lastReviewed) ?? isoDate(o.lastReview);
         const body: Record<string, unknown> = {
           controlSlug: c.slug,
           threshold: o.threshold,

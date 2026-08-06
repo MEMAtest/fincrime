@@ -28,6 +28,13 @@ function stringArray(value: unknown): string[] | undefined {
 }
 
 /** Trimmed non-empty string, explicit null passthrough, or undefined if absent/blank (so callers can fall back to a default). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** YYYY-MM-DD, optionally with a time suffix, and actually parseable. */
+function isIsoDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}(T[0-9:.Zz+-]*)?$/.test(value) && !Number.isNaN(Date.parse(value));
+}
+
 function optionalString(value: unknown): string | null | undefined {
   if (value === null) return null;
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
@@ -61,13 +68,26 @@ export const POST = withWorkspace(async (request, workspace) => {
     const body = raw as Record<string, unknown>;
 
     // Person references must belong to this workspace, matching every PRA route.
+    // Shape-check first: a non-UUID id would raise 22P02 in Postgres and
+    // surface as a 500 instead of the intended 400.
     const ownerPersonId = optionalString(body.ownerPersonId);
-    if (ownerPersonId && !(await requirePerson(workspace.id, ownerPersonId))) {
+    if (ownerPersonId && (!UUID_RE.test(ownerPersonId) || !(await requirePerson(workspace.id, ownerPersonId)))) {
       return NextResponse.json({ error: "Unknown ownerPersonId for this workspace" }, { status: 400 });
     }
     const approverPersonId = optionalString(body.approverPersonId);
-    if (approverPersonId && !(await requirePerson(workspace.id, approverPersonId))) {
+    if (approverPersonId && (!UUID_RE.test(approverPersonId) || !(await requirePerson(workspace.id, approverPersonId)))) {
       return NextResponse.json({ error: "Unknown approverPersonId for this workspace" }, { status: 400 });
+    }
+
+    // Date fields hit DATE/TIMESTAMPTZ columns; free text must not reach
+    // Postgres (silent MDY misparse or a 500 on invalid syntax).
+    const lastTestedAt = optionalString(body.lastTestedAt);
+    if (lastTestedAt && !isIsoDate(lastTestedAt)) {
+      return NextResponse.json({ error: "lastTestedAt must be an ISO date (YYYY-MM-DD)" }, { status: 400 });
+    }
+    const nextTestDue = optionalString(body.nextTestDue);
+    if (nextTestDue && !isIsoDate(nextTestDue)) {
+      return NextResponse.json({ error: "nextTestDue must be an ISO date (YYYY-MM-DD)" }, { status: 400 });
     }
 
     // Fields shared by both shapes: caller overrides on top of the slug's
@@ -82,8 +102,8 @@ export const POST = withWorkspace(async (request, workspace) => {
       operatingFrequency: optionalString(body.operatingFrequency),
       status: isControlStatus(body.status) ? body.status : undefined,
       effectivenessRating: isEffectivenessRating(body.effectivenessRating) ? body.effectivenessRating : undefined,
-      lastTestedAt: optionalString(body.lastTestedAt),
-      nextTestDue: optionalString(body.nextTestDue),
+      lastTestedAt,
+      nextTestDue,
     };
 
     const slug = optionalString(body.controlSlug);

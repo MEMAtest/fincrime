@@ -75,6 +75,10 @@ export async function POST(request: NextRequest) {
     if (email !== undefined && (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
+    // The trimmed form is what gets stored and mailed - validating the
+    // trimmed value but using the raw one would store " a@b.com " and make
+    // the SES send fail silently.
+    const cleanEmail = typeof email === "string" ? email.trim() : undefined;
 
     let pdfBuffer: Buffer;
     let filename: string;
@@ -242,11 +246,11 @@ export async function POST(request: NextRequest) {
     // auth headers verify) and that workspace has no owner_email yet, opportunistically
     // attribute it to this lead-capture email. Best-effort only: never blocks
     // or fails the export if verification or the update errors.
-    if (email) {
+    if (cleanEmail) {
       try {
         const workspace = await getAuthenticatedWorkspace(request);
         if (workspace && !workspace.owner_email) {
-          await updateWorkspace(workspace.id, { ownerEmail: email }, "lead_capture");
+          await updateWorkspace(workspace.id, { ownerEmail: cleanEmail }, "lead_capture");
         }
       } catch (error) {
         console.error("Workspace owner_email backfill error:", error);
@@ -254,11 +258,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Send PDF via email (non-blocking)
-    if (email) {
+    if (cleanEmail) {
       try {
         const { sendEmailWithAttachment } = await import("@/lib/email");
         sendEmailWithAttachment({
-          to: email,
+          to: cleanEmail,
           subject: `Your FinCrime Control Lab Report: ${MODULE_TITLE[module] || "FinCrime Control Lab"}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
