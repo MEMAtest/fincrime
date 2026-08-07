@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import {
   createWorkspaceControl,
+  listWorkspaceControlBySlug,
   listWorkspaceControls,
+  updateWorkspaceControl,
   type ControlLifecycleStatus,
   type ControlEffectivenessRating,
   type CreateWorkspaceControlInput,
@@ -114,6 +116,24 @@ export const POST = withWorkspace(async (request, workspace) => {
       if (!libraryControl) {
         return NextResponse.json({ error: `Unknown control slug: ${slug}` }, { status: 400 });
       }
+
+      // Instantiating the same library control twice in one workspace must
+      // not create a second row: update the existing instantiation with
+      // whatever overrides were supplied this time (undefined fields leave
+      // the current value untouched), rather than re-applying the library
+      // defaults on top of it.
+      const existing = await listWorkspaceControlBySlug(workspace.id, libraryControl.slug);
+      if (existing) {
+        const updated = await updateWorkspaceControl(
+          workspace.id,
+          existing.id,
+          overrides,
+          "workspace",
+          "saved from library"
+        );
+        return NextResponse.json({ control: updated }, { status: 200 });
+      }
+
       input = {
         objective: libraryControl.objective,
         controlSlug: libraryControl.slug,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, type FocusEvent } from "react";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { scoreOperationalLoad, summariseOperationalLoad, DEFAULT_HOURLY_COST_GBP } from "@/data/scoring/operational-load";
 import { computeGaps, opLoadInputFromControl, resolveControlLabel } from "./journeyCompute";
@@ -155,10 +155,20 @@ function ControlOpLoadRow({
   // stops a fast tab-through from dropping the previous field's value while
   // its response is still in flight.
   const draft = useRef<Record<string, unknown>>({ ...opLoad });
-  const saveField = (field: string, raw: string) => {
-    const value = parseOptionalNumber(raw);
-    if (value === undefined) delete draft.current[field];
-    else draft.current[field] = value;
+  const saveField = (field: string, input: HTMLInputElement) => {
+    const parsed = parseOptionalNumber(input.value);
+    // A negative volume/rate/minutes/cost is meaningless and every derived
+    // figure in data/scoring/operational-load.ts clamps it to 0 anyway; clamp
+    // here too so the stored value agrees with the scored value, and write
+    // the clamped value back into the (uncontrolled) input so the displayed
+    // value agrees too.
+    const value = parsed === undefined ? undefined : Math.max(0, parsed);
+    if (value === undefined) {
+      delete draft.current[field];
+    } else {
+      draft.current[field] = value;
+      if (value !== parsed) input.value = String(value);
+    }
     onSave(control.id, { ...draft.current });
   };
   const result = scoreOperationalLoad(opLoadInputFromControl(control));
@@ -178,25 +188,25 @@ function ControlOpLoadRow({
         <Field
           label="Monthly volume"
           defaultValue={typeof opLoad.monthlyVolume === "number" ? String(opLoad.monthlyVolume) : ""}
-          onBlur={(v) => saveField("monthlyVolume", v)}
+          onBlur={(e) => saveField("monthlyVolume", e.target)}
           className={inputCls}
         />
         <Field
           label="Alert rate (%)"
           defaultValue={typeof opLoad.alertRatePct === "number" ? String(opLoad.alertRatePct) : ""}
-          onBlur={(v) => saveField("alertRatePct", v)}
+          onBlur={(e) => saveField("alertRatePct", e.target)}
           className={inputCls}
         />
         <Field
           label="Handling (mins)"
           defaultValue={typeof opLoad.handlingMinutes === "number" ? String(opLoad.handlingMinutes) : ""}
-          onBlur={(v) => saveField("handlingMinutes", v)}
+          onBlur={(e) => saveField("handlingMinutes", e.target)}
           className={inputCls}
         />
         <Field
           label={`Hourly cost (£, default ${DEFAULT_HOURLY_COST_GBP})`}
           defaultValue={typeof opLoad.hourlyCostGbp === "number" ? String(opLoad.hourlyCostGbp) : ""}
-          onBlur={(v) => saveField("hourlyCostGbp", v)}
+          onBlur={(e) => saveField("hourlyCostGbp", e.target)}
           className={inputCls}
         />
       </div>
@@ -212,7 +222,7 @@ function Field({
 }: {
   label: string;
   defaultValue: string;
-  onBlur: (value: string) => void;
+  onBlur: (event: FocusEvent<HTMLInputElement>) => void;
   className: string;
 }) {
   return (
@@ -222,7 +232,7 @@ function Field({
         type="number"
         min={0}
         defaultValue={defaultValue}
-        onBlur={(e) => onBlur(e.target.value)}
+        onBlur={onBlur}
         className={className}
       />
     </label>

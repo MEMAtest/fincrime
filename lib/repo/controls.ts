@@ -100,6 +100,15 @@ export async function getWorkspaceControl(workspaceId: string, id: string): Prom
   return rows[0] ?? null;
 }
 
+/** Finds the workspace's existing instantiation of a library control by slug, if any, so callers can update in place rather than creating a duplicate. */
+export async function listWorkspaceControlBySlug(workspaceId: string, controlSlug: string): Promise<WorkspaceControlRow | null> {
+  const rows = await query<WorkspaceControlRow>(
+    `SELECT * FROM workspace_controls WHERE workspace_id = $1 AND control_slug = $2 ORDER BY created_at ASC LIMIT 1`,
+    [workspaceId, controlSlug]
+  );
+  return rows[0] ?? null;
+}
+
 export async function createWorkspaceControl(
   workspaceId: string,
   input: CreateWorkspaceControlInput,
@@ -231,6 +240,99 @@ export async function updateWorkspaceControl(
 
     return updated;
   });
+}
+
+/**
+ * Same behaviour as updateWorkspaceControl, but participates in a caller-
+ * supplied transaction instead of opening its own. For callers (e.g. the
+ * Control Change Lab apply/rollback path) that must run this update and one
+ * or more other writes atomically in a single transaction.
+ */
+export async function updateWorkspaceControlWithClient(
+  client: DbTransactionClient,
+  workspaceId: string,
+  id: string,
+  input: UpdateWorkspaceControlInput,
+  actor: string,
+  changeNote = "updated"
+): Promise<WorkspaceControlRow | null> {
+  const currentRows = await queryWithClient<WorkspaceControlRow>(
+    client,
+    `SELECT * FROM workspace_controls WHERE workspace_id = $1 AND id = $2 FOR UPDATE`,
+    [workspaceId, id]
+  );
+  const current = currentRows[0];
+  if (!current) return null;
+
+  const objective = input.objective ?? current.objective;
+  const controlSlug = input.controlSlug !== undefined ? input.controlSlug : current.control_slug;
+  const name = input.name ?? current.name;
+  const category = input.category !== undefined ? input.category : current.category;
+  const typologySlugs = input.typologySlugs ?? current.typology_slugs;
+  const productApplicability = input.productApplicability ?? current.product_applicability;
+  const ownerPersonId = input.ownerPersonId !== undefined ? input.ownerPersonId : current.owner_person_id;
+  const approverPersonId =
+    input.approverPersonId !== undefined ? input.approverPersonId : current.approver_person_id;
+  const systems = input.systems ?? current.systems;
+  const dataInputs = input.dataInputs ?? current.data_inputs;
+  const threshold = input.threshold !== undefined ? input.threshold : current.threshold;
+  const operatingFrequency =
+    input.operatingFrequency !== undefined ? input.operatingFrequency : current.operating_frequency;
+  const status = input.status ?? current.status;
+  const effectivenessRating =
+    input.effectivenessRating !== undefined ? input.effectivenessRating : current.effectiveness_rating;
+  const lastTestedAt = input.lastTestedAt !== undefined ? input.lastTestedAt : current.last_tested_at;
+  const nextTestDue = input.nextTestDue !== undefined ? input.nextTestDue : current.next_test_due;
+  const monitoringMetrics = input.monitoringMetrics ?? current.monitoring_metrics;
+  const nextVersion = current.version + 1;
+
+  const rows = await queryWithClient<WorkspaceControlRow>(
+    client,
+    `UPDATE workspace_controls
+     SET objective = $3, control_slug = $4, name = $5, category = $6, typology_slugs = $7,
+         product_applicability = $8, owner_person_id = $9, approver_person_id = $10, systems = $11,
+         data_inputs = $12, threshold = $13, operating_frequency = $14, status = $15,
+         effectiveness_rating = $16, last_tested_at = $17, next_test_due = $18, monitoring_metrics = $19,
+         version = $20, updated_at = now()
+     WHERE workspace_id = $1 AND id = $2
+     RETURNING *`,
+    [
+      workspaceId,
+      id,
+      objective,
+      controlSlug,
+      name,
+      category,
+      JSON.stringify(typologySlugs),
+      JSON.stringify(productApplicability),
+      ownerPersonId,
+      approverPersonId,
+      JSON.stringify(systems),
+      JSON.stringify(dataInputs),
+      threshold,
+      operatingFrequency,
+      status,
+      effectivenessRating,
+      lastTestedAt,
+      nextTestDue,
+      JSON.stringify(monitoringMetrics),
+      nextVersion,
+    ]
+  );
+
+  const updated = rows[0];
+  await snapshotVersion(client, workspaceId, updated, actor, changeNote);
+  await writeAudit(
+    workspaceId,
+    actor,
+    "workspace_control.updated",
+    SUBJECT_TYPE,
+    id,
+    { fields: Object.keys(input), version: updated.version },
+    client
+  );
+
+  return updated;
 }
 
 export async function deleteWorkspaceControl(workspaceId: string, id: string, actor: string): Promise<boolean> {

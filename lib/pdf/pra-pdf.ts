@@ -33,7 +33,7 @@ export function generatePraPDF(data: PraExportPayload): Buffer {
   doc.text(data.productName || "Untitled product", 20, y);
   y += 7;
 
-  if (data.productDescription) {
+  if (typeof data.productDescription === "string" && data.productDescription) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 100, 100);
@@ -332,7 +332,7 @@ export function generatePraPDF(data: PraExportPayload): Buffer {
   }
 
   // Narrative (AI-assisted committee summary)
-  if (data.narrative) {
+  if (typeof data.narrative === "string" && data.narrative) {
     y = checkPageBreak(doc, y, 30);
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");

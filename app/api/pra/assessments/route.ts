@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
-import { createProduct, deleteProduct, getProduct } from "@/lib/repo/products";
+import { createProduct, deleteProduct, listProductsByIds } from "@/lib/repo/products";
 import { createAssessment, listAssessments } from "@/lib/repo/assessments";
 import { ACTOR, serverError } from "@/lib/pra/helpers";
 
@@ -17,20 +17,19 @@ export const GET = withWorkspace(async (_request, workspace) => {
   try {
     const assessments = await listAssessments(workspace.id);
 
-    const items = await Promise.all(
-      assessments.map(async (a) => {
-        const product = await getProduct(workspace.id, a.product_id);
-        return {
-          id: a.id,
-          productId: a.product_id,
-          productName: product?.name ?? "Untitled product",
-          status: a.status,
-          currentStep: a.current_step,
-          createdAt: a.created_at,
-          updatedAt: a.updated_at,
-        };
-      })
-    );
+    const productIds = [...new Set(assessments.map((a) => a.product_id))];
+    const products = await listProductsByIds(workspace.id, productIds);
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    const items = assessments.map((a) => ({
+      id: a.id,
+      productId: a.product_id,
+      productName: productById.get(a.product_id)?.name ?? "Untitled product",
+      status: a.status,
+      currentStep: a.current_step,
+      createdAt: a.created_at,
+      updatedAt: a.updated_at,
+    }));
 
     return NextResponse.json({ assessments: items });
   } catch (error) {

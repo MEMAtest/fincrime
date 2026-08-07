@@ -125,11 +125,11 @@ export async function getCondition(workspaceId: string, id: string): Promise<Con
   return rows[0] ?? null;
 }
 
-/** Open conditions with a due date in the past, across the whole workspace. */
+/** Non-terminal conditions (not yet met or breached) with a due date in the past, across the whole workspace. */
 export async function listOverdueConditions(workspaceId: string): Promise<ConditionRow[]> {
   return query<ConditionRow>(
     `SELECT * FROM conditions
-     WHERE workspace_id = $1 AND status = 'open' AND due_date IS NOT NULL AND due_date < CURRENT_DATE
+     WHERE workspace_id = $1 AND status NOT IN ('met', 'breached') AND due_date IS NOT NULL AND due_date < CURRENT_DATE
      ORDER BY due_date ASC`,
     [workspaceId]
   );

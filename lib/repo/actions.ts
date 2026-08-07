@@ -52,11 +52,11 @@ export async function listActions(workspaceId: string, status?: ActionStatus): P
   ]);
 }
 
-/** Open actions with a due date in the past, across the whole workspace (workspace home). */
+/** Non-terminal actions (open or in_progress) with a due date in the past, across the whole workspace (workspace home). */
 export async function listOverdueActions(workspaceId: string): Promise<ActionRow[]> {
   return query<ActionRow>(
     `SELECT * FROM actions
-     WHERE workspace_id = $1 AND status = 'open' AND due_date IS NOT NULL AND due_date < CURRENT_DATE
+     WHERE workspace_id = $1 AND status NOT IN ('done', 'cancelled') AND due_date IS NOT NULL AND due_date < CURRENT_DATE
      ORDER BY due_date ASC`,
     [workspaceId]
   );

@@ -35,6 +35,15 @@ export async function getProduct(workspaceId: string, id: string): Promise<Produ
   return rows[0] ?? null;
 }
 
+/** Batch-loads products by id, scoped to the workspace, for callers that would otherwise N+1 a getProduct per row. */
+export async function listProductsByIds(workspaceId: string, ids: string[]): Promise<ProductRow[]> {
+  if (ids.length === 0) return [];
+  return query<ProductRow>(`SELECT * FROM products WHERE workspace_id = $1 AND id = ANY($2::uuid[])`, [
+    workspaceId,
+    ids,
+  ]);
+}
+
 export async function createProduct(
   workspaceId: string,
   input: CreateProductInput,

@@ -11,6 +11,8 @@ type SaveState = "idle" | "saving" | "done";
 interface SaveSummary {
   ok: number;
   fail: number;
+  /** True once at least one save has completed, so a later save can be worded as an update rather than a fresh save. */
+  resaved: boolean;
 }
 
 /**
@@ -19,7 +21,9 @@ interface SaveSummary {
  * library shape), carrying whichever user-edited overrides map onto
  * workspace_controls fields (threshold, status, effectiveness rating,
  * operating frequency, last/next test date, product applicability, system).
- * The register itself is untouched - this only copies it.
+ * The register itself is untouched - this only copies it. The route dedupes
+ * by control_slug server-side, so clicking this twice updates the same
+ * workspace_controls row (version bumped) rather than creating a second one.
  */
 export default function SaveToWorkspaceButton({
   controls,
@@ -75,8 +79,9 @@ export default function SaveToWorkspaceButton({
     );
 
     const ok = results.filter((r) => r.status === "fulfilled").length;
+    const resaved = summary !== null;
     setState("done");
-    setSummary({ ok, fail: results.length - ok });
+    setSummary({ ok, fail: results.length - ok, resaved });
   };
 
   return (
@@ -98,7 +103,11 @@ export default function SaveToWorkspaceButton({
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-xs text-accent">
-            <Check className="h-3.5 w-3.5" /> Saved {summary.ok} to workspace ·{" "}
+            <Check className="h-3.5 w-3.5" />
+            {summary.resaved
+              ? `Updated ${summary.ok} in workspace`
+              : `Saved ${summary.ok} to workspace`}{" "}
+            ·{" "}
             <Link href="/workspace" className="underline hover:no-underline">View workspace</Link>
           </span>
         )
