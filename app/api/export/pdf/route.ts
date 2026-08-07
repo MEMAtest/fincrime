@@ -64,18 +64,67 @@ function isValidPraExportPayload(value: unknown): value is PraExportPayload {
   );
 }
 
-/** Loose runtime check of the core fields the control-change pack needs before handing the payload to jsPDF - the client (not a DB row) is the source of truth here, mirroring isValidPraExportPayload above. */
+/** number, or null - never NaN/Infinity, never a stray string/object/array. */
+function isNumOrNull(v: unknown): v is number | null {
+  return v === null || (typeof v === "number" && Number.isFinite(v));
+}
+/** string, or null - the shape every free-text field in ChangeExportPayload uses. */
+function isStrOrNull(v: unknown): v is string | null {
+  return v === null || typeof v === "string";
+}
+
+function isValidChangeEvidence(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const e = v as Record<string, unknown>;
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+}
+
+function isValidChangeCondition(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const c = v as Record<string, unknown>;
+  return typeof c.description === "string" && isStrOrNull(c.dueDate) && isStrOrNull(c.ownerName) && typeof c.status === "string";
+}
+
+function isValidChangeAction(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const a = v as Record<string, unknown>;
+  return (
+    typeof a.title === "string" &&
+    isStrOrNull(a.ownerName) &&
+    isStrOrNull(a.dueDate) &&
+    typeof a.priority === "string" &&
+    typeof a.status === "string"
+  );
+}
+
+function isValidChangeMonitoringRow(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const m = v as Record<string, unknown>;
+  return typeof m.metric === "string" && typeof m.target === "string" && typeof m.owner === "string" && typeof m.reviewDate === "string";
+}
+
+/**
+ * Runtime check of the control-change pack payload before handing it to
+ * jsPDF - the client (not a DB row) is the source of truth here, mirroring
+ * isValidPraExportPayload above. Every numeric key is checked as number|null
+ * and every array element is checked as an object with the exact string
+ * fields lib/pdf/change-pdf.ts reads, so a partial/hostile payload (e.g.
+ * supportingData: {}, evidence: [null], changeType: 5) 400s here instead of
+ * 500ing inside jsPDF/.toLocaleString().
+ */
 function isValidChangeExportPayload(value: unknown): value is ChangeExportPayload {
   if (!value || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
   const supportingData = v.supportingData as Record<string, unknown> | null;
   const impact = v.impact as Record<string, unknown> | null;
-  return (
-    typeof v.changeTitle === "string" &&
-    typeof v.controlName === "string" &&
-    typeof v.status === "string" &&
-    Array.isArray(v.fieldDiffs) &&
-    v.fieldDiffs.every(
+
+  if (typeof v.changeTitle !== "string" || typeof v.controlName !== "string" || typeof v.status !== "string") return false;
+  if (v.changeType !== null && typeof v.changeType !== "string") return false;
+  if (!isStrOrNull(v.rationale)) return false;
+
+  if (!Array.isArray(v.fieldDiffs)) return false;
+  if (
+    !v.fieldDiffs.every(
       (f) =>
         f &&
         typeof f === "object" &&
@@ -83,18 +132,57 @@ function isValidChangeExportPayload(value: unknown): value is ChangeExportPayloa
         typeof (f as Record<string, unknown>).current === "string" &&
         typeof (f as Record<string, unknown>).proposed === "string" &&
         typeof (f as Record<string, unknown>).changed === "boolean"
-    ) &&
-    typeof v.changedFieldCount === "number" &&
-    typeof supportingData === "object" &&
-    supportingData !== null &&
-    typeof impact === "object" &&
-    impact !== null &&
-    Array.isArray(v.evidence) &&
-    Array.isArray(v.conditions) &&
-    Array.isArray(v.actions) &&
-    Array.isArray(v.monitoring) &&
-    typeof v.pilot === "boolean"
-  );
+    )
+  ) {
+    return false;
+  }
+  if (typeof v.changedFieldCount !== "number") return false;
+
+  if (typeof supportingData !== "object" || supportingData === null) return false;
+  if (
+    !isNumOrNull(supportingData.baselineAlertVolume) ||
+    !isNumOrNull(supportingData.truePositives) ||
+    !isNumOrNull(supportingData.falsePositives) ||
+    !isNumOrNull(supportingData.expectedVolume) ||
+    !isStrOrNull(supportingData.testingNotes)
+  ) {
+    return false;
+  }
+
+  if (typeof impact !== "object" || impact === null) return false;
+  if (
+    !isNumOrNull(impact.beforeAnalystHoursPerMonth) ||
+    !isNumOrNull(impact.afterAnalystHoursPerMonth) ||
+    !isNumOrNull(impact.beforeFte) ||
+    !isNumOrNull(impact.afterFte) ||
+    !isNumOrNull(impact.beforeMonthlyCostGbp) ||
+    !isNumOrNull(impact.afterMonthlyCostGbp) ||
+    !isStrOrNull(impact.customerFrictionNotes) ||
+    !isStrOrNull(impact.riskImpactNotes)
+  ) {
+    return false;
+  }
+
+  if (v.decision !== null) {
+    if (!v.decision || typeof v.decision !== "object") return false;
+    const d = v.decision as Record<string, unknown>;
+    if (typeof d.outcome !== "string" || typeof d.decidedByName !== "string" || typeof d.decidedAt !== "string" || !isStrOrNull(d.rationale)) {
+      return false;
+    }
+  }
+
+  if (!Array.isArray(v.evidence) || !v.evidence.every(isValidChangeEvidence)) return false;
+  if (!Array.isArray(v.conditions) || !v.conditions.every(isValidChangeCondition)) return false;
+  if (!Array.isArray(v.actions) || !v.actions.every(isValidChangeAction)) return false;
+  if (!Array.isArray(v.monitoring) || !v.monitoring.every(isValidChangeMonitoringRow)) return false;
+  if (typeof v.pilot !== "boolean") return false;
+  if (!isStrOrNull(v.pilotNotes)) return false;
+  if (!isStrOrNull(v.rollbackCriteria)) return false;
+  if (!isStrOrNull(v.implementedAt)) return false;
+  if (!isStrOrNull(v.rolledBackAt)) return false;
+  if (v.appliedVersion !== null && typeof v.appliedVersion !== "number") return false;
+
+  return true;
 }
 
 export async function POST(request: NextRequest) {

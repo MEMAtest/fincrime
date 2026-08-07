@@ -8,13 +8,14 @@ import {
   ACTOR,
   SUBJECT_TYPE,
   badRequest,
-  isControlChangeStatus,
+  conflict,
   isControlChangeType,
   notFound,
   parseOptionalStep,
   requireChangeControl,
   requireControlChange,
   serverError,
+  validateControlFieldValues,
 } from "@/lib/control-changes/helpers";
 
 interface RouteContext {
@@ -53,13 +54,26 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * PATCH /api/control-changes/[id] - partial update: title, rationale,
  * changeType, currentStep, status, proposed, supportingData, impact, pilot,
  * pilotNotes, monitoring, rollbackCriteria. Validates enums; `proposed` is
- * whitelisted server-side by the repo layer (unknown keys are dropped).
+ * whitelisted AND value-validated server-side (lib/control-changes/helpers.ts
+ * validateControlFieldValues) before it is ever persisted, so a malformed
+ * value can never 500 the implement step downstream.
+ *
+ * `status` is deliberately NOT a general-purpose field here: the decision,
+ * implement and rollback routes own every other status transition. This PATCH
+ * only allows toggling between draft and in_review (e.g. "send for review" /
+ * "pull back to draft"); anything else, including `approved`, is rejected
+ * with 400 so a client cannot forge an approval and re-run implement.
+ *
+ * Once a change is implemented or rolled_back it is historical: PATCHing
+ * proposed, or rollbackCriteria on it 409s.
  */
 export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id } = await context.params;
     const existing = await requireControlChange(workspace.id, id);
     if (!existing) return notFound("Control change not found");
+
+    const isHistorical = existing.status === "implemented" || existing.status === "rolled_back";
 
     const body = await request.json();
     const patch: UpdateControlChangeInput = {};
@@ -86,16 +100,19 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       if (typeof parsed.value === "number") patch.currentStep = parsed.value;
     }
     if (body?.status !== undefined) {
-      if (!isControlChangeStatus(body.status)) {
-        return badRequest("Invalid status: must be draft, in_review, approved, rejected, implemented, or rolled_back");
+      if (isHistorical) return conflict("Cannot change status once implemented or rolled back");
+      if (body.status !== "draft" && body.status !== "in_review") {
+        return badRequest(
+          "Invalid status: PATCH only supports draft or in_review; use the decision, implement, or rollback endpoints for approve/reject/implement/roll back"
+        );
       }
       patch.status = body.status;
     }
     if (body?.proposed !== undefined) {
-      if (typeof body.proposed !== "object" || body.proposed === null || Array.isArray(body.proposed)) {
-        return badRequest("Invalid proposed: must be an object");
-      }
-      patch.proposed = body.proposed as Record<string, unknown>;
+      if (isHistorical) return conflict("Cannot change proposed once implemented or rolled back");
+      const result = await validateControlFieldValues(workspace.id, body.proposed);
+      if (!result.ok) return badRequest(`Invalid proposed: ${result.error}`);
+      patch.proposed = result.value;
     }
     if (body?.supportingData !== undefined) {
       if (typeof body.supportingData !== "object" || body.supportingData === null || Array.isArray(body.supportingData)) {
@@ -123,6 +140,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       patch.monitoring = body.monitoring as Record<string, unknown>;
     }
     if (body?.rollbackCriteria !== undefined) {
+      if (isHistorical) return conflict("Cannot change rollbackCriteria once implemented or rolled back");
       patch.rollbackCriteria =
         typeof body.rollbackCriteria === "string" && body.rollbackCriteria.trim() ? body.rollbackCriteria.trim() : null;
     }

@@ -25,12 +25,16 @@ const STATUS_VARIANT: Record<ControlChangeStatus, "default" | "success" | "warni
 };
 
 export default function ControlChangeLabListPage() {
-  const { wsFetch, ready } = useWorkspace();
+  const { wsFetch, ready, workspaceId } = useWorkspace();
   const [changes, setChanges] = useState<ControlChangeListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Only fetch once a workspace already exists; never create one just for
+  // visiting this page (wsFetch calls ensureWorkspace(), which POSTs
+  // bootstrap - an anonymous visitor who merely lands here must not get a DB
+  // row for it). Mirrors app/workspace/page.tsx's gate.
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !workspaceId) return;
     let cancelled = false;
 
     (async () => {
@@ -51,7 +55,12 @@ export default function ControlChangeLabListPage() {
     return () => {
       cancelled = true;
     };
-  }, [ready, wsFetch]);
+  }, [ready, workspaceId, wsFetch]);
+
+  // No workspace yet (nothing has been saved by this browser): show the same
+  // "No control changes yet" empty state as a workspace with zero saved
+  // changes, without ever fetching (which would create one via wsFetch).
+  const noWorkspaceYet = ready && !workspaceId;
 
   return (
     <ToolFrame breadcrumb={[{ label: "Home", href: "/" }, { label: "Control Changes" }]}>
@@ -74,13 +83,13 @@ export default function ControlChangeLabListPage() {
 
           {error && <div className="glass-card rounded-xl p-4 text-sm text-red-500 mb-6">{error}</div>}
 
-          {changes === null && !error && (
+          {changes === null && !error && !noWorkspaceYet && (
             <div className="glass-card rounded-2xl p-10 text-center text-text-muted text-sm">
               Loading control changes...
             </div>
           )}
 
-          {changes !== null && changes.length === 0 && (
+          {(noWorkspaceYet || (changes !== null && changes.length === 0)) && !error && (
             <div className="glass-card rounded-2xl p-10 text-center">
               <Blocks className="h-8 w-8 text-text-muted mx-auto mb-3" />
               <h2 className="text-lg font-semibold text-foreground mb-1">No control changes yet</h2>

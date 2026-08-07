@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
-import { getControlChange, type ControlChangeRow, type ControlChangeStatus, type ControlChangeType } from "@/lib/repo/control-changes";
-import { getWorkspaceControl, type WorkspaceControlRow } from "@/lib/repo/controls";
+import {
+  CONTROL_FIELD_WHITELIST,
+  getControlChange,
+  type ControlChangeRow,
+  type ControlChangeStatus,
+  type ControlChangeType,
+  type ControlFieldValues,
+} from "@/lib/repo/control-changes";
+import { getWorkspaceControl, type WorkspaceControlRow, type ControlLifecycleStatus, type ControlEffectivenessRating } from "@/lib/repo/controls";
 import type { DecisionOutcome } from "@/lib/repo/decisions";
+import { requirePerson } from "@/lib/pra/helpers";
 
 /**
  * Shared plumbing for the app/api/control-changes/** route handlers, mirroring
@@ -83,4 +91,101 @@ export async function requireControlChange(workspaceId: string, id: string): Pro
 /** Loads the workspace_control a change targets, verifying it belongs to the same workspace. */
 export async function requireChangeControl(change: ControlChangeRow): Promise<WorkspaceControlRow | null> {
   return getWorkspaceControl(change.workspace_id, change.workspace_control_id);
+}
+
+const CONTROL_LIFECYCLE_STATUSES: ControlLifecycleStatus[] = [
+  "not_started",
+  "in_progress",
+  "needs_review",
+  "gaps",
+  "implemented",
+];
+
+const CONTROL_EFFECTIVENESS_RATINGS: ControlEffectivenessRating[] = ["strong", "adequate", "weak", "not_assessed"];
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const STRING_OR_NULL_FIELDS = ["objective", "threshold", "operatingFrequency"] as const;
+const STRING_ARRAY_FIELDS = ["systems", "dataInputs", "productApplicability", "typologySlugs"] as const;
+const PERSON_REF_FIELDS = ["ownerPersonId", "approverPersonId"] as const;
+
+export type FieldValidationResult = { ok: true; value: ControlFieldValues } | { ok: false; error: string };
+
+/**
+ * Validates a `proposed` (or `baseline`, if it is ever made patchable) object
+ * field-by-field against CONTROL_FIELD_WHITELIST, returning either the
+ * cleaned/trimmed object or a descriptive error. Unknown keys are silently
+ * skipped (defensive, matching pickControlFields); every whitelisted key that
+ * IS present must pass its type check or the whole patch is rejected - this
+ * runs BEFORE the value is ever persisted, so a bad value can never reach
+ * `control_changes.proposed` and 500 the implement step later.
+ *
+ * ownerPersonId / approverPersonId are resolved against requirePerson() so a
+ * UUID from another workspace (or one that doesn't exist) is rejected here,
+ * not silently written and cross-tenant-applied at implement time.
+ */
+export async function validateControlFieldValues(workspaceId: string, input: unknown): Promise<FieldValidationResult> {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return { ok: false, error: "must be an object" };
+  }
+  const source = input as Record<string, unknown>;
+  const cleaned: ControlFieldValues = {};
+
+  for (const key of CONTROL_FIELD_WHITELIST) {
+    if (!(key in source)) continue;
+    const value = source[key];
+
+    if ((STRING_OR_NULL_FIELDS as readonly string[]).includes(key)) {
+      if (value === null) {
+        cleaned[key] = null;
+      } else if (typeof value === "string") {
+        cleaned[key] = value.trim();
+      } else {
+        return { ok: false, error: `${key} must be a string or null` };
+      }
+      continue;
+    }
+
+    if (key === "status") {
+      if (typeof value !== "string" || !CONTROL_LIFECYCLE_STATUSES.includes(value as ControlLifecycleStatus)) {
+        return { ok: false, error: `status must be one of ${CONTROL_LIFECYCLE_STATUSES.join(", ")}` };
+      }
+      cleaned.status = value;
+      continue;
+    }
+
+    if (key === "effectivenessRating") {
+      if (typeof value !== "string" || !CONTROL_EFFECTIVENESS_RATINGS.includes(value as ControlEffectivenessRating)) {
+        return { ok: false, error: `effectivenessRating must be one of ${CONTROL_EFFECTIVENESS_RATINGS.join(", ")}` };
+      }
+      cleaned.effectivenessRating = value;
+      continue;
+    }
+
+    if ((STRING_ARRAY_FIELDS as readonly string[]).includes(key)) {
+      if (!Array.isArray(value) || !value.every((v) => typeof v === "string")) {
+        return { ok: false, error: `${key} must be an array of strings` };
+      }
+      cleaned[key] = value as string[];
+      continue;
+    }
+
+    if ((PERSON_REF_FIELDS as readonly string[]).includes(key)) {
+      if (value === null) {
+        cleaned[key] = null;
+        continue;
+      }
+      if (typeof value !== "string" || !UUID_RE.test(value)) {
+        return { ok: false, error: `${key} must be a UUID or null` };
+      }
+      const person = await requirePerson(workspaceId, value);
+      if (!person) {
+        return { ok: false, error: `${key} does not reference a person in this workspace` };
+      }
+      cleaned[key] = value;
+      continue;
+    }
+  }
+
+  return { ok: true, value: cleaned };
 }

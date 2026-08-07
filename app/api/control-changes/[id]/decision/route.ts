@@ -14,6 +14,7 @@ import {
   ACTOR,
   SUBJECT_TYPE,
   badRequest,
+  conflict,
   isDecisionOutcome,
   notFound,
   requireControlChange,
@@ -91,6 +92,9 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const { id } = await context.params;
     const change = await requireControlChange(workspace.id, id);
     if (!change) return notFound("Control change not found");
+    if (change.status === "implemented" || change.status === "rolled_back") {
+      return conflict("Control change is already implemented or rolled back and can no longer be decided");
+    }
 
     const body = await request.json();
 

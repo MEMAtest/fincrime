@@ -18,14 +18,20 @@ const STATUS_LABEL: Record<string, string> = {
   rolled_back: "Rolled Back",
 };
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return "No due date";
+function fmtDate(iso: unknown): string {
+  if (typeof iso !== "string" || !iso) return "No due date";
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-GB");
 }
 
-function fmtNumber(v: number | null): string {
-  return v === null ? "-" : v.toLocaleString("en-GB", { maximumFractionDigits: 2 });
+/** Defensive against anything upstream validation missed: only a finite number renders, everything else falls back to "-" rather than throwing inside .toLocaleString(). */
+function fmtNumber(v: unknown): string {
+  return typeof v === "number" && Number.isFinite(v) ? v.toLocaleString("en-GB", { maximumFractionDigits: 2 }) : "-";
+}
+
+/** Defensive string coercion, matching lib/pdf/pra-pdf.ts's `String(Number(...) || 0)` style for the other generator: non-strings fall back rather than reaching jsPDF as undefined/[object Object]. */
+function str(v: unknown, fallback = ""): string {
+  return typeof v === "string" ? v : fallback;
 }
 
 /** Change pack for a Control Change Lab change: current vs proposed, supporting data, impact, decision, conditions, actions, monitoring plan and rollback criteria. Reuses lib/pdf/shared.ts for branding, matching lib/pdf/pra-pdf.ts's conventions. */
@@ -124,7 +130,7 @@ export function generateChangePDF(data: ChangeExportPayload): Buffer {
     autoTable(doc, {
       startY: y,
       head: [["Title", "Type", "Link"]],
-      body: data.evidence.map((e) => [e.title, e.type, e.linkUrl || ""]),
+      body: data.evidence.map((e) => [str(e.title), str(e.type), str(e.linkUrl) || ""]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
       styles: { fontSize: 8, cellPadding: 2 },
@@ -234,7 +240,7 @@ export function generateChangePDF(data: ChangeExportPayload): Buffer {
     autoTable(doc, {
       startY: y,
       head: [["Description", "Due", "Owner", "Status"]],
-      body: data.conditions.map((c) => [c.description, fmtDate(c.dueDate), c.ownerName || "Unassigned", c.status]),
+      body: data.conditions.map((c) => [str(c.description), fmtDate(c.dueDate), str(c.ownerName) || "Unassigned", str(c.status)]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
       styles: { fontSize: 8, cellPadding: 2 },
@@ -259,7 +265,7 @@ export function generateChangePDF(data: ChangeExportPayload): Buffer {
     autoTable(doc, {
       startY: y,
       head: [["Title", "Owner", "Due", "Priority", "Status"]],
-      body: data.actions.map((a) => [a.title, a.ownerName || "Unassigned", fmtDate(a.dueDate), a.priority, a.status]),
+      body: data.actions.map((a) => [str(a.title), str(a.ownerName) || "Unassigned", fmtDate(a.dueDate), str(a.priority), str(a.status)]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
       styles: { fontSize: 8, cellPadding: 2 },
@@ -284,7 +290,7 @@ export function generateChangePDF(data: ChangeExportPayload): Buffer {
     autoTable(doc, {
       startY: y,
       head: [["Metric", "Target", "Owner", "Review date"]],
-      body: data.monitoring.map((m) => [m.metric, m.target, m.owner, fmtDate(m.reviewDate || null)]),
+      body: data.monitoring.map((m) => [str(m.metric), str(m.target), str(m.owner), fmtDate(m.reviewDate || null)]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
       styles: { fontSize: 8, cellPadding: 2 },

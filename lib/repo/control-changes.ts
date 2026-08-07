@@ -3,9 +3,20 @@ import { writeAudit } from "./audit";
 import {
   getWorkspaceControl,
   updateWorkspaceControlWithClient,
+  type ControlEffectivenessRating,
+  type ControlLifecycleStatus,
   type UpdateWorkspaceControlInput,
   type WorkspaceControlRow,
 } from "./controls";
+
+const CONTROL_LIFECYCLE_STATUSES: ControlLifecycleStatus[] = [
+  "not_started",
+  "in_progress",
+  "needs_review",
+  "gaps",
+  "implemented",
+];
+const CONTROL_EFFECTIVENESS_RATINGS: ControlEffectivenessRating[] = ["strong", "adequate", "weak", "not_assessed"];
 
 export type ControlChangeType =
   | "threshold"
@@ -76,18 +87,35 @@ export function snapshotControlFields(control: WorkspaceControlRow): ControlFiel
 function toWorkspaceControlPatch(fields: ControlFieldValues): UpdateWorkspaceControlInput {
   const patch: UpdateWorkspaceControlInput = {};
   if ("objective" in fields && typeof fields.objective === "string") patch.objective = fields.objective;
-  if ("threshold" in fields) patch.threshold = (fields.threshold as string | null) ?? null;
-  if ("operatingFrequency" in fields) patch.operatingFrequency = (fields.operatingFrequency as string | null) ?? null;
+  if ("threshold" in fields && (fields.threshold === null || typeof fields.threshold === "string")) {
+    patch.threshold = fields.threshold ?? null;
+  }
+  if ("operatingFrequency" in fields && (fields.operatingFrequency === null || typeof fields.operatingFrequency === "string")) {
+    patch.operatingFrequency = fields.operatingFrequency ?? null;
+  }
   if ("systems" in fields && Array.isArray(fields.systems)) patch.systems = fields.systems as string[];
   if ("dataInputs" in fields && Array.isArray(fields.dataInputs)) patch.dataInputs = fields.dataInputs as string[];
-  if ("status" in fields && typeof fields.status === "string") {
+  if (
+    "status" in fields &&
+    typeof fields.status === "string" &&
+    CONTROL_LIFECYCLE_STATUSES.includes(fields.status as ControlLifecycleStatus)
+  ) {
     patch.status = fields.status as UpdateWorkspaceControlInput["status"];
   }
-  if ("effectivenessRating" in fields) {
+  if (
+    "effectivenessRating" in fields &&
+    (fields.effectivenessRating === null ||
+      (typeof fields.effectivenessRating === "string" &&
+        CONTROL_EFFECTIVENESS_RATINGS.includes(fields.effectivenessRating as ControlEffectivenessRating)))
+  ) {
     patch.effectivenessRating = (fields.effectivenessRating as UpdateWorkspaceControlInput["effectivenessRating"]) ?? null;
   }
-  if ("ownerPersonId" in fields) patch.ownerPersonId = (fields.ownerPersonId as string | null) ?? null;
-  if ("approverPersonId" in fields) patch.approverPersonId = (fields.approverPersonId as string | null) ?? null;
+  if ("ownerPersonId" in fields && (fields.ownerPersonId === null || typeof fields.ownerPersonId === "string")) {
+    patch.ownerPersonId = fields.ownerPersonId ?? null;
+  }
+  if ("approverPersonId" in fields && (fields.approverPersonId === null || typeof fields.approverPersonId === "string")) {
+    patch.approverPersonId = fields.approverPersonId ?? null;
+  }
   if ("productApplicability" in fields && Array.isArray(fields.productApplicability)) {
     patch.productApplicability = fields.productApplicability as string[];
   }
@@ -202,7 +230,14 @@ export async function updateControlChange(
   const changeType = input.changeType !== undefined ? input.changeType : current.change_type;
   const currentStep = input.currentStep ?? current.current_step;
   const status = input.status ?? current.status;
-  const proposed = input.proposed ? { ...current.proposed, ...pickControlFields(input.proposed) } : current.proposed;
+  // `proposed` REPLACES the stored object wholesale when supplied (never
+  // merged) - the caller (the PATCH route) already whitelisted+validated it
+  // via validateControlFieldValues, so a reverted field that is simply
+  // absent from input.proposed is genuinely gone, not silently carried
+  // forward from `current.proposed`. pickControlFields is still applied as a
+  // defensive second pass (skip unknown keys) rather than trusting the
+  // caller blindly.
+  const proposed = input.proposed !== undefined ? pickControlFields(input.proposed) : current.proposed;
   const supportingData = input.supportingData ?? current.supporting_data;
   const impact = input.impact ?? current.impact;
   const pilot = input.pilot ?? current.pilot;

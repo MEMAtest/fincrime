@@ -98,15 +98,32 @@ export default function StepProposed({ change, control, people, onSave }: StepPr
   const personById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
   const personLabel = (id: string) => (id ? personById.get(id)?.name ?? "Unknown person" : "Unassigned");
 
+  // Whether there is anything worth a save click: either the draft currently
+  // differs from the control (changedKeys), or the change already has a
+  // stored `proposed` value from an earlier save that this draft may now be
+  // reverting. Without this, reverting every field back to the control's
+  // values drops changedKeys to zero and the Save button would disable
+  // itself before the revert could ever be persisted - leaving the stale
+  // proposed keys in the DB forever (see lib/repo/control-changes.ts, which
+  // now REPLACES `proposed` wholesale on every PATCH that supplies it).
+  const hasStoredProposed = useMemo(() => Object.keys(change.proposed ?? {}).length > 0, [change.proposed]);
+  const canSave = changedKeys.size > 0 || hasStoredProposed;
+
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((prev) => ({ ...prev, [key]: value }));
 
   const save = async () => {
     setSaving(true);
     setSavedAt(null);
     try {
-      // Build the PATCH body from ONLY the changed keys - an unedited field
-      // must never appear here, so it can never overwrite a previously saved
-      // proposed value for that field with the current control's value.
+      // Build the PATCH body from the COMPLETE current changed-set (every
+      // field where the draft differs from the live control). Because the
+      // repo layer now REPLACES `proposed` wholesale rather than merging, a
+      // field that was proposed in an earlier save and has since been
+      // reverted back to the control's value simply will not appear in
+      // `changedKeys` any more - so it correctly drops out of what gets
+      // sent. An empty object IS sent when changedKeys is empty (a full
+      // revert), so the stored `proposed` is actually cleared rather than
+      // silently left stale.
       const fields: ControlFieldValues = {};
       if (changedKeys.has("objective")) fields.objective = draft.objective;
       if (changedKeys.has("threshold")) fields.threshold = draft.threshold || null;
@@ -120,7 +137,6 @@ export default function StepProposed({ change, control, people, onSave }: StepPr
       if (changedKeys.has("ownerPersonId")) fields.ownerPersonId = draft.ownerPersonId || null;
       if (changedKeys.has("approverPersonId")) fields.approverPersonId = draft.approverPersonId || null;
 
-      if (Object.keys(fields).length === 0) return;
       await onSave(fields);
       setSavedAt(Date.now());
     } finally {
@@ -282,7 +298,7 @@ export default function StepProposed({ change, control, people, onSave }: StepPr
       </div>
 
       <div className="flex items-center gap-3">
-        <Button onClick={save} disabled={saving || changedKeys.size === 0}>
+        <Button onClick={save} disabled={saving || !canSave}>
           {saving ? "Saving..." : "Save proposed change"}
         </Button>
         {savedAt && <span className="text-xs text-text-muted">Saved.</span>}

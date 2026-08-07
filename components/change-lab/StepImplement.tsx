@@ -127,7 +127,17 @@ export default function StepImplement({
       ? scoreOperationalLoad({ monthlyVolume: expectedVolume, alertRatePct: 100, handlingMinutes, hourlyCostGbp })
       : null;
 
-  const monitoringRows = Array.isArray(change.monitoring.rows) ? change.monitoring.rows : [];
+  const monitoringRows = useMemo(
+    () => (Array.isArray(change.monitoring.rows) ? change.monitoring.rows : []),
+    [change.monitoring]
+  );
+
+  // True once the live control has moved past the version this change was
+  // applied as - i.e. someone edited the control after implementation. A
+  // rollback restores `baseline`, not that intervening version, so it would
+  // silently discard those edits; warn before the click rather than after.
+  const controlEditedSinceImplement =
+    change.status === "implemented" && change.applied_version !== null && control.version > change.applied_version;
 
   const exportPayload: ChangeExportPayload = useMemo(
     () => ({
@@ -286,6 +296,16 @@ export default function StepImplement({
             <p className="text-xs text-text-muted mt-1.5 max-w-xs">
               Restores the baseline values as a new control version. Only available once this change is implemented.
             </p>
+            {controlEditedSinceImplement && (
+              <div className="flex items-start gap-1.5 text-xs text-amber-500 mt-1.5 max-w-xs">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>
+                  The live control has been edited since this change was implemented (now v{control.version}, applied
+                  as v{change.applied_version}). Rolling back will overwrite those intervening edits with the
+                  baseline values.
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

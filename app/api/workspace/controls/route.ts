@@ -42,6 +42,11 @@ function optionalString(value: unknown): string | null | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+/** Postgres unique_violation (23505) - the shape node-postgres throws for it, not exported as a type by `pg`. */
+function isUniqueViolation(error: unknown): boolean {
+  return !!error && typeof error === "object" && "code" in error && (error as { code?: unknown }).code === "23505";
+}
+
 export const GET = withWorkspace(async (_request, workspace) => {
   try {
     const controls = await listWorkspaceControls(workspace.id);
@@ -146,6 +151,22 @@ export const POST = withWorkspace(async (request, workspace) => {
         dataInputs: overrides.dataInputs ?? libraryControl.dataInputs,
         threshold: overrides.threshold ?? libraryControl.defaultThreshold,
       };
+
+      // The existence check above and this insert are not atomic: two
+      // concurrent POSTs for the same slug can both pass the check and both
+      // reach here. db/migrations/003_workspace_control_slug_unique.sql adds
+      // a unique index on (workspace_id, control_slug) so only one insert
+      // wins; the loser falls back to the update path instead of 500ing.
+      try {
+        const control = await createWorkspaceControl(workspace.id, input, "workspace");
+        return NextResponse.json({ control }, { status: 201 });
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+        const raced = await listWorkspaceControlBySlug(workspace.id, libraryControl.slug);
+        if (!raced) throw error;
+        const updated = await updateWorkspaceControl(workspace.id, raced.id, overrides, "workspace", "saved from library");
+        return NextResponse.json({ control: updated }, { status: 200 });
+      }
     } else {
       const name = typeof body.name === "string" ? body.name.trim() : "";
       const objective = typeof body.objective === "string" ? body.objective.trim() : "";
