@@ -197,8 +197,15 @@ async function main() {
 
   // object_versions has no API route; read it directly to confirm the apply
   // path snapshotted a version row (mirroring db-migrate.mjs's DB access).
+  // Only meaningful when DATABASE_URL is the same database the target server
+  // is using: smoking a remote base URL with a local DATABASE_URL would query
+  // the wrong database and report false failures.
   const databaseUrl = (process.env.DATABASE_URL || "").trim();
-  if (databaseUrl) {
+  const targetIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(BASE_URL);
+  const dbIsLocal = /@?(localhost|127\.0\.0\.1)/.test(databaseUrl);
+  if (databaseUrl && targetIsLocal !== dbIsLocal) {
+    console.log("  (skipping object_versions DB check: DATABASE_URL points at a different database than SMOKE_BASE_URL)");
+  } else if (databaseUrl) {
     const client = new pg.Client({ connectionString: databaseUrl });
     await client.connect();
     try {
