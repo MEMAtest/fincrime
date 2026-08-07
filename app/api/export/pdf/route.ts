@@ -6,10 +6,12 @@ import { generateMaturityPDF } from "@/lib/pdf/maturity-pdf";
 import { generateKycPDF } from "@/lib/pdf/kyc-pdf";
 import { generateControlRegisterPDF } from "@/lib/pdf/control-register-pdf";
 import { generatePraPDF } from "@/lib/pdf/pra-pdf";
+import { generateChangePDF } from "@/lib/pdf/change-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
 import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
 import { updateWorkspace } from "@/lib/repo/workspace";
 import type { PraExportPayload } from "@/components/pra/types";
+import type { ChangeExportPayload } from "@/components/change-lab/types";
 import { getControlBySlug } from "@/data/controls";
 import type { ControlOverride } from "@/data/controls/types";
 import { buildMergedRequirements } from "@/data/kyc/merge";
@@ -33,6 +35,7 @@ const MODULE_TITLE: Record<string, string> = {
   kyc_requirements: "KYC / CDD Requirements Matrix",
   control_register: "Control Register",
   pra_assessment: "Product Risk Assessment",
+  control_change: "Control Change",
 };
 
 /** Loose runtime check of the core fields the PRA committee pack needs before handing the payload to jsPDF - the client (not a DB row) is the source of truth here, so this is the only validation. */
@@ -58,6 +61,39 @@ function isValidPraExportPayload(value: unknown): value is PraExportPayload {
     typeof opLoad.analystHoursPerMonth === "number" &&
     typeof opLoad.fte === "number" &&
     typeof opLoad.monthlyCostGbp === "number"
+  );
+}
+
+/** Loose runtime check of the core fields the control-change pack needs before handing the payload to jsPDF - the client (not a DB row) is the source of truth here, mirroring isValidPraExportPayload above. */
+function isValidChangeExportPayload(value: unknown): value is ChangeExportPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  const supportingData = v.supportingData as Record<string, unknown> | null;
+  const impact = v.impact as Record<string, unknown> | null;
+  return (
+    typeof v.changeTitle === "string" &&
+    typeof v.controlName === "string" &&
+    typeof v.status === "string" &&
+    Array.isArray(v.fieldDiffs) &&
+    v.fieldDiffs.every(
+      (f) =>
+        f &&
+        typeof f === "object" &&
+        typeof (f as Record<string, unknown>).label === "string" &&
+        typeof (f as Record<string, unknown>).current === "string" &&
+        typeof (f as Record<string, unknown>).proposed === "string" &&
+        typeof (f as Record<string, unknown>).changed === "boolean"
+    ) &&
+    typeof v.changedFieldCount === "number" &&
+    typeof supportingData === "object" &&
+    supportingData !== null &&
+    typeof impact === "object" &&
+    impact !== null &&
+    Array.isArray(v.evidence) &&
+    Array.isArray(v.conditions) &&
+    Array.isArray(v.actions) &&
+    Array.isArray(v.monitoring) &&
+    typeof v.pilot === "boolean"
   );
 }
 
@@ -238,6 +274,21 @@ export async function POST(request: NextRequest) {
         .replace(/^-+|-+$/g, "")
         .slice(0, 60) || "assessment";
       filename = `MEMA-PRA-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "control_change") {
+      // Same pattern as pra_assessment: the client sends the full change-pack
+      // payload it already holds (change + control + field diffs + supporting
+      // data + evidence + impact + decision + conditions + actions +
+      // monitoring + rollback criteria + narrative) rather than an id.
+      if (!isValidChangeExportPayload(assessmentData)) {
+        return NextResponse.json({ error: "Missing or invalid control change data" }, { status: 400 });
+      }
+      pdfBuffer = generateChangePDF(assessmentData);
+      const slug = assessmentData.changeTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "change";
+      filename = `MEMA-ControlChange-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }

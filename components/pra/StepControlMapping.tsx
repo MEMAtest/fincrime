@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, Search, Sparkles, Trash2 } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import { allControls, controlsForTypology, getControlBySlug, type Control } from "@/data/controls";
@@ -181,6 +182,14 @@ function RiskControlCard({
                   >
                     <Sparkles className="h-3 w-3" /> Instantiate
                   </button>
+                )}
+                {c.workspace_control_id && (
+                  <Link
+                    href={`/change-lab/new?controlId=${c.workspace_control_id}`}
+                    className="text-xs font-medium text-accent hover:underline shrink-0"
+                  >
+                    Propose a change
+                  </Link>
                 )}
                 <button
                   type="button"

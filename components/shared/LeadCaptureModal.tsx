@@ -18,6 +18,7 @@ const MODULE_LABEL: Record<PDFModule, string> = {
   kyc_requirements: "KYCRequirements",
   control_register: "ControlRegister",
   pra_assessment: "ProductRiskAssessment",
+  control_change: "ControlChange",
 };
 
 interface LeadCaptureModalProps {
