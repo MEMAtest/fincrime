@@ -27,6 +27,8 @@ export interface CreateActionInput {
   ownerPersonId?: string | null;
   dueDate?: string | null;
   priority?: ActionPriority;
+  /** Defaults to "open"; supplied so an action can be created already in progress. */
+  status?: ActionStatus;
 }
 
 export async function listActionsBySubject(
@@ -69,8 +71,8 @@ export async function getAction(workspaceId: string, id: string): Promise<Action
 
 export async function createAction(workspaceId: string, input: CreateActionInput, actor: string): Promise<ActionRow> {
   const rows = await query<ActionRow>(
-    `INSERT INTO actions (workspace_id, subject_type, subject_id, title, owner_person_id, due_date, priority)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO actions (workspace_id, subject_type, subject_id, title, owner_person_id, due_date, priority, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       workspaceId,
@@ -80,6 +82,7 @@ export async function createAction(workspaceId: string, input: CreateActionInput
       input.ownerPersonId || null,
       input.dueDate || null,
       input.priority ?? "medium",
+      input.status ?? "open",
     ]
   );
   const action = rows[0];

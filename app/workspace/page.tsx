@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -38,6 +38,9 @@ interface OverviewAssessment {
   updatedAt: string;
 }
 
+type ActionStatus = "open" | "in_progress" | "done" | "cancelled";
+type ConditionStatus = "open" | "met" | "breached";
+
 interface OverviewAction {
   id: string;
   subject_type: string;
@@ -46,6 +49,7 @@ interface OverviewAction {
   ownerName: string | null;
   due_date: string | null;
   priority: "high" | "medium" | "low";
+  status: ActionStatus;
 }
 
 interface OverviewCondition {
@@ -53,7 +57,15 @@ interface OverviewCondition {
   description: string;
   ownerName: string | null;
   due_date: string | null;
+  status: ConditionStatus;
 }
+
+const ACTION_STATUS_LABEL: Record<ActionStatus, string> = {
+  open: "Open",
+  in_progress: "In progress",
+  done: "Done",
+  cancelled: "Cancelled",
+};
 
 interface OverviewActivity {
   id: string;
@@ -95,6 +107,32 @@ export default function WorkspacePage() {
   // resolves would flash every section's zero-count empty state before the
   // fetch effect runs.
   const [state, setState] = useState<FetchState>("loading");
+  // Per-row id -> error message, surfaced next to the failing row rather than
+  // resetting the whole page to an error state (one bad PATCH shouldn't hide
+  // everything else that loaded fine).
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [pendingRowId, setPendingRowId] = useState<string | null>(null);
+
+  const loadOverview = useCallback(
+    (opts: { silent?: boolean } = {}) => {
+      if (!opts.silent) setState("loading");
+      return wsFetch("/api/workspace/overview")
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`Overview fetch failed: ${res.status}`);
+          return (await res.json()) as OverviewResponse;
+        })
+        .then((data) => {
+          setOverview(data);
+          setState("loaded");
+          return true;
+        })
+        .catch(() => {
+          if (!opts.silent) setState("error");
+          return false;
+        });
+    },
+    [wsFetch]
+  );
 
   // Only fetch once a workspace already exists; never create one just for
   // visiting this page (a brand-new visitor with no workspace sees the empty
@@ -102,25 +140,67 @@ export default function WorkspacePage() {
   useEffect(() => {
     if (!ready || !workspaceId) return;
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- start loading state before the async fetch
     setState("loading");
-    wsFetch("/api/workspace/overview")
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`Overview fetch failed: ${res.status}`);
-        return (await res.json()) as OverviewResponse;
-      })
-      .then((data) => {
-        if (cancelled) return;
-        setOverview(data);
-        setState("loaded");
-      })
-      .catch(() => {
-        if (!cancelled) setState("error");
-      });
+    loadOverview({ silent: true }).then((ok) => {
+      if (cancelled) return;
+      if (!ok) setState("error");
+    });
     return () => {
       cancelled = true;
     };
-  }, [ready, workspaceId, wsFetch]);
+    // loadOverview intentionally omitted: it is stable across the ready/workspaceId identity that gates this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, workspaceId]);
+
+  const updateActionStatus = async (id: string, status: ActionStatus) => {
+    setPendingRowId(id);
+    setRowErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    try {
+      const res = await wsFetch(`/api/workspace/actions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `Update failed: ${res.status}`);
+      }
+      await loadOverview({ silent: true });
+    } catch (error) {
+      setRowErrors((prev) => ({ ...prev, [id]: error instanceof Error ? error.message : "Update failed" }));
+    } finally {
+      setPendingRowId(null);
+    }
+  };
+
+  const updateConditionStatus = async (id: string, status: ConditionStatus) => {
+    setPendingRowId(id);
+    setRowErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    try {
+      const res = await wsFetch(`/api/workspace/conditions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `Update failed: ${res.status}`);
+      }
+      await loadOverview({ silent: true });
+    } catch (error) {
+      setRowErrors((prev) => ({ ...prev, [id]: error instanceof Error ? error.message : "Update failed" }));
+    } finally {
+      setPendingRowId(null);
+    }
+  };
 
   return (
     <ToolFrame>
@@ -193,10 +273,22 @@ export default function WorkspacePage() {
                   emptyMessage="Nothing overdue. Actions and conditions with a due date in the past will show up here."
                 >
                   {overview?.overdueActions.map((a) => (
-                    <ActionRow key={a.id} action={a} />
+                    <ActionRow
+                      key={a.id}
+                      action={a}
+                      pending={pendingRowId === a.id}
+                      error={rowErrors[a.id] ?? null}
+                      onStatusChange={(status) => updateActionStatus(a.id, status)}
+                    />
                   ))}
                   {overview?.overdueConditions.map((c) => (
-                    <ConditionRow key={c.id} condition={c} />
+                    <ConditionRow
+                      key={c.id}
+                      condition={c}
+                      pending={pendingRowId === c.id}
+                      error={rowErrors[c.id] ?? null}
+                      onStatusChange={(status) => updateConditionStatus(c.id, status)}
+                    />
                   ))}
                 </SectionCard>
 
@@ -331,38 +423,93 @@ function AssessmentRow({
   );
 }
 
-function ActionRow({ action }: { action: OverviewAction }) {
-  const inner = (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-surface-border px-3 py-2.5">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{action.title}</p>
-        <p className="text-xs text-red-500 mt-0.5">
-          Due {fmtDate(action.due_date)} · {action.ownerName ?? "Unassigned"}
-        </p>
+const ACTION_STATUS_OPTIONS: ActionStatus[] = ["open", "in_progress", "done", "cancelled"];
+
+function ActionRow({
+  action, pending, error, onStatusChange,
+}: {
+  action: OverviewAction;
+  pending: boolean;
+  error: string | null;
+  onStatusChange: (status: ActionStatus) => void;
+}) {
+  const title =
+    action.subject_type === "pra_assessment" ? (
+      <Link href={`/assess/product-risk/${action.subject_id}`} className="text-sm font-medium text-foreground truncate hover:underline">
+        {action.title}
+      </Link>
+    ) : (
+      <p className="text-sm font-medium text-foreground truncate">{action.title}</p>
+    );
+
+  return (
+    <div className="rounded-lg border border-surface-border px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          {title}
+          <p className="text-xs text-red-500 mt-0.5">
+            Due {fmtDate(action.due_date)} · {action.ownerName ?? "Unassigned"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <PriorityBadge priority={action.priority} />
+          <select
+            value={action.status}
+            disabled={pending}
+            onChange={(e) => onStatusChange(e.target.value as ActionStatus)}
+            className="px-2 py-1 rounded-md border border-surface-border bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent disabled:opacity-50"
+          >
+            {ACTION_STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {ACTION_STATUS_LABEL[s]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
-      <PriorityBadge priority={action.priority} />
+      {error && <p className="text-xs text-red-500 mt-1.5">{error}</p>}
     </div>
   );
-  if (action.subject_type === "pra_assessment") {
-    return (
-      <Link href={`/assess/product-risk/${action.subject_id}`} className="block hover:bg-surface-hover transition-colors rounded-lg">
-        {inner}
-      </Link>
-    );
-  }
-  return inner;
 }
 
-function ConditionRow({ condition }: { condition: OverviewCondition }) {
+function ConditionRow({
+  condition, pending, error, onStatusChange,
+}: {
+  condition: OverviewCondition;
+  pending: boolean;
+  error: string | null;
+  onStatusChange: (status: ConditionStatus) => void;
+}) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg border border-surface-border px-3 py-2.5">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">{condition.description}</p>
-        <p className="text-xs text-red-500 mt-0.5">
-          Due {fmtDate(condition.due_date)} · {condition.ownerName ?? "Unassigned"}
-        </p>
+    <div className="rounded-lg border border-surface-border px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">{condition.description}</p>
+          <p className="text-xs text-red-500 mt-0.5">
+            Due {fmtDate(condition.due_date)} · {condition.ownerName ?? "Unassigned"}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge variant="danger">Condition</Badge>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => onStatusChange("met")}
+            className="px-2 py-1 rounded-md border border-surface-border text-xs font-medium text-foreground hover:bg-surface-hover transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            Met
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => onStatusChange("breached")}
+            className="px-2 py-1 rounded-md border border-surface-border text-xs font-medium text-red-500 hover:bg-surface-hover transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            Breached
+          </button>
+        </div>
       </div>
-      <Badge variant="danger">Condition</Badge>
+      {error && <p className="text-xs text-red-500 mt-1.5">{error}</p>}
     </div>
   );
 }
