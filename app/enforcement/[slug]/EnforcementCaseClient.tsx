@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { Scale, AlertTriangle, ShieldCheck, ShieldAlert, Wrench, Layers, BookOpen, TrendingUp } from "lucide-react";
+import { Scale, AlertTriangle, ShieldCheck, Wrench, Layers, BookOpen, TrendingUp } from "lucide-react";
 import ReferenceLink from "@/components/shared/ReferenceLink";
 import ControlSummaryCard from "@/components/controls/ControlSummaryCard";
+import EnforcementActionsPanel from "@/components/enforcement/EnforcementActionsPanel";
 import NextSteps from "@/components/shared/NextSteps";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import { RISK_THEME_LABEL } from "@/data/typologies/labels";
@@ -144,14 +145,11 @@ export default function EnforcementCaseClient({
               showIcon
             />
           ) : null}
-          <Link
-            href={`/assure/incidents/new?enforcementRef=${cSlug}`}
-            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-hover"
-          >
-            <ShieldAlert className="h-3.5 w-3.5" /> Log an incident from this case
-          </Link>
         </div>
       </section>
+
+      {/* Turn this case into work */}
+      <EnforcementActionsPanel caseData={c} controls={controls} cSlug={cSlug} />
 
       {/* What would have caught it */}
       <section className="mb-8">

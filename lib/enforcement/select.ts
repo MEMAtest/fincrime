@@ -1,6 +1,7 @@
 import { enforcementCases } from "@/data/enforcement/cases";
 import { enforcementBenchmarks } from "@/data/enforcement/benchmarks";
 import { firmTypeTagsFor } from "@/data/enforcement/firm-tags";
+import { allTypologies } from "@/data/typologies";
 import type { EnforcementCase, EnforcementBenchmarks } from "@/data/enforcement/types";
 import type { RiskTheme, FirmType } from "@/data/typologies/types";
 
@@ -17,6 +18,27 @@ export function effectiveFirmTypes(c: EnforcementCase): FirmType[] {
   const extra = firmTypeTagsFor(c.firm, c.year);
   if (!extra.length) return c.firmTypes;
   return Array.from(new Set<FirmType>([...c.firmTypes, ...extra]));
+}
+
+/**
+ * Typology slugs whose risk theme is among the given themes, in catalogue
+ * order and de-duplicated. Used to carry an enforcement case's risk themes
+ * into a PRA deep link (?typologies=) via the same riskTheme field the
+ * deterministic typology scorer matches on, rather than inventing a bespoke
+ * case-to-typology mapping that could drift from the scoring model.
+ */
+export function typologySlugsForThemes(themes: RiskTheme[]): string[] {
+  if (!themes.length) return [];
+  const set = new Set(themes);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of allTypologies) {
+    if (set.has(t.riskTheme) && !seen.has(t.slug)) {
+      seen.add(t.slug);
+      out.push(t.slug);
+    }
+  }
+  return out;
 }
 
 /** Look up a real enforcement case by firm + year (trim/lowercase matched). */

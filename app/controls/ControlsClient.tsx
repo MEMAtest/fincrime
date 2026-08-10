@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowRight, ArrowUpRight, ChevronDown, ChevronRight, AlertTriangle, Scale, Wrench } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ChevronDown, ChevronRight, AlertTriangle, Scale, Wrench, CheckCircle2 } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import ToolPageHeader from "@/components/shared/ToolPageHeader";
 import RiskThemeIcon from "@/components/icons/RiskThemeIcon";
@@ -11,11 +11,35 @@ import { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import BenchmarksPanel from "@/components/results/BenchmarksPanel";
 import SourceBadge from "@/components/shared/SourceBadge";
 import ControlDetailModal from "@/components/controls/ControlDetailModal";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
+import type { WorkspaceControlDTO } from "@/components/change-lab/types";
 import { controlsByCategory, CONTROL_CATEGORY_LABEL, CONTROL_TYPE_LABEL } from "@/data/controls";
 import { lessonFor } from "@/data/enforcement/lessons";
 import { enforcementCases } from "@/data/enforcement/cases";
 import { caseSlug } from "@/lib/enforcement/case-slug";
 import type { RiskTheme, FirmType, SourceOrg } from "@/data/typologies/types";
+
+const STATUS_LABEL: Record<string, string> = {
+  not_started: "Not started",
+  in_progress: "In progress",
+  needs_review: "Needs review",
+  gaps: "Gaps",
+  implemented: "Implemented",
+};
+
+const RATING_LABEL: Record<string, string> = {
+  strong: "Strong",
+  adequate: "Adequate",
+  weak: "Weak",
+  not_assessed: "Not assessed",
+};
+
+function fmtDate(value: string | null): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
 
 /* ── Enforcement actions ───────────────────────────── */
 
@@ -69,6 +93,38 @@ const orgForFramework = (f: FrameworkFilter): SourceOrg | null =>
 export default function ControlsClient({ initialFramework, initialFirmType }: { initialFramework: string; initialFirmType?: string }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { wsFetch, ready, workspaceId } = useWorkspace();
+
+  // Live workspace state per library control, keyed by control_slug. Only
+  // fetched when a workspace already exists (ready && workspaceId), so an
+  // anonymous visitor never triggers a fetch here, and this effect can never
+  // bootstrap a workspace - it reads wsFetch's ensureWorkspace()-free GET
+  // path implicitly by only calling it once workspaceId is already set.
+  const [workspaceControls, setWorkspaceControls] = useState<Map<string, WorkspaceControlDTO>>(new Map());
+
+  useEffect(() => {
+    if (!ready || !workspaceId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await wsFetch("/api/workspace/controls");
+        if (!res.ok) return;
+        const data: unknown = await res.json();
+        const list = data && typeof data === "object" ? (data as { controls?: unknown }).controls : undefined;
+        if (cancelled || !Array.isArray(list)) return;
+        const map = new Map<string, WorkspaceControlDTO>();
+        for (const row of list as WorkspaceControlDTO[]) {
+          if (row.control_slug) map.set(row.control_slug, row);
+        }
+        setWorkspaceControls(map);
+      } catch {
+        // Silent: the library still works fully with static reference data.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, workspaceId, wsFetch]);
 
   // Framework filter is URL-driven (server passes the ?framework= value), so the
   // page server-renders and footer /controls?framework=fca links update it.
@@ -359,41 +415,90 @@ export default function ControlsClient({ initialFramework, initialFirmType }: { 
                       </span>
                     </div>
                     <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                      {controls.map((c) => (
-                        <button
-                          key={c.slug}
-                          onClick={() => setOpenControl(c.slug)}
-                          className="text-left glass-card rounded-xl p-4 card-hover cursor-pointer h-full flex flex-col"
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-1.5">
-                            <h4 className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1">
-                              <span>{c.name}</span>
-                              <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
-                            </h4>
-                          </div>
-                          <p className="text-xs text-text-muted leading-relaxed line-clamp-2 flex-1">
-                            {c.plainSummary}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
-                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-accent/10 text-accent">
-                              {CONTROL_TYPE_LABEL[c.controlType]}
-                            </span>
-                            {c.riskThemes.map((t) => (
-                              <span
-                                key={t}
-                                className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border"
-                                style={{
-                                  backgroundColor: `${THEME_CONFIG[t].glow}14`,
-                                  borderColor: `${THEME_CONFIG[t].primary}33`,
-                                  color: THEME_CONFIG[t].primary,
-                                }}
-                              >
-                                {THEME_CONFIG[t].label}
+                      {controls.map((c) => {
+                        const live = workspaceControls.get(c.slug);
+                        return (
+                        <div key={c.slug} className="glass-card rounded-xl p-4 card-hover h-full flex flex-col">
+                          <button
+                            type="button"
+                            onClick={() => setOpenControl(c.slug)}
+                            className="text-left cursor-pointer flex-1 flex flex-col"
+                          >
+                            <div className="flex items-start justify-between gap-2 mb-1.5">
+                              <h4 className="text-sm font-semibold text-foreground leading-tight flex items-center gap-1">
+                                <span>{c.name}</span>
+                                <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                              </h4>
+                            </div>
+                            <p className="text-xs text-text-muted leading-relaxed line-clamp-2 flex-1">
+                              {c.plainSummary}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-accent/10 text-accent">
+                                {CONTROL_TYPE_LABEL[c.controlType]}
                               </span>
-                            ))}
-                          </div>
-                        </button>
-                      ))}
+                              {c.riskThemes.map((t) => (
+                                <span
+                                  key={t}
+                                  className="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border"
+                                  style={{
+                                    backgroundColor: `${THEME_CONFIG[t].glow}14`,
+                                    borderColor: `${THEME_CONFIG[t].primary}33`,
+                                    color: THEME_CONFIG[t].primary,
+                                  }}
+                                >
+                                  {THEME_CONFIG[t].label}
+                                </span>
+                              ))}
+                            </div>
+                          </button>
+                          {live && (
+                            <div className="mt-3 pt-3 border-t border-surface-border">
+                              <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-accent mb-1.5">
+                                <CheckCircle2 className="h-3 w-3" /> Live in your workspace
+                              </p>
+                              <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                                <div className="flex justify-between gap-2 col-span-2">
+                                  <dt className="text-text-muted">Status</dt>
+                                  <dd className="text-foreground text-right">{STATUS_LABEL[live.status] ?? live.status}</dd>
+                                </div>
+                                <div className="flex justify-between gap-2 col-span-2">
+                                  <dt className="text-text-muted">Owner</dt>
+                                  <dd className="text-foreground text-right">
+                                    {live.owner_person_id ? "Assigned" : "Not assigned"}
+                                  </dd>
+                                </div>
+                                <div className="flex justify-between gap-2 col-span-2">
+                                  <dt className="text-text-muted">Effectiveness</dt>
+                                  <dd className="text-foreground text-right">
+                                    {live.effectiveness_rating ? RATING_LABEL[live.effectiveness_rating] : "Not assessed"}
+                                  </dd>
+                                </div>
+                                <div className="flex justify-between gap-2 col-span-2">
+                                  <dt className="text-text-muted">Version</dt>
+                                  <dd className="text-foreground text-right">v{live.version}</dd>
+                                </div>
+                                <div className="flex justify-between gap-2 col-span-2">
+                                  <dt className="text-text-muted">Last tested</dt>
+                                  <dd className="text-foreground text-right">{fmtDate(live.last_tested_at) ?? "Never"}</dd>
+                                </div>
+                                <div className="flex justify-between gap-2 col-span-2">
+                                  <dt className="text-text-muted">Next test due</dt>
+                                  <dd className="text-foreground text-right">{fmtDate(live.next_test_due) ?? "Not set"}</dd>
+                                </div>
+                              </dl>
+                              <Link
+                                href={`/change-lab/new?controlId=${live.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:underline"
+                              >
+                                Manage in Change Lab <ArrowRight className="h-3 w-3" />
+                              </Link>
+                            </div>
+                          )}
+                        </div>
+                        );
+                      })}
                     </div>
                   </section>
                 ))}
