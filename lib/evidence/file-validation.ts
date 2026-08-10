@@ -5,7 +5,17 @@
  * attachment is meant to be a working paper, a screenshot, a sample export
  * or a sign-off, never an executable or a script.
  */
-export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+/**
+ * 4 MB, deliberately under Vercel's serverless request body limit of about
+ * 4.5 MB. A larger cap is not enforceable here: the platform rejects the
+ * request with a 413 at the edge before this route ever runs, so the user
+ * would see an opaque platform error instead of our message. Proved against
+ * production, where a 5 MB upload returned 413 rather than our 400. Raising
+ * this beyond the platform limit would require the client-upload flow, which
+ * sends the file straight to blob storage and bypasses the function body.
+ */
+export const MAX_FILE_SIZE_BYTES = 4 * 1024 * 1024;
+export const MAX_FILE_SIZE_LABEL = "4MB";
 
 export const ALLOWED_CONTENT_TYPES: Record<string, string> = {
   "application/pdf": "pdf",

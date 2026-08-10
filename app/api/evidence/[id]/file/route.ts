@@ -7,6 +7,7 @@ import {
   ALLOWED_CONTENT_TYPES,
   ALLOWED_EXTENSIONS_LABEL,
   MAX_FILE_SIZE_BYTES,
+  MAX_FILE_SIZE_LABEL,
   isAllowedContentType,
   contentTypeMatchesMagicBytes,
   sanitiseFileName,
@@ -75,7 +76,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     }
     if (file.size > MAX_FILE_SIZE_BYTES) {
       return NextResponse.json(
-        { error: `File is too large: ${Math.round(file.size / 1024 / 1024)}MB exceeds the 10MB limit` },
+        { error: `File is too large: ${Math.round(file.size / 1024 / 1024)}MB exceeds the ${MAX_FILE_SIZE_LABEL} limit` },
         { status: 400 }
       );
     }

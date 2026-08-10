@@ -274,9 +274,11 @@ async function main() {
   const badTypeRes = await fetch(`${BASE_URL}/api/evidence/${evidenceId}/file`, { method: "POST", headers: { "x-workspace-id": H["x-workspace-id"], "x-workspace-token": H["x-workspace-token"] }, body: badTypeForm });
   expect("disallowed content type -> 400", badTypeRes.status, 400);
 
-  // Oversized file -> 400.
+  // Oversized file -> 400. Sized just above our 4MB cap but below Vercel's
+  // ~4.5MB request body limit, so our own check is what rejects it: a larger
+  // file would be refused by the platform with a 413 before this route runs.
   const oversizedForm = new FormData();
-  oversizedForm.append("file", new Blob([new Uint8Array(11 * 1024 * 1024)], { type: "application/pdf" }), "big.pdf");
+  oversizedForm.append("file", new Blob([new Uint8Array(Math.round(4.2 * 1024 * 1024))], { type: "application/pdf" }), "big.pdf");
   const oversizedRes = await fetch(`${BASE_URL}/api/evidence/${evidenceId}/file`, { method: "POST", headers: { "x-workspace-id": H["x-workspace-id"], "x-workspace-token": H["x-workspace-token"] }, body: oversizedForm });
   expect("oversized file -> 400", oversizedRes.status, 400);
 
