@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { loadGovernancePortfolio } from "@/lib/governance/load";
+import { resolveWorkspaceSettings } from "@/lib/workspace/settings";
 
 /**
  * GET /api/governance/portfolio - the portfolio-level roll-up across every
@@ -23,7 +24,8 @@ export const GET = withWorkspace(async (request, workspace) => {
   }
 
   try {
-    const portfolio = await loadGovernancePortfolio(workspace.id);
+    const { reviewReminderDays } = resolveWorkspaceSettings(workspace.settings);
+    const portfolio = await loadGovernancePortfolio(workspace.id, new Date(), reviewReminderDays);
     return NextResponse.json({ portfolio, generatedAt: new Date().toISOString() });
   } catch (error) {
     console.error("Governance portfolio error:", error);

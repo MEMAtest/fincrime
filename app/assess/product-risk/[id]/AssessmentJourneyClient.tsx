@@ -21,6 +21,7 @@ import StepDecision, { type DecisionPayload } from "@/components/pra/StepDecisio
 import StepPack from "@/components/pra/StepPack";
 import { computeAssessmentResidual } from "@/components/pra/journeyCompute";
 import { DEFAULT_APPETITE_THRESHOLDS, type AppetiteThresholds } from "@/data/scoring/residual-risk";
+import { DEFAULT_HOURLY_COST_GBP } from "@/data/scoring/operational-load";
 import type { ControlRating } from "@/data/controls/types";
 import {
   ASSESSMENT_STATUS_LABEL,
@@ -82,6 +83,7 @@ export default function AssessmentJourneyClient({
   const [workspaceControls, setWorkspaceControls] = useState<WorkspaceControlDTO[]>([]);
   const [people, setPeople] = useState<PersonDTO[]>([]);
   const [appetiteThresholds, setAppetiteThresholds] = useState<AppetiteThresholds>(DEFAULT_APPETITE_THRESHOLDS);
+  const [defaultHourlyCostGbp, setDefaultHourlyCostGbp] = useState<number>(DEFAULT_HOURLY_COST_GBP);
   const [decisionData, setDecisionData] = useState<DecisionRecord>(EMPTY_DECISION_RECORD);
   const [step, setStep] = useState(1);
   const [profileDraft, setProfileDraft] = useState<ProfileDraft | null>(null);
@@ -143,6 +145,9 @@ export default function AssessmentJourneyClient({
         if (meSettled.status === "fulfilled" && meSettled.value.ok) {
           const m = await meSettled.value.json();
           if (!cancelled && m?.appetiteThresholds) setAppetiteThresholds(m.appetiteThresholds);
+          if (!cancelled && typeof m?.settings?.defaultHourlyCostGbp === "number") {
+            setDefaultHourlyCostGbp(m.settings.defaultHourlyCostGbp);
+          }
         }
         if (decisionSettled.status === "fulfilled" && decisionSettled.value.ok) {
           const d = await decisionSettled.value.json();
@@ -521,6 +526,7 @@ export default function AssessmentJourneyClient({
                 controls={controls}
                 workspaceControls={workspaceControls}
                 onUpdateControl={updateControl}
+                defaultHourlyCostGbp={defaultHourlyCostGbp}
               />
             )}
             {step === 6 && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Circle, Plus, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Circle, Download, Plus, Trash2, UserPlus } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import PDFExportButton from "@/components/shared/PDFExportButton";
@@ -252,7 +252,7 @@ export default function StepApproval({
         ownerName: c.owner_person_id ? personById.get(c.owner_person_id)?.name ?? null : null,
         status: c.status,
       })),
-      evidence: evidence.map((e) => ({ title: e.title, type: e.type, description: e.description, linkUrl: e.link_url })),
+      evidence: evidence.map((e) => ({ title: e.title, type: e.type, description: e.description, linkUrl: e.link_url, fileName: e.file_name, fileSizeBytes: e.file_size_bytes })),
       decisions: decisions.map((d) => ({
         outcome: d.outcome,
         decidedByName: personById.get(d.decided_by_person_id)?.name ?? "Unknown",
@@ -649,8 +649,15 @@ export default function StepApproval({
         ) : (
           <div className="space-y-1">
             {evidence.map((e) => (
-              <p key={e.id} className="text-xs text-text-muted">
-                {e.title} ({e.type.replace(/_/g, " ")})
+              <p key={e.id} className="text-xs text-text-muted flex items-center gap-2 flex-wrap">
+                <span>
+                  {e.title} ({e.type.replace(/_/g, " ")})
+                </span>
+                {e.file_url && (
+                  <a href={e.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">
+                    <Download className="h-3 w-3" /> {e.file_name}
+                  </a>
+                )}
               </p>
             ))}
           </div>

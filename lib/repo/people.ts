@@ -84,15 +84,40 @@ export async function updatePerson(
   return updated;
 }
 
-export async function deletePerson(workspaceId: string, id: string, actor: string): Promise<boolean> {
-  const rows = await query<{ id: string }>(
-    `DELETE FROM workspace_people WHERE workspace_id = $1 AND id = $2 RETURNING id`,
-    [workspaceId, id]
-  );
-  const deleted = rows.length > 0;
+export type DeletePersonResult = "deleted" | "not_found" | "referenced";
 
-  if (deleted) {
-    await writeAudit(workspaceId, actor, "person.deleted", "workspace_person", id, {});
+/**
+ * Deletes a person, or refuses coherently if they cannot be. decisions.
+ * decided_by_person_id is ON DELETE RESTRICT (a decision's decider is part
+ * of the historical record and must never silently disappear), so deleting
+ * a person who has decided anything raises a Postgres FK-violation error
+ * (code 23503) rather than deleting - caught here and turned into
+ * "referenced" instead of the raw DB error the API route would otherwise
+ * 500 with. Every OTHER reference to a person (owner_person_id,
+ * approver_person_id, tester_person_id, added_by_person_id, etc.) is ON
+ * DELETE SET NULL, so those are simply cleared and the delete proceeds.
+ */
+export async function deletePerson(workspaceId: string, id: string, actor: string): Promise<DeletePersonResult> {
+  try {
+    const rows = await query<{ id: string }>(
+      `DELETE FROM workspace_people WHERE workspace_id = $1 AND id = $2 RETURNING id`,
+      [workspaceId, id]
+    );
+    const deleted = rows.length > 0;
+    if (deleted) {
+      await writeAudit(workspaceId, actor, "person.deleted", "workspace_person", id, {});
+    }
+    return deleted ? "deleted" : "not_found";
+  } catch (error) {
+    // Postgres raises 23001 (restrict_violation) for an ON DELETE RESTRICT
+    // block specifically - NOT the more general 23503 (foreign_key_violation)
+    // that e.g. an ordinary insert with a bad FK raises. Both are checked so
+    // this stays correct regardless of which subclass a given Postgres
+    // version/driver surfaces for a RESTRICT-triggered delete.
+    if (error && typeof error === "object" && "code" in error) {
+      const code = (error as { code?: string }).code;
+      if (code === "23001" || code === "23503") return "referenced";
+    }
+    throw error;
   }
-  return deleted;
 }

@@ -294,6 +294,11 @@ export default function TestJourneyClient({ testId }: TestJourneyClientProps) {
     }
   }
 
+  /** Applies a file-attach/remove response onto the matching evidence row - EvidenceStep's onEvidenceUpdated. */
+  function updateEvidenceItem(updated: EvidenceDTO): void {
+    setEvidence((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+  }
+
   async function completeTest(): Promise<{ ok: true } | { ok: false; message: string }> {
     setActionError(null);
     try {
@@ -394,7 +399,7 @@ export default function TestJourneyClient({ testId }: TestJourneyClientProps) {
               />
             )}
             {step === 4 && (
-              <StepEvidence evidence={evidence} loading={evidenceLoading} readOnly={Boolean(readOnly)} onAdd={addEvidence} />
+              <StepEvidence evidence={evidence} loading={evidenceLoading} readOnly={Boolean(readOnly)} onAdd={addEvidence} onEvidenceUpdated={updateEvidenceItem} />
             )}
             {step === 5 && (
               <StepConclusion

@@ -33,6 +33,7 @@ const ROUTE_MAP: { prefix: string; id?: SidebarId; label: string }[] = [
   { prefix: "/govern/regulatory-response", id: "regulatory-response", label: "Regulatory Response" },
   { prefix: "/govern/dashboard", id: "governance-dashboard", label: "Governance Dashboard" },
   { prefix: "/govern/reports", id: "reports", label: "Reports" },
+  { prefix: "/govern/settings", id: "settings", label: "Settings" },
   { prefix: "/workspace", id: "workspace", label: "Workspace" },
 ];
 

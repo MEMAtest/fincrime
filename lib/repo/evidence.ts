@@ -1,5 +1,6 @@
 import { query, queryWithClient, type DbTransactionClient } from "@/lib/db";
 import { writeAudit } from "./audit";
+import { deleteEvidenceFileBestEffort } from "@/lib/storage/blob";
 
 const EVIDENCE_SUBJECT_TYPE = "evidence";
 const COMMENT_SUBJECT_TYPE = "comment";
@@ -19,6 +20,12 @@ export interface EvidenceRow {
   link_url: string | null;
   evidence_date: string | null;
   added_by_person_id: string | null;
+  /** File attachment, added alongside (never instead of) link_url/description - migration 009. All five are null for link-only evidence, exactly today's shape. */
+  file_url: string | null;
+  file_name: string | null;
+  file_size_bytes: number | null;
+  file_content_type: string | null;
+  uploaded_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -131,16 +138,74 @@ export async function updateEvidence(
 }
 
 export async function deleteEvidence(workspaceId: string, id: string, actor: string): Promise<boolean> {
-  const rows = await query<{ id: string }>(`DELETE FROM evidence WHERE workspace_id = $1 AND id = $2 RETURNING id`, [
+  const rows = await query<EvidenceRow>(`DELETE FROM evidence WHERE workspace_id = $1 AND id = $2 RETURNING *`, [
     workspaceId,
     id,
   ]);
   const deleted = rows.length > 0;
 
   if (deleted) {
+    // Best-effort: the DB row is already gone (the source of truth for
+    // whether this evidence exists), so a failed blob delete here must
+    // never surface as a failure of the delete itself - it just leaves an
+    // orphaned object in storage, logged by deleteEvidenceFileBestEffort.
+    if (rows[0].file_url) void deleteEvidenceFileBestEffort(rows[0].file_url);
     await writeAudit(workspaceId, actor, "evidence.deleted", EVIDENCE_SUBJECT_TYPE, id, {});
   }
   return deleted;
+}
+
+export interface AttachEvidenceFileInput {
+  fileUrl: string;
+  fileName: string;
+  fileSizeBytes: number;
+  fileContentType: string;
+}
+
+/**
+ * Records a successfully uploaded file's metadata on an evidence row.
+ * Replacing an existing attachment (re-upload) is the caller's job to
+ * detect and best-effort-delete the old blob for BEFORE calling this - kept
+ * separate so this function stays a pure "write these columns" op with one
+ * job, matching every other repo module's single-purpose update functions.
+ */
+export async function attachEvidenceFile(
+  workspaceId: string,
+  id: string,
+  input: AttachEvidenceFileInput,
+  actor: string
+): Promise<EvidenceRow | null> {
+  const rows = await query<EvidenceRow>(
+    `UPDATE evidence
+     SET file_url = $3, file_name = $4, file_size_bytes = $5, file_content_type = $6, uploaded_at = now(), updated_at = now()
+     WHERE workspace_id = $1 AND id = $2
+     RETURNING *`,
+    [workspaceId, id, input.fileUrl, input.fileName, input.fileSizeBytes, input.fileContentType]
+  );
+  const updated = rows[0] ?? null;
+  if (updated) {
+    await writeAudit(workspaceId, actor, "evidence.file_attached", EVIDENCE_SUBJECT_TYPE, id, {
+      fileName: input.fileName,
+      fileSizeBytes: input.fileSizeBytes,
+    });
+  }
+  return updated;
+}
+
+/** Clears a file attachment's metadata (the blob itself is deleted best-effort by the caller before this). Leaves link_url/description/etc untouched. */
+export async function clearEvidenceFile(workspaceId: string, id: string, actor: string): Promise<EvidenceRow | null> {
+  const rows = await query<EvidenceRow>(
+    `UPDATE evidence
+     SET file_url = NULL, file_name = NULL, file_size_bytes = NULL, file_content_type = NULL, uploaded_at = NULL, updated_at = now()
+     WHERE workspace_id = $1 AND id = $2
+     RETURNING *`,
+    [workspaceId, id]
+  );
+  const updated = rows[0] ?? null;
+  if (updated) {
+    await writeAudit(workspaceId, actor, "evidence.file_removed", EVIDENCE_SUBJECT_TYPE, id, {});
+  }
+  return updated;
 }
 
 // ---------------------------------------------------------------------------

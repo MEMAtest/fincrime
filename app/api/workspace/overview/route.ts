@@ -9,6 +9,7 @@ import { listPeople } from "@/lib/repo/people";
 import { getRegCommitment, REG_COMMITMENT_SUBJECT_TYPE } from "@/lib/repo/reg-requests";
 import { listWorkspaceControls } from "@/lib/repo/controls";
 import { computeControlsDueForTesting } from "@/lib/governance/portfolio";
+import { resolveWorkspaceSettings } from "@/lib/workspace/settings";
 
 const RECENT_ACTIVITY_LIMIT = 15;
 
@@ -58,7 +59,8 @@ export const GET = withWorkspace(async (_request, workspace) => {
     // the EXACT predicate the Governance Dashboard uses (see
     // lib/governance/portfolio.ts's computeControlsDueForTesting) so the two
     // views can never disagree on what counts as "due".
-    const controlsDueForTesting = computeControlsDueForTesting(workspaceControls, new Date());
+    const { reviewReminderDays } = resolveWorkspaceSettings(workspace.settings);
+    const controlsDueForTesting = computeControlsDueForTesting(workspaceControls, new Date(), reviewReminderDays);
 
     const productNameById = new Map(products.map((p) => [p.id, p.name]));
     const personNameById = new Map(people.map((p) => [p.id, p.name]));

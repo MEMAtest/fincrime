@@ -8,11 +8,14 @@ interface MaturityPDFData extends MaturityResult {
   narrative?: string;
 }
 
-export function generateMaturityPDF(data: MaturityPDFData): Buffer {
+export function generateMaturityPDF(
+  data: MaturityPDFData,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const doc = new jsPDF();
   const { framework, currentLevel, targetLevel, currentScore, targetScore, gapScore, remediation, narrative } = data;
 
-  let y = addHeader(doc, "Controls Maturity Assessment Report");
+  let y = addHeader(doc, "Controls Maturity Assessment Report", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");

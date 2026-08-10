@@ -14,14 +14,17 @@ interface KycPDFData {
   merged?: MergedResult;
 }
 
-export function generateKycPDF(data: KycPDFData): Buffer {
+export function generateKycPDF(
+  data: KycPDFData,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const { entities, jurisdictions } = data;
   const risks = data.risks.length ? data.risks : (["medium"] as RiskLevel[]);
   const completed = data.completed ?? [];
   const multiJur = jurisdictions.length > 1;
   const doc = new jsPDF();
 
-  let y = addHeader(doc, "KYC / CDD Requirements");
+  let y = addHeader(doc, "KYC / CDD Requirements", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   const merged = data.merged ?? buildMergedRequirements(entities, jurisdictions);
   const requirements = merged.requirements;

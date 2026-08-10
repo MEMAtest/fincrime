@@ -151,10 +151,18 @@ export function computeGaps(
 
 /**
  * Reads an assessment_control's op_load JSONB defensively: any missing or
- * non-numeric field clamps to 0 (or undefined for the optional hourly cost,
- * so scoreOperationalLoad falls back to its own default rate).
+ * non-numeric field clamps to 0. hourlyCostGbp falls back, in order, to a
+ * per-control override the assessor entered, then `defaultHourlyCostGbp`
+ * (the requesting workspace's Settings > Operational defaults value, read
+ * by the caller from GET /api/workspace/me and passed in here - see
+ * StepGapsOpLoad.tsx), then finally undefined so scoreOperationalLoad falls
+ * back to its own hard-coded DEFAULT_HOURLY_COST_GBP for a workspace that
+ * has never opened Settings.
  */
-export function opLoadInputFromControl(control: AssessmentControlDTO): OperationalLoadInput {
+export function opLoadInputFromControl(
+  control: AssessmentControlDTO,
+  defaultHourlyCostGbp?: number
+): OperationalLoadInput {
   const raw = (control.op_load ?? {}) as Record<string, unknown>;
   const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
   const numOrUndefined = (v: unknown): number | undefined =>
@@ -163,6 +171,6 @@ export function opLoadInputFromControl(control: AssessmentControlDTO): Operation
     monthlyVolume: num(raw.monthlyVolume),
     alertRatePct: num(raw.alertRatePct),
     handlingMinutes: num(raw.handlingMinutes),
-    hourlyCostGbp: numOrUndefined(raw.hourlyCostGbp),
+    hourlyCostGbp: numOrUndefined(raw.hourlyCostGbp) ?? defaultHourlyCostGbp,
   };
 }

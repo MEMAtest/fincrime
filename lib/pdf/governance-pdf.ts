@@ -77,9 +77,12 @@ function renderTable(doc: jsPDF, y: number, title: string, items: PortfolioItem[
  * other pack in this codebase: a committee artefact must not be forgeable by
  * a crafted POST.
  */
-export function generateGovernancePDF(data: GovernancePackPayload): Buffer {
+export function generateGovernancePDF(
+  data: GovernancePackPayload,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const doc = new jsPDF();
-  let y = addHeader(doc, "Governance Pack");
+  let y = addHeader(doc, "Governance Pack", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");

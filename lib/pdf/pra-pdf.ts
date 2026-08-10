@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS } from "./shared";
+import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS, formatEvidenceFileCell } from "./shared";
 import type { PraExportPayload } from "@/components/pra/types";
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -22,9 +22,12 @@ function fmtDate(iso: string | null): string {
 }
 
 /** Committee pack for a Product Risk Assessment: profile, flows, risk register, control map, gaps, operational load, residual vs appetite, decision, conditions, actions and evidence. Reuses lib/pdf/shared.ts for branding/header/footer, matching the other generators' visual conventions. */
-export function generatePraPDF(data: PraExportPayload): Buffer {
+export function generatePraPDF(
+  data: PraExportPayload,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const doc = new jsPDF();
-  let y = addHeader(doc, "Product Risk Assessment");
+  let y = addHeader(doc, "Product Risk Assessment", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   // Product profile
   doc.setFontSize(14);
@@ -316,8 +319,8 @@ export function generatePraPDF(data: PraExportPayload): Buffer {
   if (data.evidence.length > 0) {
     autoTable(doc, {
       startY: y,
-      head: [["Title", "Type", "Link"]],
-      body: data.evidence.map((e) => [e.title, e.type, e.linkUrl || ""]),
+      head: [["Title", "Type", "Link", "File"]],
+      body: data.evidence.map((e) => [e.title, e.type, e.linkUrl || "", formatEvidenceFileCell(e.fileName, e.fileSizeBytes)]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
       styles: { fontSize: 8, cellPadding: 2 },

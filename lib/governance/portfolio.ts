@@ -209,6 +209,8 @@ export interface BuildPortfolioInput {
   /** Keyed by decision id - only decisions referenced by `openConditions` need to be present. */
   decisionById: Map<string, DecisionRow>;
   overdueActions: ActionRow[];
+  /** Workspace Settings > Operational defaults > review reminder days. Defaults to DUE_SOON_WINDOW_DAYS (30) when the caller does not supply a workspace-specific value (e.g. emptyGovernancePortfolio, or a caller predating Settings). */
+  dueSoonWindowDays?: number;
 }
 
 export interface PortfolioSnapshot {
@@ -257,11 +259,15 @@ const LIVE_APPETITE_ASSESSMENT_STATUSES = new Set<AssessmentStatus>(["approved",
  * other workstream just to get one section, or re-deriving the predicate and
  * risking the two views disagreeing.
  */
-export function computeControlsDueForTesting(workspaceControls: WorkspaceControlRow[], today: Date): PortfolioSection {
+export function computeControlsDueForTesting(
+  workspaceControls: WorkspaceControlRow[],
+  today: Date,
+  windowDays: number = DUE_SOON_WINDOW_DAYS
+): PortfolioSection {
   const items: PortfolioItem[] = workspaceControls
     .filter((c) => {
       if (!c.next_test_due) return false;
-      const urgency = urgencyForDueDate(c.next_test_due, today);
+      const urgency = urgencyForDueDate(c.next_test_due, today, windowDays);
       return urgency === "overdue" || urgency === "due_soon";
     })
     .map((c) => ({
@@ -272,13 +278,14 @@ export function computeControlsDueForTesting(workspaceControls: WorkspaceControl
       dueDate: isoDateOnly(c.next_test_due),
       dueDateLabel: "Due",
       status: c.status,
-      urgency: urgencyForDueDate(c.next_test_due, today),
+      urgency: urgencyForDueDate(c.next_test_due, today, windowDays),
     }));
   return section(items);
 }
 
 export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioSnapshot {
   const { today } = input;
+  const windowDays = input.dueSoonWindowDays ?? DUE_SOON_WINDOW_DAYS;
   const asOf = isoDateOnly(today) ?? today.toISOString().slice(0, 10);
 
   const commitmentById = new Map(input.regCommitments.map((c) => [c.id, c]));
@@ -459,7 +466,7 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
     }));
 
   // -- controls due/overdue for testing ------------------------------
-  const controlsDue = computeControlsDueForTesting(input.workspaceControls, today);
+  const controlsDue = computeControlsDueForTesting(input.workspaceControls, today, windowDays);
 
   // -- failed control tests --------------------------------------------
   // Scoped to COMPLETED tests only (matching the on-screen caption "Completed
@@ -545,12 +552,12 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
       dueDate: isoDateOnly(c.due_date),
       dueDateLabel: c.due_date ? "Due" : null,
       status: c.status,
-      urgency: urgencyForDueDate(c.due_date, today),
+      urgency: urgencyForDueDate(c.due_date, today, windowDays),
     };
   };
   const openCommitmentItems = openCommitmentRows.map(toCommitmentItem);
-  const overdueCommitmentItems = openCommitmentRows.filter((c) => urgencyForDueDate(c.due_date, today) === "overdue").map(toCommitmentItem);
-  const dueSoonCommitmentItems = openCommitmentRows.filter((c) => urgencyForDueDate(c.due_date, today) === "due_soon").map(toCommitmentItem);
+  const overdueCommitmentItems = openCommitmentRows.filter((c) => urgencyForDueDate(c.due_date, today, windowDays) === "overdue").map(toCommitmentItem);
+  const dueSoonCommitmentItems = openCommitmentRows.filter((c) => urgencyForDueDate(c.due_date, today, windowDays) === "due_soon").map(toCommitmentItem);
 
   // -- overdue actions (every subject type) -------------------------------
   const overdueActionItems: PortfolioItem[] = input.overdueActions.map((a) => ({

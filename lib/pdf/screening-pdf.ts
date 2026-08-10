@@ -10,11 +10,14 @@ interface ScreeningPDFData {
   narrative?: string;
 }
 
-export function generateScreeningPDF(data: ScreeningPDFData): Buffer {
+export function generateScreeningPDF(
+  data: ScreeningPDFData,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const doc = new jsPDF();
   const { control, score, breakdown, narrative } = data;
 
-  let y = addHeader(doc, "Screening Control Designer Report");
+  let y = addHeader(doc, "Screening Control Designer Report", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");

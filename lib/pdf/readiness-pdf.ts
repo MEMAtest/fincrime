@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS } from "./shared";
+import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS, formatEvidenceFileCell } from "./shared";
 import { formatIsoDate } from "@/lib/format/date";
 import type { ReadinessExportPayload } from "@/components/readiness/types";
 
@@ -38,9 +38,12 @@ function str(v: unknown, fallback = ""): string {
  * actions. Reuses lib/pdf/shared.ts for branding, matching
  * lib/pdf/incident-pdf.ts's conventions.
  */
-export function generateReadinessPDF(data: ReadinessExportPayload): Buffer {
+export function generateReadinessPDF(
+  data: ReadinessExportPayload,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const doc = new jsPDF();
-  let y = addHeader(doc, "Entity & Market Readiness");
+  let y = addHeader(doc, "Entity & Market Readiness", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
@@ -226,8 +229,8 @@ export function generateReadinessPDF(data: ReadinessExportPayload): Buffer {
   if (data.evidence.length > 0) {
     autoTable(doc, {
       startY: y,
-      head: [["Title", "Type", "Link"]],
-      body: data.evidence.map((e) => [str(e.title), str(e.type), str(e.linkUrl) || ""]),
+      head: [["Title", "Type", "Link", "File"]],
+      body: data.evidence.map((e) => [str(e.title), str(e.type), str(e.linkUrl) || "", formatEvidenceFileCell(e.fileName, e.fileSizeBytes)]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
       styles: { fontSize: 8, cellPadding: 2 },

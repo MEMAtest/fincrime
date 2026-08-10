@@ -15,6 +15,7 @@ import { generateGovernancePDF, type GovernancePackPayload } from "@/lib/pdf/gov
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
 import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
 import { updateWorkspace } from "@/lib/repo/workspace";
+import { resolveWorkspaceSettings } from "@/lib/workspace/settings";
 import { loadGovernancePortfolio } from "@/lib/governance/load";
 import type { PraExportPayload } from "@/components/pra/types";
 import type { ChangeExportPayload } from "@/components/change-lab/types";
@@ -91,7 +92,7 @@ function isStrOrNull(v: unknown): v is string | null {
 function isValidChangeEvidence(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
   const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
 }
 
 function isValidChangeCondition(v: unknown): boolean {
@@ -221,7 +222,7 @@ function isValidTestExportAction(v: unknown): boolean {
 function isValidTestExportEvidence(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
   const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
 }
 
 /**
@@ -279,7 +280,7 @@ function isValidIncidentExportAction(v: unknown): boolean {
 function isValidIncidentExportEvidence(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
   const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
 }
 
 /**
@@ -357,7 +358,7 @@ function isValidReadinessExportObligation(v: unknown): boolean {
 function isValidReadinessExportEvidence(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
   const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
 }
 
 function isValidReadinessExportAction(v: unknown): boolean {
@@ -489,7 +490,7 @@ function isValidRegResponseExportCondition(v: unknown): boolean {
 function isValidRegResponseExportEvidence(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
   const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
 }
 
 function isValidRegResponseExportDecision(v: unknown): boolean {
@@ -633,6 +634,19 @@ export async function POST(request: NextRequest) {
     // the SES send fail silently.
     const cleanEmail = typeof email === "string" ? email.trim() : undefined;
 
+    // The workspace's organisationName/dateFormat settings, resolved once and
+    // threaded into every generate*PDF call below via `orgInfo`. Tolerant of
+    // an anonymous/unauthenticated request (getAuthenticatedWorkspace
+    // returns null) - the free tools export PDFs without ever requiring a
+    // workspace, so this must never turn a missing header into a failure;
+    // it just falls back to the generic MEMA branding untouched.
+    const requestingWorkspace = await getAuthenticatedWorkspace(request);
+    const requestingWorkspaceSettings = resolveWorkspaceSettings(requestingWorkspace?.settings ?? null);
+    const orgInfo = {
+      organisationName: requestingWorkspaceSettings.organisationName,
+      dateFormat: requestingWorkspaceSettings.dateFormat,
+    };
+
     let pdfBuffer: Buffer;
     let filename: string;
     let contentType = "application/pdf";
@@ -660,7 +674,7 @@ export async function POST(request: NextRequest) {
           riskThemes: answers.riskThemes,
         },
         narrative,
-      });
+      }, orgInfo);
       filename = `MEMA-TypologyIQ-${result.typology.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else if (module === "partner_control_map") {
       const { modelType, flowType, actors, controlOverrides, dataReceived, narrative } = assessmentData as {
@@ -693,7 +707,7 @@ export async function POST(request: NextRequest) {
         missingDataFields: result.missingDataFields,
         controlOverrides: controlOverrides || {},
         narrative,
-      });
+      }, orgInfo);
       filename = `MEMA-PartnerControlMap-${result.flow.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else if (module === "screening_controls") {
       const { firmType, category, trigger, narrative } = assessmentData as {
@@ -709,7 +723,7 @@ export async function POST(request: NextRequest) {
         score: result.score,
         breakdown: result.breakdown,
         narrative,
-      });
+      }, orgInfo);
       filename = `MEMA-ScreeningControlDesigner-${result.control.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else if (module === "controls_maturity") {
       const { area, currentLevel, targetLevel, narrative } = assessmentData as {
@@ -723,7 +737,7 @@ export async function POST(request: NextRequest) {
       if (!result) {
         return NextResponse.json({ error: "No matching framework" }, { status: 404 });
       }
-      pdfBuffer = generateMaturityPDF({ ...result, narrative });
+      pdfBuffer = generateMaturityPDF({ ...result, narrative }, orgInfo);
       filename = `MEMA-ControlsMaturity-${result.framework.slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else if (module === "kyc_requirements") {
       const a = assessmentData as {
@@ -754,7 +768,7 @@ export async function POST(request: NextRequest) {
         contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         filename = `MEMA-KYC-${nameBit}-${date}.docx`;
       } else {
-        pdfBuffer = generateKycPDF({ entities, jurisdictions, risks: risksFinal, completed: safeCompleted, merged });
+        pdfBuffer = generateKycPDF({ entities, jurisdictions, risks: risksFinal, completed: safeCompleted, merged }, orgInfo);
         filename = `MEMA-KYC-${nameBit}-${date}.pdf`;
       }
     } else if (module === "control_register") {
@@ -773,7 +787,7 @@ export async function POST(request: NextRequest) {
       if (entries.length === 0) {
         return NextResponse.json({ error: "No controls selected" }, { status: 400 });
       }
-      pdfBuffer = generateControlRegisterPDF({ entries, context: typeof context === "string" ? context : undefined });
+      pdfBuffer = generateControlRegisterPDF({ entries, context: typeof context === "string" ? context : undefined }, orgInfo);
       filename = `MEMA-ControlRegister-${new Date().toISOString().split("T")[0]}.pdf`;
     } else if (module === "pra_assessment") {
       // The client sends the full assessment-detail payload it already holds
@@ -784,7 +798,7 @@ export async function POST(request: NextRequest) {
       if (!isValidPraExportPayload(assessmentData)) {
         return NextResponse.json({ error: "Missing or invalid PRA assessment data" }, { status: 400 });
       }
-      pdfBuffer = generatePraPDF(assessmentData);
+      pdfBuffer = generatePraPDF(assessmentData, orgInfo);
       const slug = assessmentData.productName
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
@@ -799,7 +813,7 @@ export async function POST(request: NextRequest) {
       if (!isValidChangeExportPayload(assessmentData)) {
         return NextResponse.json({ error: "Missing or invalid control change data" }, { status: 400 });
       }
-      pdfBuffer = generateChangePDF(assessmentData);
+      pdfBuffer = generateChangePDF(assessmentData, orgInfo);
       const slug = assessmentData.changeTitle
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
@@ -814,7 +828,7 @@ export async function POST(request: NextRequest) {
       if (!isValidTestExportPayload(assessmentData)) {
         return NextResponse.json({ error: "Missing or invalid control test data" }, { status: 400 });
       }
-      pdfBuffer = generateTestPDF(assessmentData);
+      pdfBuffer = generateTestPDF(assessmentData, orgInfo);
       const slug = assessmentData.testTitle
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
@@ -829,7 +843,7 @@ export async function POST(request: NextRequest) {
       if (!isValidIncidentExportPayload(assessmentData)) {
         return NextResponse.json({ error: "Missing or invalid incident data" }, { status: 400 });
       }
-      pdfBuffer = generateIncidentPDF(assessmentData);
+      pdfBuffer = generateIncidentPDF(assessmentData, orgInfo);
       const slug = assessmentData.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
@@ -843,7 +857,7 @@ export async function POST(request: NextRequest) {
       if (!isValidReadinessExportPayload(assessmentData)) {
         return NextResponse.json({ error: "Missing or invalid readiness data" }, { status: 400 });
       }
-      pdfBuffer = generateReadinessPDF(assessmentData);
+      pdfBuffer = generateReadinessPDF(assessmentData, orgInfo);
       const slug = assessmentData.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
@@ -858,7 +872,7 @@ export async function POST(request: NextRequest) {
       if (!isValidRegResponseExportPayload(assessmentData)) {
         return NextResponse.json({ error: "Missing or invalid regulatory response data" }, { status: 400 });
       }
-      pdfBuffer = generateRegResponsePDF(assessmentData);
+      pdfBuffer = generateRegResponsePDF(assessmentData, orgInfo);
       const slug = assessmentData.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
@@ -878,12 +892,16 @@ export async function POST(request: NextRequest) {
       if (!workspace) {
         return NextResponse.json({ error: "Missing or invalid workspace credentials" }, { status: 401 });
       }
-      const portfolio = await loadGovernancePortfolio(workspace.id);
+      const portfolio = await loadGovernancePortfolio(
+        workspace.id,
+        new Date(),
+        resolveWorkspaceSettings(workspace.settings).reviewReminderDays
+      );
       const payload: GovernancePackPayload = { asOf: portfolio.asOf, generatedAt: new Date().toISOString(), portfolio };
       if (!isValidGovernancePackPayload(payload)) {
         return NextResponse.json({ error: "Failed to build governance pack" }, { status: 500 });
       }
-      pdfBuffer = generateGovernancePDF(payload);
+      pdfBuffer = generateGovernancePDF(payload, orgInfo);
       filename = `MEMA-GovernancePack-${portfolio.asOf}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });

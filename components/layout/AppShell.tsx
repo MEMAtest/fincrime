@@ -85,7 +85,7 @@ const GROUPS: SidebarGroup[] = [
       { id: "workspace", label: "Workspace", icon: LayoutDashboard, href: "/workspace" },
       { id: "regulatory-response", label: "Regulatory Response", icon: Gavel, href: "/govern/regulatory-response" },
       { id: "reports", label: "Reports", icon: FileText, href: "/govern/reports" },
-      { id: "settings", label: "Settings", icon: Settings, soon: true },
+      { id: "settings", label: "Settings", icon: Settings, href: "/govern/settings" },
     ],
   },
 ];

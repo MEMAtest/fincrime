@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { AlertTriangle, ChevronDown, ChevronRight, FileText, Plus } from "lucide-react";
+import { useRef, useState } from "react";
+import { AlertTriangle, ChevronDown, ChevronRight, Download, FileText, Loader2, Paperclip, Plus } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { PrioritySelect } from "@/components/controls/ControlBits";
 import { isUnresolvedBlocker } from "@/lib/readiness/summary";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import {
   READINESS_GAP_LABEL,
   type ActionDTO,
@@ -76,11 +77,14 @@ const EMPTY_ACTION_DRAFT: ActionDraft = { title: "", owner: "", due: "", priorit
 const EMPTY_EVIDENCE_DRAFT: EvidenceDraft = { type: "policy_reference", title: "", link: "" };
 
 export default function StepGaps({ obligations, people, actions, readOnly, onSave, onAddAction, onLoadEvidence, onAddEvidence }: StepGapsProps) {
+  const { wsFetch } = useWorkspace();
   const [savingId, setSavingId] = useState<string | null>(null);
   const [errorById, setErrorById] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [evidenceById, setEvidenceById] = useState<Record<string, EvidenceDTO[]>>({});
   const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [fileBusyId, setFileBusyId] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Keyed by obligation id so text typed while obligation A's panel is open
   // can never be submitted against obligation B after switching panels -
@@ -174,6 +178,26 @@ export default function StepGaps({ obligations, people, actions, readOnly, onSav
       setEvDraftById((prev) => ({ ...prev, [obligationId]: { ...draft, title: "", link: "" } }));
     } finally {
       setEvBusy(false);
+    }
+  }
+
+  /** File attach for an already-saved obligation evidence item, reusing the same upload endpoint as the shared components/evidence/EvidenceStep.tsx. */
+  async function attachEvidenceFile(obligationId: string, evidenceId: string, file: File) {
+    setFileBusyId(evidenceId);
+    setEvError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await wsFetch(`/api/evidence/${evidenceId}/file`, { method: "POST", body: formData });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setEvError(typeof data?.error === "string" ? data.error : "Could not upload that file.");
+        return;
+      }
+      const list = await onLoadEvidence(obligationId);
+      setEvidenceById((prev) => ({ ...prev, [obligationId]: list }));
+    } finally {
+      setFileBusyId(null);
     }
   }
 
@@ -356,8 +380,40 @@ export default function StepGaps({ obligations, people, actions, readOnly, onSav
                     ) : (
                       <div className="space-y-1">
                         {evidenceById[o.id]!.map((e) => (
-                          <div key={e.id} className="text-xs text-text-muted">
-                            {e.title} ({e.type.replace(/_/g, " ")})
+                          <div key={e.id} className="flex items-center gap-2 text-xs text-text-muted flex-wrap">
+                            <span>
+                              {e.title} ({e.type.replace(/_/g, " ")})
+                            </span>
+                            {e.file_url ? (
+                              <a href={e.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">
+                                <Download className="h-3 w-3" /> {e.file_name}
+                              </a>
+                            ) : (
+                              !readOnly && (
+                                <>
+                                  <input
+                                    ref={(el) => {
+                                      fileInputRefs.current[e.id] = el;
+                                    }}
+                                    type="file"
+                                    className="hidden"
+                                    onChange={(ev) => {
+                                      const file = ev.target.files?.[0];
+                                      ev.target.value = "";
+                                      if (file) void attachEvidenceFile(o.id, e.id, file);
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => fileInputRefs.current[e.id]?.click()}
+                                    disabled={fileBusyId === e.id}
+                                    className="inline-flex items-center gap-1 text-accent hover:underline cursor-pointer disabled:opacity-50"
+                                  >
+                                    {fileBusyId === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />} Attach file
+                                  </button>
+                                </>
+                              )
+                            )}
                           </div>
                         ))}
                       </div>

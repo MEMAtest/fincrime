@@ -59,6 +59,8 @@ export interface CreateControlTestInput {
   periodStart?: string | null;
   periodEnd?: string | null;
   testerPersonId?: string | null;
+  /** Prefilled client-side from workspace Settings > Operational defaults > default test sample size (GET /api/workspace/me), still freely editable. */
+  sampleSize?: number | null;
 }
 
 export async function listControlTests(workspaceId: string): Promise<ControlTestRow[]> {
@@ -88,8 +90,8 @@ export async function createControlTest(
   actor: string
 ): Promise<ControlTestRow> {
   const rows = await query<ControlTestRow>(
-    `INSERT INTO control_tests (workspace_id, workspace_control_id, title, method, period_start, period_end, tester_person_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO control_tests (workspace_id, workspace_control_id, title, method, period_start, period_end, tester_person_id, sample_size)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       workspaceId,
@@ -99,6 +101,7 @@ export async function createControlTest(
       input.periodStart ?? null,
       input.periodEnd ?? null,
       input.testerPersonId ?? null,
+      input.sampleSize ?? null,
     ]
   );
   const test = rows[0];

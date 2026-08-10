@@ -12,6 +12,8 @@ interface StepGapsOpLoadProps {
   controls: AssessmentControlDTO[];
   workspaceControls: WorkspaceControlDTO[];
   onUpdateControl: (id: string, input: UpdateControlInput) => Promise<void>;
+  /** Workspace Settings > Operational defaults > hourly cost (GET /api/workspace/me's settings.defaultHourlyCostGbp), used as the per-control default whenever the assessor has not overridden the hourly cost field below. Falls back to DEFAULT_HOURLY_COST_GBP when not yet loaded. */
+  defaultHourlyCostGbp?: number;
 }
 
 function parseOptionalNumber(raw: string): number | undefined {
@@ -21,7 +23,13 @@ function parseOptionalNumber(raw: string): number | undefined {
 }
 
 /** Step 5: the gap register auto-derived from the control map, plus a per-control operational-load calculator with a live aggregate panel. */
-export default function StepGapsOpLoad({ risks, controls, workspaceControls, onUpdateControl }: StepGapsOpLoadProps) {
+export default function StepGapsOpLoad({
+  risks,
+  controls,
+  workspaceControls,
+  onUpdateControl,
+  defaultHourlyCostGbp = DEFAULT_HOURLY_COST_GBP,
+}: StepGapsOpLoadProps) {
   const workspaceControlById = useMemo(
     () => new Map(workspaceControls.map((c) => [c.id, c])),
     [workspaceControls]
@@ -33,8 +41,14 @@ export default function StepGapsOpLoad({ risks, controls, workspaceControls, onU
   );
 
   const opLoadSummary = useMemo(
-    () => summariseOperationalLoad(controls.map(opLoadInputFromControl)),
-    [controls]
+    // Explicit arrow, not a bare `controls.map(opLoadInputFromControl)`:
+    // Array.map also passes the element's INDEX as the second argument,
+    // which would silently land in opLoadInputFromControl's
+    // defaultHourlyCostGbp parameter (both are `number`, so nothing would
+    // catch it at the type level) - see the fixed version of the same trap
+    // avoided just below in ControlOpLoadRow's call.
+    () => summariseOperationalLoad(controls.map((c) => opLoadInputFromControl(c, defaultHourlyCostGbp))),
+    [controls, defaultHourlyCostGbp]
   );
 
   const saveOpLoad = (controlId: string, opLoad: Record<string, unknown>) => {
@@ -111,6 +125,7 @@ export default function StepGapsOpLoad({ risks, controls, workspaceControls, onU
                     control={control}
                     label={resolveControlLabel(control, workspaceControlById)}
                     onSave={saveOpLoad}
+                    defaultHourlyCostGbp={defaultHourlyCostGbp}
                   />
                 ))}
               </div>
@@ -144,10 +159,12 @@ function ControlOpLoadRow({
   control,
   label,
   onSave,
+  defaultHourlyCostGbp,
 }: {
   control: AssessmentControlDTO;
   label: string;
   onSave: (controlId: string, opLoad: Record<string, unknown>) => void;
+  defaultHourlyCostGbp: number;
 }) {
   const opLoad = (control.op_load ?? {}) as Record<string, unknown>;
   // Local draft of the whole op_load object: each blur PATCHes op_load
@@ -171,7 +188,7 @@ function ControlOpLoadRow({
     }
     onSave(control.id, { ...draft.current });
   };
-  const result = scoreOperationalLoad(opLoadInputFromControl(control));
+  const result = scoreOperationalLoad(opLoadInputFromControl(control, defaultHourlyCostGbp));
   const inputCls =
     "w-full px-2.5 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors";
 
@@ -204,7 +221,7 @@ function ControlOpLoadRow({
           className={inputCls}
         />
         <Field
-          label={`Hourly cost (£, default ${DEFAULT_HOURLY_COST_GBP})`}
+          label={`Hourly cost (£, default ${defaultHourlyCostGbp})`}
           defaultValue={typeof opLoad.hourlyCostGbp === "number" ? String(opLoad.hourlyCostGbp) : ""}
           onBlur={(e) => saveField("hourlyCostGbp", e.target)}
           className={inputCls}

@@ -140,7 +140,7 @@ export default function StepClosure({ incident, links, actions, evidence, people
         priority: a.priority,
         status: a.status,
       })),
-      evidence: evidence.map((e) => ({ title: e.title, type: e.type, description: e.description, linkUrl: e.link_url })),
+      evidence: evidence.map((e) => ({ title: e.title, type: e.type, description: e.description, linkUrl: e.link_url, fileName: e.file_name, fileSizeBytes: e.file_size_bytes })),
       closureSummary: incident.closure_summary,
       reportable: incident.reportable,
       reportedAt: incident.reported_at,

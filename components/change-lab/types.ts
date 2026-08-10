@@ -192,6 +192,9 @@ export interface ChangeExportEvidence {
   type: string;
   description: string | null;
   linkUrl: string | null;
+  /** Whether this evidence item has a file attached (migration 009) - "we hold the document" vs "we linked to it" is a material distinction on a pack, per the Phase 7 brief. */
+  fileName: string | null;
+  fileSizeBytes: number | null;
 }
 
 export interface ChangeExportDecision {

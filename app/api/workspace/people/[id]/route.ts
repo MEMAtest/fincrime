@@ -51,9 +51,18 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
-    const deleted = await deletePerson(workspace.id, id, "workspace");
-    if (!deleted) {
+    const result = await deletePerson(workspace.id, id, "workspace");
+    if (result === "not_found") {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
+    }
+    if (result === "referenced") {
+      return NextResponse.json(
+        {
+          error:
+            "This person cannot be removed: they are recorded as the decider on at least one decision, which must keep its historical record. Reassign or leave them in place.",
+        },
+        { status: 409 }
+      );
     }
     return NextResponse.json({ success: true });
   } catch (error) {

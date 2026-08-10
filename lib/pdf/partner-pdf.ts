@@ -24,11 +24,14 @@ const actorLabels: Record<string, string> = {
   fx_provider: "FX Provider",
 };
 
-export function generatePartnerPDF(data: PartnerPDFData): Buffer {
+export function generatePartnerPDF(
+  data: PartnerPDFData,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const doc = new jsPDF();
   const { flow, riskScore, riskRating, controlSummary, gapControls, missingDataFields, controlOverrides, narrative } = data;
 
-  let y = addHeader(doc, "PartnerControlMap Assessment Report");
+  let y = addHeader(doc, "PartnerControlMap Assessment Report", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   // Flow summary
   doc.setFontSize(14);

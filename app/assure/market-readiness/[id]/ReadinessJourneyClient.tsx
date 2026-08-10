@@ -310,6 +310,11 @@ export default function ReadinessJourneyClient({ assessmentId }: ReadinessJourne
     }
   }
 
+  /** Applies a file-attach/remove response onto the matching evidence row - EvidenceStep's onEvidenceUpdated. */
+  function updateEvidenceItem(updated: EvidenceDTO): void {
+    setEvidence((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+  }
+
   function toApprovalOutcome(body: { error?: string; reason?: string } | null, fallback: ApprovalReason): ApprovalOutcome {
     const reasons: ApprovalReason[] = ["already_final", "wrong_status", "not_locally_approved", "unresolved_blockers", "no_obligations"];
     const reason = reasons.includes(body?.reason as ApprovalReason) ? (body!.reason as ApprovalReason) : fallback;
@@ -460,7 +465,7 @@ export default function ReadinessJourneyClient({ assessmentId }: ReadinessJourne
                 onAddEvidence={addObligationEvidence}
               />
             )}
-            {step === 5 && <StepEvidence evidence={evidence} readOnly={Boolean(readOnly)} onAdd={addEvidence} />}
+            {step === 5 && <StepEvidence evidence={evidence} readOnly={Boolean(readOnly)} onAdd={addEvidence} onEvidenceUpdated={updateEvidenceItem} />}
             {step === 6 && (
               <StepApproval
                 assessment={assessment}

@@ -99,6 +99,12 @@ export interface EvidenceDTO {
   link_url: string | null;
   evidence_date: string | null;
   added_by_person_id: string | null;
+  /** File attachment (migration 009), added alongside link_url/description - all five are null for link-only evidence. */
+  file_url: string | null;
+  file_name: string | null;
+  file_size_bytes: number | null;
+  file_content_type: string | null;
+  uploaded_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -280,6 +286,9 @@ export interface PraExportEvidence {
   type: string;
   description: string | null;
   linkUrl: string | null;
+  /** Whether this evidence item has a file attached (migration 009) - "we hold the document" vs "we linked to it" is a material distinction on a pack, per the Phase 7 brief. */
+  fileName: string | null;
+  fileSizeBytes: number | null;
 }
 
 export interface PraExportDecision {

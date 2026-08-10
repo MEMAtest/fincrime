@@ -154,7 +154,7 @@ export default function StepConclusion({
         priority: a.priority,
         status: a.status,
       })),
-      evidence: evidence.map((e) => ({ title: e.title, type: e.type, description: e.description, linkUrl: e.link_url })),
+      evidence: evidence.map((e) => ({ title: e.title, type: e.type, description: e.description, linkUrl: e.link_url, fileName: e.file_name, fileSizeBytes: e.file_size_bytes })),
     }),
     [test, control, findings, actions, evidence, personById, preview]
   );

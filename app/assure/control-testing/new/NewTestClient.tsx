@@ -40,6 +40,10 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
   const [testerPersonId, setTesterPersonId] = useState("");
+  // Prefilled from workspace Settings > Operational defaults once /api/workspace/me
+  // resolves (see the effect below); left blank ("") rather than a hard-coded
+  // number until then, and freely editable regardless of where it came from.
+  const [sampleSize, setSampleSize] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -62,9 +66,10 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
 
     (async () => {
       try {
-        const [controlsRes, peopleRes] = await Promise.all([
+        const [controlsRes, peopleRes, meRes] = await Promise.all([
           wsFetch("/api/workspace/controls"),
           wsFetch("/api/workspace/people"),
+          wsFetch("/api/workspace/me"),
         ]);
         if (!controlsRes.ok) throw new Error("failed");
         const controlsData = await controlsRes.json();
@@ -73,6 +78,16 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
         if (peopleRes.ok) {
           const peopleData = await peopleRes.json();
           if (!cancelled) setPeople(Array.isArray(peopleData.people) ? peopleData.people : []);
+        }
+
+        // Best-effort prefill only - a failure here just leaves the sample
+        // size field blank, it never blocks creating the test.
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          const defaultSampleSize = meData?.settings?.defaultTestSampleSize;
+          if (!cancelled && typeof defaultSampleSize === "number") {
+            setSampleSize(String(defaultSampleSize));
+          }
         }
       } catch {
         if (!cancelled) setLoadError("Could not load your workspace controls. Try reloading the page.");
@@ -125,6 +140,15 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
       setSubmitError("Title is required.");
       return;
     }
+    let parsedSampleSize: number | undefined;
+    if (sampleSize.trim() !== "") {
+      const n = Number(sampleSize);
+      if (!Number.isInteger(n) || n < 0) {
+        setSubmitError("Sample size must be a non-negative whole number.");
+        return;
+      }
+      parsedSampleSize = n;
+    }
 
     setSubmitting(true);
     setSubmitError(null);
@@ -139,6 +163,7 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
           periodStart: periodStart || undefined,
           periodEnd: periodEnd || undefined,
           testerPersonId: testerPersonId || undefined,
+          sampleSize: parsedSampleSize,
         }),
       });
       if (!res.ok) throw new Error("Failed to create control test");
@@ -276,6 +301,15 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
                 onChange={(e) => setPeriodEnd(e.target.value)}
               />
             </div>
+
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              label="Sample size (optional)"
+              value={sampleSize}
+              onChange={(e) => setSampleSize(e.target.value)}
+            />
 
             <div>
               <label className="text-sm font-medium text-ink-soft">Tester (optional)</label>

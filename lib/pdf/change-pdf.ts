@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS } from "./shared";
+import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS, formatEvidenceFileCell } from "./shared";
 import type { ChangeExportPayload } from "@/components/change-lab/types";
 
 const OUTCOME_LABEL: Record<string, string> = {
@@ -35,9 +35,12 @@ function str(v: unknown, fallback = ""): string {
 }
 
 /** Change pack for a Control Change Lab change: current vs proposed, supporting data, impact, decision, conditions, actions, monitoring plan and rollback criteria. Reuses lib/pdf/shared.ts for branding, matching lib/pdf/pra-pdf.ts's conventions. */
-export function generateChangePDF(data: ChangeExportPayload): Buffer {
+export function generateChangePDF(
+  data: ChangeExportPayload,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const doc = new jsPDF();
-  let y = addHeader(doc, "Control Change");
+  let y = addHeader(doc, "Control Change", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
@@ -129,8 +132,8 @@ export function generateChangePDF(data: ChangeExportPayload): Buffer {
   if (data.evidence.length > 0) {
     autoTable(doc, {
       startY: y,
-      head: [["Title", "Type", "Link"]],
-      body: data.evidence.map((e) => [str(e.title), str(e.type), str(e.linkUrl) || ""]),
+      head: [["Title", "Type", "Link", "File"]],
+      body: data.evidence.map((e) => [str(e.title), str(e.type), str(e.linkUrl) || "", formatEvidenceFileCell(e.fileName, e.fileSizeBytes)]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
       styles: { fontSize: 8, cellPadding: 2 },

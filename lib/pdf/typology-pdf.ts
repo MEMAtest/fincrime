@@ -12,11 +12,14 @@ interface TypologyPDFData {
   narrative?: string;
 }
 
-export function generateTypologyPDF(data: TypologyPDFData): Buffer {
+export function generateTypologyPDF(
+  data: TypologyPDFData,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const doc = new jsPDF();
   const { typology, score, breakdown, answers, narrative } = data;
 
-  let y = addHeader(doc, "TypologyIQ Assessment Report");
+  let y = addHeader(doc, "TypologyIQ Assessment Report", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   // Match summary
   doc.setFontSize(14);

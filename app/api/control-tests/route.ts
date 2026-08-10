@@ -3,7 +3,7 @@ import { withWorkspace } from "@/lib/workspace-auth";
 import { createControlTest, listControlTests } from "@/lib/repo/control-tests";
 import { listWorkspaceControls } from "@/lib/repo/controls";
 import { requirePerson, requireWorkspaceControl } from "@/lib/pra/helpers";
-import { ACTOR, badRequest, isControlTestMethod, isIsoDate, isUuid, serverError } from "@/lib/control-tests/helpers";
+import { ACTOR, badRequest, isControlTestMethod, isIsoDate, isUuid, parseOptionalCount, serverError } from "@/lib/control-tests/helpers";
 
 /**
  * GET /api/control-tests - list the workspace's control tests, one row per
@@ -80,9 +80,20 @@ export const POST = withWorkspace(async (request, workspace) => {
       testerPersonId = person.id;
     }
 
+    const sampleSizeParsed = parseOptionalCount(body?.sampleSize);
+    if (!sampleSizeParsed.ok) return badRequest("Invalid sampleSize: must be a non-negative integer or null");
+
     const test = await createControlTest(
       workspace.id,
-      { workspaceControlId: control.id, title, method, periodStart, periodEnd, testerPersonId },
+      {
+        workspaceControlId: control.id,
+        title,
+        method,
+        periodStart,
+        periodEnd,
+        testerPersonId,
+        sampleSize: sampleSizeParsed.value ?? null,
+      },
       ACTOR
     );
 

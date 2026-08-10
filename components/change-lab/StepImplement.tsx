@@ -156,7 +156,7 @@ export default function StepImplement({
         expectedVolume,
         testingNotes: typeof supportingData.testingNotes === "string" ? supportingData.testingNotes : null,
       },
-      evidence: evidence.map((e) => ({ title: e.title, type: e.type, description: e.description, linkUrl: e.link_url })),
+      evidence: evidence.map((e) => ({ title: e.title, type: e.type, description: e.description, linkUrl: e.link_url, fileName: e.file_name, fileSizeBytes: e.file_size_bytes })),
       impact: {
         beforeAnalystHoursPerMonth: before?.analystHoursPerMonth ?? null,
         afterAnalystHoursPerMonth: after?.analystHoursPerMonth ?? null,

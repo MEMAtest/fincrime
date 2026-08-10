@@ -18,7 +18,11 @@ import { listOpenConditions, listDecisionsByIds } from "../repo/decisions";
 import { listOverdueActions } from "../repo/actions";
 import { buildGovernancePortfolio, type PortfolioSnapshot } from "./portfolio";
 
-export async function loadGovernancePortfolio(workspaceId: string, today: Date = new Date()): Promise<PortfolioSnapshot> {
+export async function loadGovernancePortfolio(
+  workspaceId: string,
+  today: Date = new Date(),
+  dueSoonWindowDays?: number
+): Promise<PortfolioSnapshot> {
   const [
     assessments,
     products,
@@ -68,5 +72,6 @@ export async function loadGovernancePortfolio(workspaceId: string, today: Date =
     openConditions,
     decisionById,
     overdueActions,
+    dueSoonWindowDays,
   });
 }

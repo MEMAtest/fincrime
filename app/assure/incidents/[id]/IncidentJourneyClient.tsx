@@ -295,6 +295,11 @@ export default function IncidentJourneyClient({ incidentId }: IncidentJourneyCli
     }
   }
 
+  /** Applies a file-attach/remove response onto the matching evidence row - EvidenceStep's onEvidenceUpdated. */
+  function updateEvidenceItem(updated: EvidenceDTO): void {
+    setEvidence((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+  }
+
   async function doClose(): Promise<CloseOutcome> {
     setActionError(null);
     try {
@@ -439,7 +444,7 @@ export default function IncidentJourneyClient({ incidentId }: IncidentJourneyCli
               />
             )}
             {step === 6 && (
-              <StepEvidence evidence={evidence} loading={false} readOnly={Boolean(readOnly)} onAdd={addEvidence} />
+              <StepEvidence evidence={evidence} loading={false} readOnly={Boolean(readOnly)} onAdd={addEvidence} onEvidenceUpdated={updateEvidenceItem} />
             )}
             {step === 7 && (
               <StepClosure

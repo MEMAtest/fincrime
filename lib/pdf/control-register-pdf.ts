@@ -24,11 +24,14 @@ const stat = (s: string | undefined) => STATUS_LABEL[s ?? "not_started"] ?? "Not
 const PRIORITY_LABEL: Record<string, string> = { high: "High", medium: "Medium", low: "Low" };
 const prio = (c: Control, o?: ControlOverride) => PRIORITY_LABEL[o?.priority ?? defaultPriority(c)] ?? "Medium";
 
-export function generateControlRegisterPDF(data: ControlRegisterPDFData): Buffer {
+export function generateControlRegisterPDF(
+  data: ControlRegisterPDFData,
+  orgInfo?: { organisationName?: string | null; dateFormat?: "en-GB" | "iso" }
+): Buffer {
   const doc = new jsPDF();
   const { entries, context } = data;
 
-  let y = addHeader(doc, "Control Register");
+  let y = addHeader(doc, "Control Register", orgInfo?.organisationName, orgInfo?.dateFormat);
 
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
