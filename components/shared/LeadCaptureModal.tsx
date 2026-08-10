@@ -19,6 +19,7 @@ const MODULE_LABEL: Record<PDFModule, string> = {
   control_register: "ControlRegister",
   pra_assessment: "ProductRiskAssessment",
   control_change: "ControlChange",
+  control_test: "ControlTest",
 };
 
 interface LeadCaptureModalProps {

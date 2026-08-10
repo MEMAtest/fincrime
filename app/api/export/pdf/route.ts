@@ -7,11 +7,13 @@ import { generateKycPDF } from "@/lib/pdf/kyc-pdf";
 import { generateControlRegisterPDF } from "@/lib/pdf/control-register-pdf";
 import { generatePraPDF } from "@/lib/pdf/pra-pdf";
 import { generateChangePDF } from "@/lib/pdf/change-pdf";
+import { generateTestPDF } from "@/lib/pdf/test-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
 import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
 import { updateWorkspace } from "@/lib/repo/workspace";
 import type { PraExportPayload } from "@/components/pra/types";
 import type { ChangeExportPayload } from "@/components/change-lab/types";
+import type { TestExportPayload } from "@/components/control-testing/types";
 import { getControlBySlug } from "@/data/controls";
 import type { ControlOverride } from "@/data/controls/types";
 import { buildMergedRequirements } from "@/data/kyc/merge";
@@ -36,6 +38,7 @@ const MODULE_TITLE: Record<string, string> = {
   control_register: "Control Register",
   pra_assessment: "Product Risk Assessment",
   control_change: "Control Change",
+  control_test: "Control Test Report",
 };
 
 /** Loose runtime check of the core fields the PRA committee pack needs before handing the payload to jsPDF - the client (not a DB row) is the source of truth here, so this is the only validation. */
@@ -181,6 +184,64 @@ function isValidChangeExportPayload(value: unknown): value is ChangeExportPayloa
   if (!isStrOrNull(v.implementedAt)) return false;
   if (!isStrOrNull(v.rolledBackAt)) return false;
   if (v.appliedVersion !== null && typeof v.appliedVersion !== "number") return false;
+
+  return true;
+}
+
+function isValidTestExportFinding(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const f = v as Record<string, unknown>;
+  return typeof f.description === "string" && typeof f.severity === "string" && isStrOrNull(f.sampleRef) && typeof f.hasAction === "boolean";
+}
+
+function isValidTestExportAction(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const a = v as Record<string, unknown>;
+  return (
+    typeof a.title === "string" &&
+    isStrOrNull(a.ownerName) &&
+    isStrOrNull(a.dueDate) &&
+    typeof a.priority === "string" &&
+    typeof a.status === "string"
+  );
+}
+
+function isValidTestExportEvidence(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const e = v as Record<string, unknown>;
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+}
+
+/**
+ * Runtime check of the control-test report payload before handing it to
+ * jsPDF - the client (not a DB row) is the source of truth here, mirroring
+ * isValidChangeExportPayload above. Every numeric key is checked as
+ * number|null and every array element is checked as an object with the exact
+ * string fields lib/pdf/test-pdf.ts reads, so a partial/hostile payload
+ * (e.g. findings: [null], sampleSize: "5") 400s here instead of 500ing
+ * inside jsPDF/.toLocaleString().
+ */
+function isValidTestExportPayload(value: unknown): value is TestExportPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+
+  if (typeof v.testTitle !== "string" || typeof v.controlName !== "string" || typeof v.status !== "string") return false;
+  if (!isStrOrNull(v.controlSlug)) return false;
+  if (v.method !== null && typeof v.method !== "string") return false;
+  if (!isStrOrNull(v.periodStart) || !isStrOrNull(v.periodEnd) || !isStrOrNull(v.testerName)) return false;
+
+  if (!isNumOrNull(v.sampleSize) || !isNumOrNull(v.samplesPassed) || !isNumOrNull(v.samplesFailed) || !isNumOrNull(v.samplesPartial)) {
+    return false;
+  }
+  if (!isNumOrNull(v.passRatePct)) return false;
+  if (v.derivedResult !== null && typeof v.derivedResult !== "string") return false;
+  if (v.appliedRating !== null && typeof v.appliedRating !== "string") return false;
+  if (v.appliedVersion !== null && typeof v.appliedVersion !== "number") return false;
+  if (!isStrOrNull(v.testedAt) || !isStrOrNull(v.nextTestDue) || !isStrOrNull(v.conclusion)) return false;
+
+  if (!Array.isArray(v.findings) || !v.findings.every(isValidTestExportFinding)) return false;
+  if (!Array.isArray(v.actions) || !v.actions.every(isValidTestExportAction)) return false;
+  if (!Array.isArray(v.evidence) || !v.evidence.every(isValidTestExportEvidence)) return false;
 
   return true;
 }
@@ -377,6 +438,21 @@ export async function POST(request: NextRequest) {
         .replace(/^-+|-+$/g, "")
         .slice(0, 60) || "change";
       filename = `MEMA-ControlChange-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "control_test") {
+      // Same pattern as control_change: the client sends the full test-report
+      // payload it already holds (test + control + scope + samples + derived
+      // result/rating + findings + evidence + linked actions + conclusion)
+      // rather than an id.
+      if (!isValidTestExportPayload(assessmentData)) {
+        return NextResponse.json({ error: "Missing or invalid control test data" }, { status: 400 });
+      }
+      pdfBuffer = generateTestPDF(assessmentData);
+      const slug = assessmentData.testTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "test";
+      filename = `MEMA-ControlTest-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }

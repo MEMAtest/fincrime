@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, RotateCcw, Rocket } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2, RotateCcw, Rocket, FlaskConical } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { PriorityBadge } from "@/components/controls/ControlBits";
@@ -310,10 +311,18 @@ export default function StepImplement({
         </div>
 
         {change.status === "implemented" && (
-          <p className="text-xs text-accent flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Implemented {fmtDate(change.implemented_at)}, applied as control
-            version {change.applied_version}.
-          </p>
+          <>
+            <p className="text-xs text-accent flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Implemented {fmtDate(change.implemented_at)}, applied as control
+              version {change.applied_version}.
+            </p>
+            <Link
+              href={`/assure/control-testing/new?controlId=${change.workspace_control_id}`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline"
+            >
+              <FlaskConical className="h-3.5 w-3.5" /> Test this control
+            </Link>
+          </>
         )}
         {change.status === "rolled_back" && (
           <p className="text-xs text-text-muted flex items-center gap-1.5">

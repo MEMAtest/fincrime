@@ -48,6 +48,7 @@ const TOOLS: { title: string; subtitle: string; href: string; kw?: string }[] = 
   { title: "Workspace / My Work", subtitle: "Open assessments, decisions and actions in your workspace", href: "/workspace", kw: "my work workspace home decisions required overdue actions activity" },
   { title: "Product Risk Assessments", subtitle: "Assess, approve and evidence a product's financial crime risk", href: "/assess/product-risk", kw: "pra product risk assessment approve decision conditions" },
   { title: "Control Changes", subtitle: "Propose, approve and evidence a change to a live control", href: "/change-lab", kw: "control change lab threshold rule logic decommission rollback implement" },
+  { title: "Control Testing", subtitle: "Test a live control, record findings and evidence, and set its effectiveness rating", href: "/assure/control-testing", kw: "control testing sample walkthrough reperformance findings effectiveness rating assurance" },
   { title: "AI Firm Research", subtitle: "Draft a firm risk profile with AI", href: "/firm-research", kw: "ai research firm profile suggest risks" },
   { title: "Firm Profiles", subtitle: "Business models and inherent risk", href: "/firm-profiles", kw: "emi pi bank msb crypto business model" },
   { title: "TypologyIQ", subtitle: "Match typologies to controls", href: "/typology-iq", kw: "wizard typology match assessment" },

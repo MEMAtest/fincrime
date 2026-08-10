@@ -13,7 +13,8 @@ export type PDFModule =
   | "kyc_requirements"
   | "control_register"
   | "pra_assessment"
-  | "control_change";
+  | "control_change"
+  | "control_test";
 
 export type ExportFormat = "pdf" | "docx";
 
