@@ -48,6 +48,7 @@ const TOOLS: { title: string; subtitle: string; href: string; kw?: string }[] = 
   { title: "Workspace / My Work", subtitle: "Open assessments, decisions and actions in your workspace", href: "/workspace", kw: "my work workspace home decisions required overdue actions activity" },
   { title: "Product Risk Assessments", subtitle: "Assess, approve and evidence a product's financial crime risk", href: "/assess/product-risk", kw: "pra product risk assessment approve decision conditions" },
   { title: "Control Changes", subtitle: "Propose, approve and evidence a change to a live control", href: "/change-lab", kw: "control change lab threshold rule logic decommission rollback implement" },
+  { title: "Market Readiness", subtitle: "Turn the KYC obligation register into a go/no-go launch decision", href: "/assure/market-readiness", kw: "entity market readiness obligation register launch blocker gap control mapping approval go no-go" },
   { title: "Control Testing", subtitle: "Test a live control, record findings and evidence, and set its effectiveness rating", href: "/assure/control-testing", kw: "control testing sample walkthrough reperformance findings effectiveness rating assurance" },
   { title: "Incidents", subtitle: "Log, contain, trace, remediate and close a financial crime incident", href: "/assure/incidents", kw: "incident assurance containment root cause remediation traceability close reopen" },
   { title: "AI Firm Research", subtitle: "Draft a firm risk profile with AI", href: "/firm-research", kw: "ai research firm profile suggest risks" },

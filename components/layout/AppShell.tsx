@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Home, ClipboardCheck, Crosshair, Blocks, Sparkles, Building2, ShieldCheck, UserCheck,
   Scale, Network, FileText, Settings, HelpCircle, PanelLeftClose, ListChecks, LayoutDashboard,
-  ScanSearch, PanelLeftOpen, ChevronDown, ChevronRight, Menu, X, History, ClipboardList, ShieldAlert,
+  ScanSearch, PanelLeftOpen, ChevronDown, ChevronRight, Menu, X, History, ClipboardList, ShieldAlert, Flag,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import WorkflowBar from "@/components/workflow/WorkflowBar";
@@ -27,7 +27,7 @@ export interface Crumb {
 export type SidebarId =
   | "home" | "firm-research" | "firm-profiles" | "typology-iq" | "enforcement"
   | "control-builder" | "controls-library" | "screening-designer" | "partner-map" | "kyc" | "maturity"
-  | "assess-pra" | "change-lab" | "control-testing" | "incidents" | "workspace"
+  | "assess-pra" | "change-lab" | "market-readiness" | "control-testing" | "incidents" | "workspace"
   | "reports" | "settings" | "help";
 
 interface SidebarItem {
@@ -65,6 +65,7 @@ const GROUPS: SidebarGroup[] = [
     items: [
       { id: "assess-pra", label: "Product Risk Assessments", icon: ListChecks, href: "/assess/product-risk" },
       { id: "change-lab", label: "Control Changes", icon: History, href: "/change-lab" },
+      { id: "market-readiness", label: "Market Readiness", icon: Flag, href: "/assure/market-readiness" },
       { id: "firm-research", label: "AI Research", icon: Sparkles, href: "/firm-research" },
     ],
   },

@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Building2, Globe2, ShieldCheck, ChevronDown, ChevronRight, Search, RotateCcw,
   CheckCircle2, HelpCircle, MinusCircle, AlertTriangle, FileText, ClipboardList, BookOpen, FileCheck2,
-  Share2, Check, ListChecks, ChevronsDownUp, ChevronsUpDown, Gavel, Layers,
+  Share2, Check, ListChecks, ChevronsDownUp, ChevronsUpDown, Gavel, Layers, ArrowRight,
 } from "lucide-react";
 import { track } from "@vercel/analytics";
 import ToolFrame from "@/components/layout/ToolFrame";
@@ -219,6 +220,12 @@ export default function KycMatrixClient({
                   assessmentData={{ entities: ents, jurisdictions: jurs, risks: rks, completed: reqs.filter((r) => done.has(r.key)).map((r) => r.key) }}
                   formats={["pdf", "docx"]}
                 />
+                <Link
+                  href={`/assure/market-readiness/new?entityType=${ents[0]}&jurisdiction=${jurs[0]}`}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/15 transition-colors"
+                >
+                  Turn this into a readiness assessment <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
               </div>
             }
           />

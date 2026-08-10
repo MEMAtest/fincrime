@@ -1,4 +1,4 @@
-import { query } from "@/lib/db";
+import { query, queryWithClient, type DbTransactionClient } from "@/lib/db";
 import { writeAudit } from "./audit";
 
 export type DecisionOutcome = "approve" | "approve_with_conditions" | "reject";
@@ -71,6 +71,42 @@ export async function createDecision(
     subjectId: input.subjectId,
     outcome: input.outcome,
   });
+
+  return decision;
+}
+
+/**
+ * Same behaviour as createDecision, but participates in a caller-supplied
+ * transaction instead of opening its own. For callers (e.g. the readiness
+ * approval path in lib/repo/readiness.ts) that must write the decision and
+ * the status transition it records atomically in a single transaction, so a
+ * crash between the two never leaves an approved-looking status with no
+ * decision row backing it, or vice versa.
+ */
+export async function createDecisionWithClient(
+  client: DbTransactionClient,
+  workspaceId: string,
+  input: CreateDecisionInput,
+  actor: string
+): Promise<DecisionRow> {
+  const rows = await queryWithClient<DecisionRow>(
+    client,
+    `INSERT INTO decisions (workspace_id, subject_type, subject_id, outcome, rationale, decided_by_person_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [workspaceId, input.subjectType, input.subjectId, input.outcome, input.rationale || null, input.decidedByPersonId]
+  );
+  const decision = rows[0];
+
+  await writeAudit(
+    workspaceId,
+    actor,
+    "decision.created",
+    DECISION_SUBJECT_TYPE,
+    decision.id,
+    { subjectType: input.subjectType, subjectId: input.subjectId, outcome: input.outcome },
+    client
+  );
 
   return decision;
 }

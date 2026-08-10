@@ -27,6 +27,7 @@ const ROUTE_MAP: { prefix: string; id?: SidebarId; label: string }[] = [
   // Longest-prefix first: /assess/product-risk before any shorter /assess entry.
   { prefix: "/assess/product-risk", id: "assess-pra", label: "Product Risk Assessments" },
   { prefix: "/change-lab", id: "change-lab", label: "Control Changes" },
+  { prefix: "/assure/market-readiness", id: "market-readiness", label: "Market Readiness" },
   { prefix: "/assure/control-testing", id: "control-testing", label: "Control Testing" },
   { prefix: "/assure/incidents", id: "incidents", label: "Incidents" },
   { prefix: "/workspace", id: "workspace", label: "Workspace" },

@@ -9,6 +9,7 @@ import { generatePraPDF } from "@/lib/pdf/pra-pdf";
 import { generateChangePDF } from "@/lib/pdf/change-pdf";
 import { generateTestPDF } from "@/lib/pdf/test-pdf";
 import { generateIncidentPDF } from "@/lib/pdf/incident-pdf";
+import { generateReadinessPDF } from "@/lib/pdf/readiness-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
 import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
 import { updateWorkspace } from "@/lib/repo/workspace";
@@ -16,6 +17,7 @@ import type { PraExportPayload } from "@/components/pra/types";
 import type { ChangeExportPayload } from "@/components/change-lab/types";
 import type { TestExportPayload } from "@/components/control-testing/types";
 import type { IncidentExportPayload } from "@/components/incidents/types";
+import type { ReadinessExportPayload } from "@/components/readiness/types";
 import { getControlBySlug } from "@/data/controls";
 import type { ControlOverride } from "@/data/controls/types";
 import { buildMergedRequirements } from "@/data/kyc/merge";
@@ -42,6 +44,7 @@ const MODULE_TITLE: Record<string, string> = {
   control_change: "Control Change",
   control_test: "Control Test Report",
   incident: "Incident Report",
+  readiness: "Entity & Market Readiness Pack",
 };
 
 /** Loose runtime check of the core fields the PRA committee pack needs before handing the payload to jsPDF - the client (not a DB row) is the source of truth here, so this is the only validation. */
@@ -320,6 +323,110 @@ function isValidIncidentExportPayload(value: unknown): value is IncidentExportPa
   return true;
 }
 
+function isValidReadinessExportSource(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const s = v as Record<string, unknown>;
+  return typeof s.org === "string" && typeof s.reference === "string" && typeof s.title === "string" && typeof s.url === "string";
+}
+
+function isValidReadinessExportObligation(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.category === "string" &&
+    typeof o.title === "string" &&
+    isStrOrNull(o.ruleSummary) &&
+    isStrOrNull(o.controlName) &&
+    typeof o.gap === "string" &&
+    typeof o.blocker === "boolean" &&
+    isStrOrNull(o.ownerName) &&
+    isStrOrNull(o.dueDate) &&
+    Array.isArray(o.legalBasis) &&
+    o.legalBasis.every(isValidReadinessExportSource)
+  );
+}
+
+function isValidReadinessExportEvidence(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const e = v as Record<string, unknown>;
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+}
+
+function isValidReadinessExportAction(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const a = v as Record<string, unknown>;
+  return (
+    typeof a.title === "string" &&
+    isStrOrNull(a.ownerName) &&
+    isStrOrNull(a.dueDate) &&
+    typeof a.priority === "string" &&
+    typeof a.status === "string"
+  );
+}
+
+function isValidReadinessExportCondition(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const c = v as Record<string, unknown>;
+  return typeof c.description === "string" && isStrOrNull(c.dueDate) && isStrOrNull(c.ownerName);
+}
+
+function isValidReadinessExportDecision(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const d = v as Record<string, unknown>;
+  return (
+    typeof d.outcome === "string" &&
+    typeof d.level === "string" &&
+    typeof d.decidedByName === "string" &&
+    typeof d.decidedAt === "string" &&
+    isStrOrNull(d.rationale)
+  );
+}
+
+/**
+ * Runtime check of the launch-readiness pack payload before handing it to
+ * jsPDF - the client (not a DB row) is the source of truth here, mirroring
+ * isValidIncidentExportPayload above. Every numeric key is checked as
+ * number|null and every array element is checked as an object with the exact
+ * string fields lib/pdf/readiness-pdf.ts reads, so a partial/hostile payload
+ * (e.g. obligations: [null], summary: {}) 400s here instead of 500ing inside
+ * jsPDF/.toLocaleString().
+ */
+function isValidReadinessExportPayload(value: unknown): value is ReadinessExportPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  const summary = v.summary as Record<string, unknown> | null;
+
+  if (typeof v.title !== "string" || typeof v.entityType !== "string" || typeof v.jurisdiction !== "string") return false;
+  if (typeof v.riskLevel !== "string" || typeof v.status !== "string") return false;
+  if (!isStrOrNull(v.targetLaunchDate) || !isStrOrNull(v.productName) || !isStrOrNull(v.ownerName)) return false;
+
+  if (typeof summary !== "object" || summary === null) return false;
+  const byGap = summary.byGap as Record<string, unknown> | null;
+  if (
+    typeof summary.total !== "number" ||
+    typeof byGap !== "object" ||
+    byGap === null ||
+    typeof byGap.not_assessed !== "number" ||
+    typeof byGap.none !== "number" ||
+    typeof byGap.partial !== "number" ||
+    typeof byGap.full !== "number" ||
+    typeof summary.blockerCount !== "number" ||
+    typeof summary.unresolvedBlockerCount !== "number" ||
+    typeof summary.noControlCount !== "number" ||
+    typeof summary.coveragePct !== "number"
+  ) {
+    return false;
+  }
+
+  if (!Array.isArray(v.obligations) || !v.obligations.every(isValidReadinessExportObligation)) return false;
+  if (!Array.isArray(v.evidence) || !v.evidence.every(isValidReadinessExportEvidence)) return false;
+  if (!Array.isArray(v.actions) || !v.actions.every(isValidReadinessExportAction)) return false;
+  if (!Array.isArray(v.conditions) || !v.conditions.every(isValidReadinessExportCondition)) return false;
+  if (!Array.isArray(v.decisions) || !v.decisions.every(isValidReadinessExportDecision)) return false;
+
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -542,6 +649,20 @@ export async function POST(request: NextRequest) {
         .replace(/^-+|-+$/g, "")
         .slice(0, 60) || "incident";
       filename = `MEMA-Incident-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "readiness") {
+      // Same pattern as incident: the client sends the full launch-readiness
+      // pack payload it already holds (scope + summary + obligation register
+      // + evidence + actions + conditions + decisions) rather than an id.
+      if (!isValidReadinessExportPayload(assessmentData)) {
+        return NextResponse.json({ error: "Missing or invalid readiness data" }, { status: 400 });
+      }
+      pdfBuffer = generateReadinessPDF(assessmentData);
+      const slug = assessmentData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "readiness";
+      filename = `MEMA-Readiness-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }

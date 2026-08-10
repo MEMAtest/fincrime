@@ -15,7 +15,8 @@ export type PDFModule =
   | "pra_assessment"
   | "control_change"
   | "control_test"
-  | "incident";
+  | "incident"
+  | "readiness";
 
 export type ExportFormat = "pdf" | "docx";
 
