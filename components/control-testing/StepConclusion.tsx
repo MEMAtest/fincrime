@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2, ShieldAlert } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { PriorityBadge, RatingBadge } from "@/components/controls/ControlBits";
@@ -238,6 +239,19 @@ export default function StepConclusion({
               Next test due: <span className="text-foreground font-medium">{fmtDate(test.next_test_due)}</span>
             </p>
           </div>
+
+          {test.result === "fail" && (
+            <div className="flex items-start gap-2 pt-3 border-t border-white/10 text-sm">
+              <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />
+              <span className="text-text-muted">
+                This test failed - that is exactly when an incident may be warranted.{" "}
+                <Link href={`/assure/incidents/new?testId=${test.id}`} className="text-accent hover:underline font-medium">
+                  Log an incident
+                </Link>{" "}
+                to trace this failure through to remediation.
+              </span>
+            </div>
+          )}
         </div>
       )}
 

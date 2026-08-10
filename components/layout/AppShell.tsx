@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Home, ClipboardCheck, Crosshair, Blocks, Sparkles, Building2, ShieldCheck, UserCheck,
   Scale, Network, FileText, Settings, HelpCircle, PanelLeftClose, ListChecks, LayoutDashboard,
-  ScanSearch, PanelLeftOpen, ChevronDown, ChevronRight, Menu, X, History, ClipboardList,
+  ScanSearch, PanelLeftOpen, ChevronDown, ChevronRight, Menu, X, History, ClipboardList, ShieldAlert,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import WorkflowBar from "@/components/workflow/WorkflowBar";
@@ -27,7 +27,7 @@ export interface Crumb {
 export type SidebarId =
   | "home" | "firm-research" | "firm-profiles" | "typology-iq" | "enforcement"
   | "control-builder" | "controls-library" | "screening-designer" | "partner-map" | "kyc" | "maturity"
-  | "assess-pra" | "change-lab" | "control-testing" | "workspace"
+  | "assess-pra" | "change-lab" | "control-testing" | "incidents" | "workspace"
   | "reports" | "settings" | "help";
 
 interface SidebarItem {
@@ -72,6 +72,7 @@ const GROUPS: SidebarGroup[] = [
     label: "Assure",
     items: [
       { id: "control-testing", label: "Control Testing", icon: ClipboardList, href: "/assure/control-testing" },
+      { id: "incidents", label: "Incidents", icon: ShieldAlert, href: "/assure/incidents" },
       { id: "maturity", label: "Controls Maturity", icon: ClipboardCheck, href: "/controls-maturity" },
       { id: "enforcement", label: "Enforcement", icon: Scale, href: "/enforcement" },
     ],

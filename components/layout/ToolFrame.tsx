@@ -28,6 +28,7 @@ const ROUTE_MAP: { prefix: string; id?: SidebarId; label: string }[] = [
   { prefix: "/assess/product-risk", id: "assess-pra", label: "Product Risk Assessments" },
   { prefix: "/change-lab", id: "change-lab", label: "Control Changes" },
   { prefix: "/assure/control-testing", id: "control-testing", label: "Control Testing" },
+  { prefix: "/assure/incidents", id: "incidents", label: "Incidents" },
   { prefix: "/workspace", id: "workspace", label: "Workspace" },
 ];
 

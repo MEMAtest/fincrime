@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { Scale, AlertTriangle, ShieldCheck, Wrench, Layers, BookOpen, TrendingUp } from "lucide-react";
+import { Scale, AlertTriangle, ShieldCheck, ShieldAlert, Wrench, Layers, BookOpen, TrendingUp } from "lucide-react";
 import ReferenceLink from "@/components/shared/ReferenceLink";
 import ControlSummaryCard from "@/components/controls/ControlSummaryCard";
 import NextSteps from "@/components/shared/NextSteps";
@@ -144,6 +144,12 @@ export default function EnforcementCaseClient({
               showIcon
             />
           ) : null}
+          <Link
+            href={`/assure/incidents/new?enforcementRef=${cSlug}`}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-hover"
+          >
+            <ShieldAlert className="h-3.5 w-3.5" /> Log an incident from this case
+          </Link>
         </div>
       </section>
 

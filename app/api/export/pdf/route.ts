@@ -8,12 +8,14 @@ import { generateControlRegisterPDF } from "@/lib/pdf/control-register-pdf";
 import { generatePraPDF } from "@/lib/pdf/pra-pdf";
 import { generateChangePDF } from "@/lib/pdf/change-pdf";
 import { generateTestPDF } from "@/lib/pdf/test-pdf";
+import { generateIncidentPDF } from "@/lib/pdf/incident-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
 import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
 import { updateWorkspace } from "@/lib/repo/workspace";
 import type { PraExportPayload } from "@/components/pra/types";
 import type { ChangeExportPayload } from "@/components/change-lab/types";
 import type { TestExportPayload } from "@/components/control-testing/types";
+import type { IncidentExportPayload } from "@/components/incidents/types";
 import { getControlBySlug } from "@/data/controls";
 import type { ControlOverride } from "@/data/controls/types";
 import { buildMergedRequirements } from "@/data/kyc/merge";
@@ -39,6 +41,7 @@ const MODULE_TITLE: Record<string, string> = {
   pra_assessment: "Product Risk Assessment",
   control_change: "Control Change",
   control_test: "Control Test Report",
+  incident: "Incident Report",
 };
 
 /** Loose runtime check of the core fields the PRA committee pack needs before handing the payload to jsPDF - the client (not a DB row) is the source of truth here, so this is the only validation. */
@@ -242,6 +245,77 @@ function isValidTestExportPayload(value: unknown): value is TestExportPayload {
   if (!Array.isArray(v.findings) || !v.findings.every(isValidTestExportFinding)) return false;
   if (!Array.isArray(v.actions) || !v.actions.every(isValidTestExportAction)) return false;
   if (!Array.isArray(v.evidence) || !v.evidence.every(isValidTestExportEvidence)) return false;
+
+  return true;
+}
+
+function isValidIncidentExportLink(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const l = v as Record<string, unknown>;
+  return typeof l.linkType === "string" && typeof l.label === "string" && isStrOrNull(l.note);
+}
+
+function isValidIncidentExportAction(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const a = v as Record<string, unknown>;
+  return (
+    typeof a.title === "string" &&
+    isStrOrNull(a.ownerName) &&
+    isStrOrNull(a.dueDate) &&
+    typeof a.priority === "string" &&
+    typeof a.status === "string"
+  );
+}
+
+function isValidIncidentExportEvidence(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const e = v as Record<string, unknown>;
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+}
+
+/**
+ * Runtime check of the incident report payload before handing it to jsPDF -
+ * the client (not a DB row) is the source of truth here, mirroring
+ * isValidTestExportPayload above. Every numeric key is checked as
+ * number|null and every array element is checked as an object with the exact
+ * string fields lib/pdf/incident-pdf.ts reads, so a partial/hostile payload
+ * (e.g. links: [null], affectedPopulation: {}) 400s here instead of 500ing
+ * inside jsPDF/.toLocaleString().
+ */
+function isValidIncidentExportPayload(value: unknown): value is IncidentExportPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  const pop = v.affectedPopulation as Record<string, unknown> | null;
+
+  if (!isStrOrNull(v.reference) || typeof v.title !== "string" || typeof v.severity !== "string" || typeof v.status !== "string") {
+    return false;
+  }
+  if (v.source !== null && typeof v.source !== "string") return false;
+  if (!isStrOrNull(v.ownerName)) return false;
+  if (!isStrOrNull(v.occurredAt) || !isStrOrNull(v.detectedAt) || !isStrOrNull(v.containedAt) || !isStrOrNull(v.closedAt)) return false;
+  if (!isStrOrNull(v.summary) || !isStrOrNull(v.containment)) return false;
+
+  if (typeof pop !== "object" || pop === null) return false;
+  if (
+    !isNumOrNull(pop.customersAffected) ||
+    !isNumOrNull(pop.transactionsAffected) ||
+    !isNumOrNull(pop.valueGbp) ||
+    !isStrOrNull(pop.identificationMethod) ||
+    !isStrOrNull(pop.notes)
+  ) {
+    return false;
+  }
+
+  if (!isStrOrNull(v.rootCause)) return false;
+  if (v.rootCauseCategory !== null && typeof v.rootCauseCategory !== "string") return false;
+
+  if (!Array.isArray(v.links) || !v.links.every(isValidIncidentExportLink)) return false;
+  if (!Array.isArray(v.actions) || !v.actions.every(isValidIncidentExportAction)) return false;
+  if (!Array.isArray(v.evidence) || !v.evidence.every(isValidIncidentExportEvidence)) return false;
+
+  if (!isStrOrNull(v.closureSummary)) return false;
+  if (typeof v.reportable !== "boolean") return false;
+  if (!isStrOrNull(v.reportedAt) || !isStrOrNull(v.regulatorReference)) return false;
 
   return true;
 }
@@ -453,6 +527,21 @@ export async function POST(request: NextRequest) {
         .replace(/^-+|-+$/g, "")
         .slice(0, 60) || "test";
       filename = `MEMA-ControlTest-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "incident") {
+      // Same pattern as control_test: the client sends the full incident
+      // report payload it already holds (intake + containment + affected
+      // population + root cause + traceability links + remediation actions +
+      // evidence + closure) rather than an id.
+      if (!isValidIncidentExportPayload(assessmentData)) {
+        return NextResponse.json({ error: "Missing or invalid incident data" }, { status: 400 });
+      }
+      pdfBuffer = generateIncidentPDF(assessmentData);
+      const slug = assessmentData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "incident";
+      filename = `MEMA-Incident-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }

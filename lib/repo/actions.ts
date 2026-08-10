@@ -64,6 +64,27 @@ export async function listOverdueActions(workspaceId: string): Promise<ActionRow
   );
 }
 
+/**
+ * Count of open/in_progress actions per subject_id for a given subject_type,
+ * for list views (e.g. the incidents list) that need "how many open actions"
+ * against many subjects at once without an N+1 query per subject. Subjects
+ * with zero open actions are simply absent from the returned map.
+ */
+export async function countOpenActionsBySubjectType(
+  workspaceId: string,
+  subjectType: string
+): Promise<Record<string, number>> {
+  const rows = await query<{ subject_id: string; count: string }>(
+    `SELECT subject_id, COUNT(*)::text as count FROM actions
+     WHERE workspace_id = $1 AND subject_type = $2 AND status NOT IN ('done', 'cancelled')
+     GROUP BY subject_id`,
+    [workspaceId, subjectType]
+  );
+  const result: Record<string, number> = {};
+  for (const row of rows) result[row.subject_id] = parseInt(row.count, 10);
+  return result;
+}
+
 export async function getAction(workspaceId: string, id: string): Promise<ActionRow | null> {
   const rows = await query<ActionRow>(`SELECT * FROM actions WHERE workspace_id = $1 AND id = $2`, [workspaceId, id]);
   return rows[0] ?? null;
