@@ -8,7 +8,7 @@ import {
 import { getProduct, type ProductRow } from "../repo/products";
 import { getWorkspaceControl, type WorkspaceControlRow } from "../repo/controls";
 import { getPerson, type PersonRow } from "../repo/people";
-import { isUuid as isUuidValidator } from "./validation";
+import { isUuid as isUuidValidator, isIsoDate as isIsoDateValidator } from "./validation";
 
 /**
  * Shared plumbing for the app/api/readiness/** route handlers, mirroring
@@ -129,7 +129,13 @@ export async function parseApprovalBody(workspaceId: string, body: unknown): Pro
       if (!owner) return { ok: false, error: "Unknown ownerPersonId on a condition" };
       ownerPersonId = owner.id;
     }
-    const dueDate = typeof c.dueDate === "string" && c.dueDate ? c.dueDate : null;
+    let dueDate: string | null = null;
+    if (c.dueDate !== undefined && c.dueDate !== null && c.dueDate !== "") {
+      if (typeof c.dueDate !== "string" || !isIsoDateValidator(c.dueDate)) {
+        return { ok: false, error: "Invalid dueDate on a condition: must be an ISO date (YYYY-MM-DD)" };
+      }
+      dueDate = c.dueDate;
+    }
     conditions.push({ description, dueDate, ownerPersonId });
   }
 

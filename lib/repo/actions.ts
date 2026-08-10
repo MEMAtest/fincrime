@@ -42,6 +42,24 @@ export async function listActionsBySubject(
   );
 }
 
+/**
+ * Batch-loads actions for many subject ids of the SAME subject_type in one
+ * query, for callers (e.g. GET /api/readiness/[id]) that need every action
+ * attached to a set of child rows - e.g. every readiness_obligation under
+ * one assessment - without an N+1 query per obligation.
+ */
+export async function listActionsBySubjectIds(
+  workspaceId: string,
+  subjectType: string,
+  subjectIds: string[]
+): Promise<ActionRow[]> {
+  if (subjectIds.length === 0) return [];
+  return query<ActionRow>(
+    `SELECT * FROM actions WHERE workspace_id = $1 AND subject_type = $2 AND subject_id = ANY($3::uuid[]) ORDER BY created_at ASC`,
+    [workspaceId, subjectType, subjectIds]
+  );
+}
+
 export async function listActions(workspaceId: string, status?: ActionStatus): Promise<ActionRow[]> {
   if (status) {
     return query<ActionRow>(`SELECT * FROM actions WHERE workspace_id = $1 AND status = $2 ORDER BY due_date ASC NULLS LAST`, [

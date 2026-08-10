@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createAction, type ActionPriority } from "@/lib/repo/actions";
-import { isFinalReadinessStatus } from "@/lib/repo/readiness";
+import { getReadinessObligationWithClient, withReadinessAssessmentLock } from "@/lib/repo/readiness";
 import {
   ACTOR,
   OBLIGATION_SUBJECT_TYPE,
@@ -37,9 +37,6 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     if (!isUuid(id) || !isUuid(obligationId)) return notFound("Readiness obligation not found");
     const assessment = await requireReadinessAssessment(workspace.id, id);
     if (!assessment) return notFound("Readiness assessment not found");
-    if (isFinalReadinessStatus(assessment.status)) {
-      return conflict("Cannot add actions to an obligation on an assessment that is already approved_global, rejected, or cancelled");
-    }
     const obligation = await requireReadinessObligation(workspace.id, id, obligationId);
     if (!obligation) return notFound("Readiness obligation not found");
 
@@ -68,13 +65,27 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       priority = body.priority;
     }
 
-    const action = await createAction(
-      workspace.id,
-      { subjectType: OBLIGATION_SUBJECT_TYPE, subjectId: obligationId, title, ownerPersonId, dueDate, priority },
-      ACTOR
-    );
+    // Locks the PARENT assessment row and re-checks its status inside the
+    // same transaction as the action insert (see
+    // withReadinessAssessmentLock's doc comment) - a concurrent
+    // approve-global on the assessment cannot race this write.
+    const locked = await withReadinessAssessmentLock(workspace.id, id, async (client) => {
+      const stillThere = await getReadinessObligationWithClient(client, workspace.id, id, obligationId);
+      if (!stillThere) return null;
+      return createAction(
+        workspace.id,
+        { subjectType: OBLIGATION_SUBJECT_TYPE, subjectId: obligationId, title, ownerPersonId, dueDate, priority },
+        ACTOR,
+        client
+      );
+    });
+    if (!locked.ok) {
+      if (locked.reason === "not_found") return notFound("Readiness assessment not found");
+      return conflict("Cannot add actions to an obligation on an assessment that is already approved_global, rejected, or cancelled");
+    }
+    if (!locked.result) return notFound("Readiness obligation not found");
 
-    return NextResponse.json({ action }, { status: 201 });
+    return NextResponse.json({ action: locked.result }, { status: 201 });
   } catch (error) {
     return serverError("Readiness obligation action create error", error);
   }

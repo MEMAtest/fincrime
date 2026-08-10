@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { deleteAction, getAction, updateAction } from "@/lib/repo/actions";
 import { requirePerson } from "@/lib/pra/helpers";
-import { validateUpdateActionInput } from "@/lib/workspace/action-input";
+import { isUuid, validateUpdateActionInput } from "@/lib/workspace/action-input";
 import { assertSubjectMutable } from "@/lib/workspace/subject-mutability";
 import { ACTOR, badRequest, conflict, notFound, serverError } from "@/lib/workspace/http";
 
@@ -20,6 +20,7 @@ interface RouteContext {
 export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Action not found");
     const existing = await getAction(workspace.id, id);
     if (!existing) return notFound("Action not found");
 
@@ -51,6 +52,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Action not found");
     const existing = await getAction(workspace.id, id);
     if (!existing) return notFound("Action not found");
 

@@ -5,8 +5,10 @@ import { AlertTriangle, ChevronDown, ChevronRight, FileText, Plus } from "lucide
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { PrioritySelect } from "@/components/controls/ControlBits";
+import { isUnresolvedBlocker } from "@/lib/readiness/summary";
 import {
   READINESS_GAP_LABEL,
+  type ActionDTO,
   type ActionPriority,
   type EvidenceDTO,
   type PersonDTO,
@@ -36,6 +38,7 @@ export interface NewObligationEvidencePayload {
 interface StepGapsProps {
   obligations: ReadinessObligationDTO[];
   people: PersonDTO[];
+  actions: ActionDTO[];
   readOnly: boolean;
   onSave: (obligationId: string, patch: ObligationGapPatch) => Promise<{ ok: true } | { ok: false; message: string }>;
   onAddAction: (obligationId: string, payload: NewObligationActionPayload) => Promise<boolean>;
@@ -56,27 +59,58 @@ function toDateInput(v: string | null): string {
  * that set. Each obligation can also take an owner, a due date, a follow-up
  * action, and obligation-scoped evidence.
  */
-export default function StepGaps({ obligations, people, readOnly, onSave, onAddAction, onLoadEvidence, onAddEvidence }: StepGapsProps) {
+interface ActionDraft {
+  title: string;
+  owner: string;
+  due: string;
+  priority: ActionPriority;
+}
+
+interface EvidenceDraft {
+  type: string;
+  title: string;
+  link: string;
+}
+
+const EMPTY_ACTION_DRAFT: ActionDraft = { title: "", owner: "", due: "", priority: "medium" };
+const EMPTY_EVIDENCE_DRAFT: EvidenceDraft = { type: "policy_reference", title: "", link: "" };
+
+export default function StepGaps({ obligations, people, actions, readOnly, onSave, onAddAction, onLoadEvidence, onAddEvidence }: StepGapsProps) {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [errorById, setErrorById] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [evidenceById, setEvidenceById] = useState<Record<string, EvidenceDTO[]>>({});
   const [evidenceLoading, setEvidenceLoading] = useState(false);
 
-  const [actionTitle, setActionTitle] = useState("");
-  const [actionOwner, setActionOwner] = useState("");
-  const [actionDue, setActionDue] = useState("");
-  const [actionPriority, setActionPriority] = useState<ActionPriority>("medium");
+  // Keyed by obligation id so text typed while obligation A's panel is open
+  // can never be submitted against obligation B after switching panels -
+  // each obligation gets its own draft slot instead of one shared field.
+  const [actionDraftById, setActionDraftById] = useState<Record<string, ActionDraft>>({});
   const [actionBusy, setActionBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  const [evType, setEvType] = useState("policy_reference");
-  const [evTitle, setEvTitle] = useState("");
-  const [evLink, setEvLink] = useState("");
+  const [evDraftById, setEvDraftById] = useState<Record<string, EvidenceDraft>>({});
   const [evBusy, setEvBusy] = useState(false);
   const [evError, setEvError] = useState<string | null>(null);
 
-  const unresolvedBlockers = obligations.filter((o) => o.blocker && o.gap !== "full");
+  const unresolvedBlockers = obligations.filter(isUnresolvedBlocker);
+
+  function obligationActions(obligationId: string): ActionDTO[] {
+    return actions.filter((a) => a.subject_type === "readiness_obligation" && a.subject_id === obligationId);
+  }
+
+  function actionDraftFor(obligationId: string): ActionDraft {
+    return actionDraftById[obligationId] ?? EMPTY_ACTION_DRAFT;
+  }
+  function setActionDraftFor(obligationId: string, patch: Partial<ActionDraft>) {
+    setActionDraftById((prev) => ({ ...prev, [obligationId]: { ...actionDraftFor(obligationId), ...patch } }));
+  }
+  function evDraftFor(obligationId: string): EvidenceDraft {
+    return evDraftById[obligationId] ?? EMPTY_EVIDENCE_DRAFT;
+  }
+  function setEvDraftFor(obligationId: string, patch: Partial<EvidenceDraft>) {
+    setEvDraftById((prev) => ({ ...prev, [obligationId]: { ...evDraftFor(obligationId), ...patch } }));
+  }
 
   async function commit(obligationId: string, patch: ObligationGapPatch) {
     setSavingId(obligationId);
@@ -106,42 +140,38 @@ export default function StepGaps({ obligations, people, readOnly, onSave, onAddA
   }
 
   async function submitAction(obligationId: string) {
-    if (!actionTitle.trim()) return;
+    const draft = actionDraftFor(obligationId);
+    if (!draft.title.trim()) return;
     setActionBusy(true);
     setActionMessage(null);
     try {
       const ok = await onAddAction(obligationId, {
-        title: actionTitle.trim(),
-        ownerPersonId: actionOwner || undefined,
-        dueDate: actionDue || undefined,
-        priority: actionPriority,
+        title: draft.title.trim(),
+        ownerPersonId: draft.owner || undefined,
+        dueDate: draft.due || undefined,
+        priority: draft.priority,
       });
       setActionMessage(ok ? "Action added." : "Could not add that action. Please try again.");
-      if (ok) {
-        setActionTitle("");
-        setActionOwner("");
-        setActionDue("");
-        setActionPriority("medium");
-      }
+      if (ok) setActionDraftById((prev) => ({ ...prev, [obligationId]: EMPTY_ACTION_DRAFT }));
     } finally {
       setActionBusy(false);
     }
   }
 
   async function submitEvidence(obligationId: string) {
-    if (!evTitle.trim()) return;
+    const draft = evDraftFor(obligationId);
+    if (!draft.title.trim()) return;
     setEvBusy(true);
     setEvError(null);
     try {
-      const ok = await onAddEvidence(obligationId, { type: evType, title: evTitle.trim(), linkUrl: evLink.trim() || undefined });
+      const ok = await onAddEvidence(obligationId, { type: draft.type, title: draft.title.trim(), linkUrl: draft.link.trim() || undefined });
       if (!ok) {
         setEvError("Could not add that evidence. Please try again.");
         return;
       }
       const list = await onLoadEvidence(obligationId);
       setEvidenceById((prev) => ({ ...prev, [obligationId]: list }));
-      setEvTitle("");
-      setEvLink("");
+      setEvDraftById((prev) => ({ ...prev, [obligationId]: { ...draft, title: "", link: "" } }));
     } finally {
       setEvBusy(false);
     }
@@ -195,7 +225,7 @@ export default function StepGaps({ obligations, people, readOnly, onSave, onAddA
 
       <div className="space-y-3">
         {obligations.map((o) => {
-          const isUnresolved = o.blocker && o.gap !== "full";
+          const isUnresolved = isUnresolvedBlocker(o);
           const expanded = expandedId === o.id;
           return (
             <div key={o.id} className={`glass-card rounded-xl p-4 space-y-3 ${isUnresolved ? "border border-red-400/30" : ""}`}>
@@ -250,7 +280,8 @@ export default function StepGaps({ obligations, people, readOnly, onSave, onAddA
                     disabled={readOnly}
                     onBlur={(e) => {
                       const v = e.target.value || null;
-                      if (v !== toDateInput(o.due_date) || (v === "" && o.due_date)) void commit(o.id, { dueDate: v });
+                      const current = o.due_date ? toDateInput(o.due_date) : null;
+                      if (v !== current) void commit(o.id, { dueDate: v });
                     }}
                     className="px-3 py-2 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent disabled:opacity-60"
                   />
@@ -262,25 +293,40 @@ export default function StepGaps({ obligations, people, readOnly, onSave, onAddA
 
               {expanded && (
                 <div className="pl-6 pt-2 border-t border-white/10 space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">Follow-up actions</p>
+                    {obligationActions(o.id).length === 0 ? (
+                      <p className="text-xs text-text-muted">No follow-up actions raised yet.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {obligationActions(o.id).map((a) => (
+                          <div key={a.id} className="text-xs text-text-muted">
+                            {a.title} &middot; {a.status.replace(/_/g, " ")}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   {!readOnly && (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">Raise a follow-up action</p>
                       <div className="flex flex-wrap items-center gap-2">
                         <input
-                          value={actionTitle}
-                          onChange={(e) => setActionTitle(e.target.value)}
+                          value={actionDraftFor(o.id).title}
+                          onChange={(e) => setActionDraftFor(o.id, { title: e.target.value })}
                           placeholder="Action title"
                           className="flex-1 min-w-[160px] px-2.5 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
                         />
                         <input
                           type="date"
-                          value={actionDue}
-                          onChange={(e) => setActionDue(e.target.value)}
+                          value={actionDraftFor(o.id).due}
+                          onChange={(e) => setActionDraftFor(o.id, { due: e.target.value })}
                           className="px-2.5 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
                         />
                         <select
-                          value={actionOwner}
-                          onChange={(e) => setActionOwner(e.target.value)}
+                          value={actionDraftFor(o.id).owner}
+                          onChange={(e) => setActionDraftFor(o.id, { owner: e.target.value })}
                           className="px-2.5 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
                         >
                           <option value="">Owner...</option>
@@ -290,8 +336,8 @@ export default function StepGaps({ obligations, people, readOnly, onSave, onAddA
                             </option>
                           ))}
                         </select>
-                        <PrioritySelect value={actionPriority} onChange={setActionPriority} />
-                        <Button size="sm" onClick={() => void submitAction(o.id)} disabled={actionBusy || !actionTitle.trim()}>
+                        <PrioritySelect value={actionDraftFor(o.id).priority} onChange={(v) => setActionDraftFor(o.id, { priority: v })} />
+                        <Button size="sm" onClick={() => void submitAction(o.id)} disabled={actionBusy || !actionDraftFor(o.id).title.trim()}>
                           <Plus className="h-3.5 w-3.5" /> Add
                         </Button>
                       </div>
@@ -318,11 +364,21 @@ export default function StepGaps({ obligations, people, readOnly, onSave, onAddA
                     )}
                     {!readOnly && (
                       <div className="flex flex-wrap items-center gap-2 pt-1">
-                        <Input value={evTitle} onChange={(e) => setEvTitle(e.target.value)} placeholder="Evidence title" className="text-xs" />
-                        <Input value={evLink} onChange={(e) => setEvLink(e.target.value)} placeholder="Link URL (optional)" className="text-xs" />
+                        <Input
+                          value={evDraftFor(o.id).title}
+                          onChange={(e) => setEvDraftFor(o.id, { title: e.target.value })}
+                          placeholder="Evidence title"
+                          className="text-xs"
+                        />
+                        <Input
+                          value={evDraftFor(o.id).link}
+                          onChange={(e) => setEvDraftFor(o.id, { link: e.target.value })}
+                          placeholder="Link URL (optional)"
+                          className="text-xs"
+                        />
                         <select
-                          value={evType}
-                          onChange={(e) => setEvType(e.target.value)}
+                          value={evDraftFor(o.id).type}
+                          onChange={(e) => setEvDraftFor(o.id, { type: e.target.value })}
                           className="px-2.5 py-2 rounded-lg border border-line-2 bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
                         >
                           <option value="policy_reference">Policy reference</option>
@@ -332,7 +388,7 @@ export default function StepGaps({ obligations, people, readOnly, onSave, onAddA
                           <option value="correspondence">Correspondence</option>
                           <option value="other">Other</option>
                         </select>
-                        <Button size="sm" variant="secondary" onClick={() => void submitEvidence(o.id)} disabled={evBusy || !evTitle.trim()}>
+                        <Button size="sm" variant="secondary" onClick={() => void submitEvidence(o.id)} disabled={evBusy || !evDraftFor(o.id).title.trim()}>
                           <Plus className="h-3.5 w-3.5" /> Add
                         </Button>
                       </div>

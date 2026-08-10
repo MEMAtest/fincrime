@@ -1,6 +1,6 @@
 import { query, queryWithClient, withTransaction, type DbTransactionClient } from "@/lib/db";
 import { writeAudit } from "./audit";
-import { createDecisionWithClient, type DecisionRow } from "./decisions";
+import { createDecisionWithClient, createConditionWithClient, type DecisionRow, type ConditionRow, type CreateConditionInput } from "./decisions";
 import { getCddProfile } from "@/data/kyc";
 import { buildRequirements } from "@/data/kyc/requirements";
 import type { EntityType, Jurisdiction } from "@/data/kyc/types";
@@ -221,6 +221,35 @@ export async function deleteReadinessAssessment(workspaceId: string, id: string,
   });
 }
 
+export type WithReadinessAssessmentLockResult<T> =
+  | { ok: true; assessment: ReadinessAssessmentRow; result: T }
+  | { ok: false; reason: "not_found" | "already_final" };
+
+/**
+ * Locks the parent assessment row (SELECT ... FOR UPDATE) and re-checks it is
+ * non-final, then runs `work` in the SAME transaction before committing.
+ * Mirrors the pattern updateReadinessObligation already uses for the PATCH
+ * path. Callers that create a child row under an assessment or one of its
+ * obligations (evidence, obligation actions) MUST route the insert through
+ * this - reading assessment.status with a plain SELECT before an unrelated
+ * INSERT (the previous behaviour) leaves a window where a concurrent
+ * approve-global can flip the assessment to final in between, letting a
+ * child row land on an already-finalised record.
+ */
+export async function withReadinessAssessmentLock<T>(
+  workspaceId: string,
+  assessmentId: string,
+  work: (client: DbTransactionClient, assessment: ReadinessAssessmentRow) => Promise<T>
+): Promise<WithReadinessAssessmentLockResult<T>> {
+  return withTransaction(async (client) => {
+    const assessment = await getAssessmentWithClient(client, workspaceId, assessmentId);
+    if (!assessment) return { ok: false, reason: "not_found" };
+    if (isFinalReadinessStatus(assessment.status)) return { ok: false, reason: "already_final" };
+    const result = await work(client, assessment);
+    return { ok: true, assessment, result };
+  });
+}
+
 async function getAssessmentWithClient(
   client: DbTransactionClient,
   workspaceId: string,
@@ -277,6 +306,21 @@ export async function getReadinessObligation(workspaceId: string, id: string): P
   return rows[0] ?? null;
 }
 
+/** Same lookup as getReadinessObligation, but participates in a caller-supplied transaction - for use inside withReadinessAssessmentLock's callback. */
+export async function getReadinessObligationWithClient(
+  client: DbTransactionClient,
+  workspaceId: string,
+  assessmentId: string,
+  id: string
+): Promise<ReadinessObligationRow | null> {
+  const rows = await queryWithClient<ReadinessObligationRow>(
+    client,
+    `SELECT * FROM readiness_obligations WHERE workspace_id = $1 AND assessment_id = $2 AND id = $3`,
+    [workspaceId, assessmentId, id]
+  );
+  return rows[0] ?? null;
+}
+
 export type GenerateObligationsResult =
   | { ok: true; created: number; existing: number }
   | { ok: false; reason: "not_found" | "unknown_profile" | "already_final" };
@@ -286,14 +330,24 @@ export type GenerateObligationsResult =
  * CddProfile for the assessment's (entityType, jurisdiction) via
  * getCddProfile, runs buildRequirements(profile) (the same derivation the
  * KYC Matrix UI renders from), and upserts one readiness_obligations row per
- * requirement keyed by requirement_key = `${category}::${title}` - the same
- * stable dedup key data/kyc/merge.ts uses across scenarios. ON CONFLICT DO
- * NOTHING means re-running this (e.g. after the KYC library gains a new
- * requirement) never destroys a user's existing control mapping, gap
- * classification, blocker flag, evidence, or notes on an obligation that
- * already exists - that stability is the entire point of keying on the
- * requirement's category+title rather than a fresh UUID per run. Runs in one
- * transaction so a generate is all-or-nothing.
+ * requirement keyed by requirement_key = req.id, the id buildRequirements
+ * already assigns each requirement
+ * (`${entityType}-${jurisdiction}-${sectionKey}` /
+ * `-eddt-${slug(trigger)}` / `-${ongoingId}`). That id is derived from
+ * structural position (which section/trigger/ongoing-monitoring template it
+ * is), NOT from the requirement's authored title, so a typo fix or wording
+ * change upstream in data/kyc/requirements.ts never changes the key and
+ * never orphans a user's existing work on that row.
+ *
+ * ON CONFLICT (assessment_id, requirement_key) DO UPDATE refreshes ONLY
+ * title, rule_summary and legal_basis from the current library content -
+ * the fields that legitimately drift when the source text is corrected -
+ * and never touches the user-owned columns (workspace_control_id,
+ * control_note, gap, blocker, owner_person_id, due_date, notes). "created"
+ * counts genuinely new rows (via the `xmax = 0` trick, Postgres's standard
+ * "was this an insert or an update" test on a RETURNING row); every existing
+ * row that matched is counted in "existing" whether or not its title/summary
+ * needed refreshing. Runs in one transaction so a generate is all-or-nothing.
  */
 export async function generateObligations(
   workspaceId: string,
@@ -318,14 +372,18 @@ export async function generateObligations(
     let created = 0;
     let existing = 0;
     for (const req of requirements) {
-      const requirementKey = `${req.category}::${req.title}`;
-      const insertRows = await queryWithClient<{ id: string }>(
+      const requirementKey = req.id;
+      const insertRows = await queryWithClient<{ id: string; inserted: boolean }>(
         client,
         `INSERT INTO readiness_obligations
            (workspace_id, assessment_id, requirement_key, category, title, rule_summary, legal_basis, applies_at_risk)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (assessment_id, requirement_key) DO NOTHING
-         RETURNING id`,
+         ON CONFLICT (assessment_id, requirement_key) DO UPDATE
+           SET title = EXCLUDED.title,
+               rule_summary = EXCLUDED.rule_summary,
+               legal_basis = EXCLUDED.legal_basis,
+               updated_at = now()
+         RETURNING id, (xmax = 0) AS inserted`,
         [
           workspaceId,
           assessmentId,
@@ -337,7 +395,7 @@ export async function generateObligations(
           JSON.stringify(req.appliesAtRisk),
         ]
       );
-      if (insertRows.length > 0) created += 1;
+      if (insertRows[0]?.inserted) created += 1;
       else existing += 1;
     }
 
@@ -446,6 +504,16 @@ export async function readinessSummary(workspaceId: string, assessmentId: string
 export interface ApprovalInput {
   decidedByPersonId: string;
   rationale?: string | null;
+  /**
+   * Conditions to attach to the decision this call records. Inserted in the
+   * SAME transaction as the status flip and the decision row (see
+   * runApproval/reject below) so a condition write failure - e.g. a bad
+   * dueDate that slips past validation, or any other constraint violation -
+   * rolls back the status transition too, rather than leaving the record
+   * permanently in its new status with the conditions the approver actually
+   * signed off on silently discarded.
+   */
+  conditions?: CreateConditionInput[];
 }
 
 export type SubmitResult =
@@ -482,7 +550,7 @@ export async function submitForReview(workspaceId: string, assessmentId: string,
 }
 
 export type ApprovalResult =
-  | { ok: true; assessment: ReadinessAssessmentRow; decision: DecisionRow }
+  | { ok: true; assessment: ReadinessAssessmentRow; decision: DecisionRow; conditions: ConditionRow[] }
   | { ok: false; reason: "not_found" | "already_final" | "wrong_status" | "unresolved_blockers" | "not_locally_approved" };
 
 /**
@@ -524,7 +592,7 @@ export async function approveGlobal(workspaceId: string, assessmentId: string, i
 }
 
 export type RejectResult =
-  | { ok: true; assessment: ReadinessAssessmentRow; decision: DecisionRow }
+  | { ok: true; assessment: ReadinessAssessmentRow; decision: DecisionRow; conditions: ConditionRow[] }
   | { ok: false; reason: "not_found" | "already_final" };
 
 /** Rejects an assessment from any non-final status. A rejection records a decision row like the approvals do, but is not blocked by outstanding gaps/blockers - a reviewer may reject an assessment precisely BECAUSE of them. */
@@ -555,8 +623,13 @@ export async function reject(workspaceId: string, assessmentId: string, input: A
       actor
     );
 
+    const conditions: ConditionRow[] = [];
+    for (const conditionInput of input.conditions ?? []) {
+      conditions.push(await createConditionWithClient(client, workspaceId, decision.id, conditionInput, actor));
+    }
+
     await writeAudit(workspaceId, actor, "readiness_assessment.rejected", SUBJECT_TYPE, assessmentId, { decisionId: decision.id }, client);
-    return { ok: true, assessment: updated, decision };
+    return { ok: true, assessment: updated, decision, conditions };
   });
 }
 
@@ -602,20 +675,31 @@ async function runApproval(
     );
     const updated = rows[0];
 
+    const conditionInputs = input.conditions ?? [];
     const decision = await createDecisionWithClient(
       client,
       workspaceId,
       {
         subjectType: SUBJECT_TYPE,
         subjectId: assessmentId,
-        outcome: "approve",
+        outcome: conditionInputs.length > 0 ? "approve_with_conditions" : "approve",
         rationale: input.rationale ?? null,
         decidedByPersonId: input.decidedByPersonId,
       },
       actor
     );
 
+    // Conditions are inserted in this SAME transaction as the status flip and
+    // decision above: a failure here (bad data, a constraint violation)
+    // throws, withTransaction rolls the whole thing back, and the approver's
+    // "subject to conditions" sign-off never ends up recorded as an
+    // unconditional approval. See ApprovalInput's doc comment.
+    const conditions: ConditionRow[] = [];
+    for (const conditionInput of conditionInputs) {
+      conditions.push(await createConditionWithClient(client, workspaceId, decision.id, conditionInput, actor));
+    }
+
     await writeAudit(workspaceId, actor, options.verb, SUBJECT_TYPE, assessmentId, { decisionId: decision.id, status: options.nextStatus }, client);
-    return { ok: true, assessment: updated, decision };
+    return { ok: true, assessment: updated, decision, conditions };
   });
 }

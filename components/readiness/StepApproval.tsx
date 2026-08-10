@@ -6,6 +6,8 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import PDFExportButton from "@/components/shared/PDFExportButton";
 import { ENTITY_LABEL, JURISDICTION_LABEL } from "@/data/kyc/types";
+import { isUnresolvedBlocker } from "@/lib/readiness/summary";
+import { formatIsoDate } from "@/lib/format/date";
 import {
   READINESS_GAP_LABEL,
   READINESS_STATUS_LABEL,
@@ -62,8 +64,7 @@ function reasonMessage(action: "submit" | "approve_local" | "approve_global" | "
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "Not set";
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return formatIsoDate(iso, { fallback: "Not set", style: "long" });
 }
 
 interface StepApprovalProps {
@@ -117,7 +118,7 @@ export default function StepApproval({
 
   const isFinal = assessment.status === "approved_global" || assessment.status === "rejected" || assessment.status === "cancelled";
   const hasObligations = obligations.length > 0;
-  const unresolvedBlockers = obligations.filter((o) => o.blocker && o.gap !== "full");
+  const unresolvedBlockers = obligations.filter(isUnresolvedBlocker);
   const isLocallyApproved = assessment.status === "approved_local" || assessment.status === "approved_global";
 
   const [submitting, setSubmitting] = useState(false);
@@ -212,19 +213,34 @@ export default function StepApproval({
         ownerName: o.owner_person_id ? personById.get(o.owner_person_id)?.name ?? null : null,
         dueDate: o.due_date,
         legalBasis: o.legal_basis,
+        actions: actions
+          .filter((a) => a.subject_type === "readiness_obligation" && a.subject_id === o.id)
+          .map((a) => ({
+            title: a.title,
+            ownerName: a.owner_person_id ? personById.get(a.owner_person_id)?.name ?? null : null,
+            dueDate: a.due_date,
+            priority: a.priority,
+            status: a.status,
+          })),
       })),
       evidence: evidence.map((e) => ({ title: e.title, type: e.type, description: e.description, linkUrl: e.link_url })),
-      actions: actions.map((a) => ({
-        title: a.title,
-        ownerName: a.owner_person_id ? personById.get(a.owner_person_id)?.name ?? null : null,
-        dueDate: a.due_date,
-        priority: a.priority,
-        status: a.status,
-      })),
+      // Assessment-level actions only (subject_type 'readiness_assessment');
+      // obligation-level actions are attached to their obligation above
+      // instead, so they are never listed twice.
+      actions: actions
+        .filter((a) => a.subject_type !== "readiness_obligation")
+        .map((a) => ({
+          title: a.title,
+          ownerName: a.owner_person_id ? personById.get(a.owner_person_id)?.name ?? null : null,
+          dueDate: a.due_date,
+          priority: a.priority,
+          status: a.status,
+        })),
       conditions: conditions.map((c) => ({
         description: c.description,
         dueDate: c.due_date,
         ownerName: c.owner_person_id ? personById.get(c.owner_person_id)?.name ?? null : null,
+        status: c.status,
       })),
       decisions: labelDecisions(decisions).map((d) => ({
         outcome: d.decision.outcome === "reject" ? "reject" : "approve",
@@ -441,7 +457,10 @@ export default function StepApproval({
 
               {decisionError && <p className="text-sm text-red-500">{decisionError}</p>}
 
-              <Button disabled={!decidedByPersonId || decisionBusy} onClick={doDecide}>
+              <Button
+                disabled={!decidedByPersonId || decisionBusy || (pendingAction !== "reject" && unresolvedBlockers.length > 0)}
+                onClick={doDecide}
+              >
                 {decisionBusy ? "Recording..." : pendingAction === "reject" ? "Record rejection" : "Record approval"}
               </Button>
             </div>

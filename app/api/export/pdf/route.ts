@@ -342,7 +342,9 @@ function isValidReadinessExportObligation(v: unknown): boolean {
     isStrOrNull(o.ownerName) &&
     isStrOrNull(o.dueDate) &&
     Array.isArray(o.legalBasis) &&
-    o.legalBasis.every(isValidReadinessExportSource)
+    o.legalBasis.every(isValidReadinessExportSource) &&
+    Array.isArray(o.actions) &&
+    o.actions.every(isValidReadinessExportAction)
   );
 }
 
@@ -367,7 +369,7 @@ function isValidReadinessExportAction(v: unknown): boolean {
 function isValidReadinessExportCondition(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
   const c = v as Record<string, unknown>;
-  return typeof c.description === "string" && isStrOrNull(c.dueDate) && isStrOrNull(c.ownerName);
+  return typeof c.description === "string" && isStrOrNull(c.dueDate) && isStrOrNull(c.ownerName) && typeof c.status === "string";
 }
 
 function isValidReadinessExportDecision(v: unknown): boolean {

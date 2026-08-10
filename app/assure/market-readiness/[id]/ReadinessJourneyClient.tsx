@@ -259,7 +259,10 @@ export default function ReadinessJourneyClient({ assessmentId }: ReadinessJourne
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      return res.ok;
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data.action) setActions((prev) => [...prev, data.action]);
+      return true;
     } catch {
       return false;
     }
@@ -449,6 +452,7 @@ export default function ReadinessJourneyClient({ assessmentId }: ReadinessJourne
               <StepGaps
                 obligations={obligations}
                 people={people}
+                actions={actions}
                 readOnly={Boolean(readOnly)}
                 onSave={patchObligation}
                 onAddAction={addObligationAction}

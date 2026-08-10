@@ -193,6 +193,45 @@ export async function createCondition(
   return condition;
 }
 
+/**
+ * Same behaviour as createCondition, but participates in a caller-supplied
+ * transaction instead of opening its own. Mirrors createDecisionWithClient:
+ * callers that must write a decision and its conditions atomically with the
+ * status transition they record (e.g. approveLocal/approveGlobal/reject in
+ * lib/repo/readiness.ts) use this so a condition insert failure - a bad
+ * dueDate slipping past validation, a constraint violation, anything - rolls
+ * back the whole transaction rather than leaving the status flipped and the
+ * decision recorded with its conditions silently missing.
+ */
+export async function createConditionWithClient(
+  client: DbTransactionClient,
+  workspaceId: string,
+  decisionId: string,
+  input: CreateConditionInput,
+  actor: string
+): Promise<ConditionRow> {
+  const rows = await queryWithClient<ConditionRow>(
+    client,
+    `INSERT INTO conditions (workspace_id, decision_id, description, due_date, owner_person_id)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [workspaceId, decisionId, input.description, input.dueDate || null, input.ownerPersonId || null]
+  );
+  const condition = rows[0];
+
+  await writeAudit(
+    workspaceId,
+    actor,
+    "condition.created",
+    CONDITION_SUBJECT_TYPE,
+    condition.id,
+    { decisionId, description: input.description },
+    client
+  );
+
+  return condition;
+}
+
 export interface UpdateConditionInput {
   description?: string;
   dueDate?: string | null;

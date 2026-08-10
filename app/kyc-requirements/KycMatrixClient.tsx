@@ -221,11 +221,21 @@ export default function KycMatrixClient({
                   formats={["pdf", "docx"]}
                 />
                 <Link
-                  href={`/assure/market-readiness/new?entityType=${ents[0]}&jurisdiction=${jurs[0]}`}
+                  href={`/assure/market-readiness/new?entityType=${ents[0]}&jurisdiction=${jurs[0]}&riskLevel=${rks[0]}`}
+                  title={
+                    ents.length > 1 || jurs.length > 1 || rks.length > 1
+                      ? `Only the first selection of each carries over: ${ENTITY_LABEL[ents[0]]}, ${JURISDICTION_LABEL[jurs[0]]}, ${rks[0]} risk. A readiness assessment covers one entity type, jurisdiction and risk level at a time - start another assessment for the rest.`
+                      : undefined
+                  }
                   className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/15 transition-colors"
                 >
                   Turn this into a readiness assessment <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
+                {(ents.length > 1 || jurs.length > 1 || rks.length > 1) && (
+                  <span className="text-[11px] text-text-muted max-w-[220px]">
+                    Only the first entity type, jurisdiction and risk level selected carry into the new assessment.
+                  </span>
+                )}
               </div>
             }
           />

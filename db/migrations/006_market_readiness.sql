@@ -61,14 +61,20 @@ CREATE INDEX IF NOT EXISTS idx_readiness_assessments_owner ON readiness_assessme
 -- ============================================================================
 -- readiness_obligations: the generated register. One row per CddRequirement
 -- returned by data/kyc/requirements.ts buildRequirements(profile) for the
--- assessment's (entity_type, jurisdiction). requirement_key is the stable
--- `${category}::${title}` key that data/kyc/merge.ts already uses to
--- de-duplicate across scenarios, reused here as the natural key so
--- generateObligations can be re-run (e.g. after the KYC library adds a new
--- requirement) with ON CONFLICT DO NOTHING - a user's control mapping,
--- gap classification, evidence and notes on an existing obligation are never
--- overwritten by a re-generation. legal_basis/applies_at_risk are copied onto
--- the row (not just referenced) so the register stays self-contained and
+-- assessment's (entity_type, jurisdiction). requirement_key is req.id, the
+-- id buildRequirements already assigns each requirement from its STRUCTURAL
+-- position (`${entityType}-${jurisdiction}-${sectionKey}` /
+-- `-eddt-${slug(trigger)}` / `-${ongoingId}`) rather than from its authored
+-- title - a wording/typo fix upstream in requirements.ts never changes this
+-- key. That lets generateObligations be re-run (e.g. after the KYC library
+-- adds a new requirement, or corrects a title) with
+-- ON CONFLICT (assessment_id, requirement_key) DO UPDATE that refreshes only
+-- title/rule_summary/legal_basis: a user's control mapping, gap
+-- classification, blocker flag, owner, due date, evidence and notes on an
+-- existing obligation are never overwritten by a re-generation, and a
+-- retitle upstream updates the row in place instead of orphaning it as a
+-- second, unassessed row. legal_basis/applies_at_risk are copied onto the
+-- row (not just referenced) so the register stays self-contained and
 -- auditable even if the source library's content changes later.
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS readiness_obligations (

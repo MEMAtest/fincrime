@@ -24,9 +24,17 @@ const PERSON_ROLES: PersonRole[] = ["owner", "reviewer", "approver"];
 interface NewReadinessClientProps {
   /** Carried from /assure/market-readiness/new?productId=<products id>. */
   preselectedProductId: string | null;
-  /** Carried from the KYC Matrix "Turn this into a readiness assessment" bridge. */
+  /**
+   * Carried from the KYC Matrix "Turn this into a readiness assessment"
+   * bridge. That bridge only ever links a SINGLE entity type, jurisdiction
+   * and risk level (the assessment schema fundamentally takes one of each) -
+   * if more than one was selected on the Matrix, only the first of each
+   * survives the handoff. See KycMatrixClient.tsx's bridge link for the
+   * on-screen note that tells the user this before they click through.
+   */
   preselectedEntityType: string | null;
   preselectedJurisdiction: string | null;
+  preselectedRiskLevel: string | null;
 }
 
 function isEntityType(v: string | null): v is EntityType {
@@ -37,8 +45,17 @@ function isJurisdiction(v: string | null): v is Jurisdiction {
   return v !== null && (JURISDICTION_ORDER as string[]).includes(v);
 }
 
+function isRiskLevel(v: string | null): v is RiskLevel {
+  return v === "low" || v === "medium" || v === "high";
+}
+
 /** Creation form: title, entity type, jurisdiction, risk level, an optional product link (or a free-text note), target launch date and owner, then hand off to the 6-step journey. */
-export default function NewReadinessClient({ preselectedProductId, preselectedEntityType, preselectedJurisdiction }: NewReadinessClientProps) {
+export default function NewReadinessClient({
+  preselectedProductId,
+  preselectedEntityType,
+  preselectedJurisdiction,
+  preselectedRiskLevel,
+}: NewReadinessClientProps) {
   const router = useRouter();
   const { wsFetch, ready, workspaceId } = useWorkspace();
 
@@ -49,7 +66,7 @@ export default function NewReadinessClient({ preselectedProductId, preselectedEn
   const [title, setTitle] = useState("");
   const [entityType, setEntityType] = useState<EntityType>(isEntityType(preselectedEntityType) ? preselectedEntityType : "corporate");
   const [jurisdiction, setJurisdiction] = useState<Jurisdiction>(isJurisdiction(preselectedJurisdiction) ? preselectedJurisdiction : "uk");
-  const [riskLevel, setRiskLevel] = useState<RiskLevel>("medium");
+  const [riskLevel, setRiskLevel] = useState<RiskLevel>(isRiskLevel(preselectedRiskLevel) ? preselectedRiskLevel : "medium");
   const [useProductNote, setUseProductNote] = useState(!preselectedProductId);
   const [productId, setProductId] = useState(preselectedProductId ?? "");
   const [productNote, setProductNote] = useState("");

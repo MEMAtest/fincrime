@@ -8,6 +8,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import { ENTITY_LABEL, JURISDICTION_LABEL } from "@/data/kyc/types";
+import { formatIsoDate } from "@/lib/format/date";
 import { READINESS_STATUS_LABEL, type ReadinessListItem, type ReadinessStatus } from "@/components/readiness/types";
 
 const STATUS_VARIANT: Record<ReadinessStatus, "default" | "success" | "warning" | "danger" | "info"> = {
@@ -22,8 +23,7 @@ const STATUS_VARIANT: Record<ReadinessStatus, "default" | "success" | "warning" 
 const STATUSES: ReadinessStatus[] = ["draft", "in_review", "approved_local", "approved_global", "rejected", "cancelled"];
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "No target date";
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return formatIsoDate(iso, { fallback: "No target date", style: "long" });
 }
 
 export default function MarketReadinessListPage() {

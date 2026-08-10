@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { addHeader, addFootersToAll, checkPageBreak, MEMA_COLORS } from "./shared";
+import { formatIsoDate } from "@/lib/format/date";
 import type { ReadinessExportPayload } from "@/components/readiness/types";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -14,15 +15,13 @@ const STATUS_LABEL: Record<string, string> = {
 
 const GAP_LABEL: Record<string, string> = {
   not_assessed: "Not assessed",
-  none: "No gap",
+  none: "Not met",
   partial: "Partially met",
   full: "Fully met",
 };
 
 function fmtDate(iso: unknown): string {
-  if (typeof iso !== "string" || !iso) return "Not set";
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-GB");
+  return formatIsoDate(iso, { fallback: "Not set" });
 }
 
 /** Defensive string coercion, matching lib/pdf/incident-pdf.ts's str() helper: non-strings fall back rather than reaching jsPDF as undefined/[object Object]. */
@@ -74,7 +73,7 @@ export function generateReadinessPDF(data: ReadinessExportPayload): Buffer {
   y += 6;
   autoTable(doc, {
     startY: y,
-    head: [["Total obligations", "Fully met", "Partial", "None", "Not assessed", "Blockers", "Unresolved", "Coverage"]],
+    head: [["Total obligations", "Fully met", "Partial", "Not met", "Not assessed", "Blockers", "Unresolved", "Coverage"]],
     body: [
       [
         String(data.summary.total),
@@ -185,6 +184,38 @@ export function generateReadinessPDF(data: ReadinessExportPayload): Buffer {
     y += 10;
   }
 
+  // Obligation-level follow-up actions (raised against a single obligation,
+  // distinct from the assessment-level "Follow-up actions" table below)
+  const obligationActionRows: string[][] = [];
+  for (const o of data.obligations) {
+    for (const a of Array.isArray(o.actions) ? o.actions : []) {
+      obligationActionRows.push([str(o.title), str(a.title), str(a.ownerName) || "Unassigned", fmtDate(a.dueDate), str(a.status)]);
+    }
+  }
+  y = checkPageBreak(doc, y, 30);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(MEMA_COLORS.text);
+  doc.text(`Obligation actions (${obligationActionRows.length})`, 20, y);
+  y += 6;
+  if (obligationActionRows.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [["Obligation", "Action", "Owner", "Due", "Status"]],
+      body: obligationActionRows,
+      theme: "grid",
+      headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
+      styles: { fontSize: 7, cellPadding: 1.6 },
+    });
+    // @ts-expect-error jspdf-autotable adds lastAutoTable
+    y = doc.lastAutoTable.finalY + 10;
+  } else {
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text("No obligation-level actions recorded.", 20, y);
+    y += 10;
+  }
+
   // Evidence
   y = checkPageBreak(doc, y, 30);
   doc.setFontSize(12);
@@ -215,7 +246,7 @@ export function generateReadinessPDF(data: ReadinessExportPayload): Buffer {
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(MEMA_COLORS.text);
-  doc.text(`Follow-up actions (${data.actions.length})`, 20, y);
+  doc.text(`Assessment-level follow-up actions (${data.actions.length})`, 20, y);
   y += 6;
   if (data.actions.length > 0) {
     autoTable(doc, {
@@ -276,8 +307,8 @@ export function generateReadinessPDF(data: ReadinessExportPayload): Buffer {
   if (data.conditions.length > 0) {
     autoTable(doc, {
       startY: y,
-      head: [["Description", "Owner", "Due"]],
-      body: data.conditions.map((c) => [str(c.description), str(c.ownerName) || "Unassigned", fmtDate(c.dueDate)]),
+      head: [["Description", "Owner", "Due", "Status"]],
+      body: data.conditions.map((c) => [str(c.description), str(c.ownerName) || "Unassigned", fmtDate(c.dueDate), str(c.status)]),
       theme: "grid",
       headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
       styles: { fontSize: 8, cellPadding: 2 },

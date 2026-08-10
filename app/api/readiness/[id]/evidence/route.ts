@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createEvidence, listEvidenceBySubject } from "@/lib/repo/evidence";
-import { isFinalReadinessStatus } from "@/lib/repo/readiness";
+import { withReadinessAssessmentLock } from "@/lib/repo/readiness";
 import {
   ACTOR,
   SUBJECT_TYPE,
@@ -44,11 +44,8 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Readiness assessment not found");
-    const assessment = await requireReadinessAssessment(workspace.id, id);
-    if (!assessment) return notFound("Readiness assessment not found");
-    if (isFinalReadinessStatus(assessment.status)) {
-      return conflict("Cannot add evidence to an assessment that is already approved_global, rejected, or cancelled");
-    }
+    const existing = await requireReadinessAssessment(workspace.id, id);
+    if (!existing) return notFound("Readiness assessment not found");
 
     const body = await request.json();
 
@@ -75,13 +72,25 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       addedByPersonId = person.id;
     }
 
-    const evidence = await createEvidence(
-      workspace.id,
-      { subjectType: SUBJECT_TYPE, subjectId: id, type, title, description, linkUrl, evidenceDate, addedByPersonId },
-      ACTOR
+    // Locks the assessment row (SELECT ... FOR UPDATE) and re-checks its
+    // status is non-final in the SAME transaction as the evidence insert, so
+    // a concurrent approve-global cannot flip the assessment to final in the
+    // window between the status check and the write (see
+    // withReadinessAssessmentLock's doc comment).
+    const locked = await withReadinessAssessmentLock(workspace.id, id, async (client) =>
+      createEvidence(
+        workspace.id,
+        { subjectType: SUBJECT_TYPE, subjectId: id, type, title, description, linkUrl, evidenceDate, addedByPersonId },
+        ACTOR,
+        client
+      )
     );
+    if (!locked.ok) {
+      if (locked.reason === "not_found") return notFound("Readiness assessment not found");
+      return conflict("Cannot add evidence to an assessment that is already approved_global, rejected, or cancelled");
+    }
 
-    return NextResponse.json({ evidence }, { status: 201 });
+    return NextResponse.json({ evidence: locked.result }, { status: 201 });
   } catch (error) {
     return serverError("Readiness evidence create error", error);
   }

@@ -5,6 +5,7 @@ interface PageProps {
     productId?: string | string[];
     entityType?: string | string[];
     jurisdiction?: string | string[];
+    riskLevel?: string | string[];
   }>;
 }
 
@@ -29,6 +30,7 @@ export default async function NewReadinessPage({ searchParams }: PageProps) {
       preselectedProductId={firstString(params.productId)}
       preselectedEntityType={firstString(params.entityType)}
       preselectedJurisdiction={firstString(params.jurisdiction)}
+      preselectedRiskLevel={firstString(params.riskLevel)}
     />
   );
 }

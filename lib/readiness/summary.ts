@@ -26,6 +26,18 @@ export interface ReadinessSummary {
 
 const EMPTY_BY_GAP: Record<ReadinessGap, number> = { not_assessed: 0, none: 0, partial: 0, full: 0 };
 
+/**
+ * The single definition of "unresolved launch blocker": blocker = true AND
+ * gap != 'full'. Exported so every UI that needs the itemised list (not just
+ * a count or a boolean) - StepGaps' blocker panel, StepApproval's checklist
+ * and read-only summary - filters with this instead of each re-typing the
+ * predicate, which is exactly the kind of drift that let the "Record
+ * approval" button diverge from the server's guard.
+ */
+export function isUnresolvedBlocker(o: ObligationSummaryInput): boolean {
+  return o.blocker && o.gap !== "full";
+}
+
 export function summarizeObligations(obligations: ObligationSummaryInput[]): ReadinessSummary {
   const byGap: Record<ReadinessGap, number> = { ...EMPTY_BY_GAP };
   let blockerCount = 0;
@@ -36,7 +48,7 @@ export function summarizeObligations(obligations: ObligationSummaryInput[]): Rea
     byGap[o.gap] += 1;
     if (o.blocker) {
       blockerCount += 1;
-      if (o.gap !== "full") unresolvedBlockerCount += 1;
+      if (isUnresolvedBlocker(o)) unresolvedBlockerCount += 1;
     }
     if (!o.workspace_control_id) noControlCount += 1;
   }
@@ -49,5 +61,5 @@ export function summarizeObligations(obligations: ObligationSummaryInput[]): Rea
 
 /** True while any obligation is a launch blocker not yet fully resolved (gap = 'full'). Used by approveLocal/approveGlobal. */
 export function hasUnresolvedBlockers(obligations: ObligationSummaryInput[]): boolean {
-  return obligations.some((o) => o.blocker && o.gap !== "full");
+  return obligations.some(isUnresolvedBlocker);
 }

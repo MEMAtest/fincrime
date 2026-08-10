@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { reject } from "@/lib/repo/readiness";
-import { createCondition } from "@/lib/repo/decisions";
 import { ACTOR, badRequest, isUuid, notFound, parseApprovalBody, requireReadinessAssessment, serverError } from "@/lib/readiness/helpers";
 
 interface RouteContext {
@@ -26,7 +25,12 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const parsed = await parseApprovalBody(workspace.id, body);
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const result = await reject(workspace.id, id, { decidedByPersonId: parsed.decidedByPersonId, rationale: parsed.rationale }, ACTOR);
+    const result = await reject(
+      workspace.id,
+      id,
+      { decidedByPersonId: parsed.decidedByPersonId, rationale: parsed.rationale, conditions: parsed.conditions },
+      ACTOR
+    );
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Readiness assessment not found");
       return NextResponse.json(
@@ -35,12 +39,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       );
     }
 
-    const conditions = [];
-    for (const input of parsed.conditions) {
-      conditions.push(await createCondition(workspace.id, result.decision.id, input, ACTOR));
-    }
-
-    return NextResponse.json({ assessment: result.assessment, decision: result.decision, conditions });
+    return NextResponse.json({ assessment: result.assessment, decision: result.decision, conditions: result.conditions });
   } catch (error) {
     return serverError("Readiness reject error", error);
   }

@@ -26,7 +26,7 @@ export type {
   WorkspaceControlDTO,
 } from "@/components/change-lab/types";
 
-import type { ActionPriority, ActionStatus } from "@/components/change-lab/types";
+import type { ActionPriority, ActionStatus, ConditionStatus } from "@/components/change-lab/types";
 import type { EntityType, Jurisdiction, RiskLevel } from "@/data/kyc/types";
 import type { Source } from "@/data/typologies/types";
 
@@ -111,7 +111,7 @@ export const READINESS_STATUS_LABEL: Record<ReadinessStatus, string> = {
 
 export const READINESS_GAP_LABEL: Record<ReadinessGap, string> = {
   not_assessed: "Not assessed",
-  none: "No gap",
+  none: "Not met",
   partial: "Partially met",
   full: "Fully met",
 };
@@ -161,6 +161,8 @@ export interface ReadinessExportObligation {
   ownerName: string | null;
   dueDate: string | null;
   legalBasis: ReadinessExportSource[];
+  /** Follow-up actions raised against THIS obligation specifically (subject_type 'readiness_obligation'), distinct from the assessment-level actions in ReadinessExportPayload.actions. */
+  actions: ReadinessExportAction[];
 }
 
 export interface ReadinessExportEvidence {
@@ -182,6 +184,7 @@ export interface ReadinessExportCondition {
   description: string;
   dueDate: string | null;
   ownerName: string | null;
+  status: ConditionStatus;
 }
 
 export interface ReadinessExportDecision {

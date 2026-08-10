@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { approveLocal } from "@/lib/repo/readiness";
-import { createCondition } from "@/lib/repo/decisions";
 import { ACTOR, badRequest, isUuid, notFound, parseApprovalBody, requireReadinessAssessment, serverError } from "@/lib/readiness/helpers";
 
 interface RouteContext {
@@ -31,7 +30,12 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const parsed = await parseApprovalBody(workspace.id, body);
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const result = await approveLocal(workspace.id, id, { decidedByPersonId: parsed.decidedByPersonId, rationale: parsed.rationale }, ACTOR);
+    const result = await approveLocal(
+      workspace.id,
+      id,
+      { decidedByPersonId: parsed.decidedByPersonId, rationale: parsed.rationale, conditions: parsed.conditions },
+      ACTOR
+    );
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Readiness assessment not found");
       if (result.reason === "unresolved_blockers") {
@@ -43,12 +47,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       return approveConflict("Assessment is already approved_global, rejected, or cancelled", "already_final");
     }
 
-    const conditions = [];
-    for (const input of parsed.conditions) {
-      conditions.push(await createCondition(workspace.id, result.decision.id, input, ACTOR));
-    }
-
-    return NextResponse.json({ assessment: result.assessment, decision: result.decision, conditions });
+    return NextResponse.json({ assessment: result.assessment, decision: result.decision, conditions: result.conditions });
   } catch (error) {
     return serverError("Readiness approve-local error", error);
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizeObligations, hasUnresolvedBlockers, type ObligationSummaryInput } from "../summary";
+import { summarizeObligations, hasUnresolvedBlockers, isUnresolvedBlocker, type ObligationSummaryInput } from "../summary";
 
 function ob(overrides: Partial<ObligationSummaryInput> = {}): ObligationSummaryInput {
   return { gap: "not_assessed", blocker: false, workspace_control_id: null, ...overrides };
@@ -77,5 +77,13 @@ describe("hasUnresolvedBlockers", () => {
 
   it("is false when every blocker has been resolved to gap = full", () => {
     expect(hasUnresolvedBlockers([ob({ blocker: true, gap: "full" }), ob({ blocker: false, gap: "partial" })])).toBe(false);
+  });
+});
+
+describe("isUnresolvedBlocker", () => {
+  it("is the shared per-item predicate that hasUnresolvedBlockers/summarizeObligations and every UI filter (StepGaps, StepApproval) now consolidate on", () => {
+    expect(isUnresolvedBlocker(ob({ blocker: true, gap: "partial" }))).toBe(true);
+    expect(isUnresolvedBlocker(ob({ blocker: true, gap: "full" }))).toBe(false);
+    expect(isUnresolvedBlocker(ob({ blocker: false, gap: "none" }))).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { query } from "@/lib/db";
+import { query, queryWithClient, type DbTransactionClient } from "@/lib/db";
 import { writeAudit } from "./audit";
 
 const EVIDENCE_SUBJECT_TYPE = "evidence";
@@ -53,34 +53,39 @@ export async function getEvidence(workspaceId: string, id: string): Promise<Evid
   return rows[0] ?? null;
 }
 
+/** Pass a transaction client when this evidence row's creation must be atomic with a check on its parent (e.g. the parent must still be non-final when the row lands - see readiness's obligation/assessment evidence routes). */
 export async function createEvidence(
   workspaceId: string,
   input: CreateEvidenceInput,
-  actor: string
+  actor: string,
+  client?: DbTransactionClient
 ): Promise<EvidenceRow> {
-  const rows = await query<EvidenceRow>(
-    `INSERT INTO evidence (workspace_id, subject_type, subject_id, type, title, description, link_url, evidence_date, added_by_person_id)
+  const sql = `INSERT INTO evidence (workspace_id, subject_type, subject_id, type, title, description, link_url, evidence_date, added_by_person_id)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-     RETURNING *`,
-    [
-      workspaceId,
-      input.subjectType,
-      input.subjectId,
-      input.type,
-      input.title,
-      input.description || null,
-      input.linkUrl || null,
-      input.evidenceDate || null,
-      input.addedByPersonId || null,
-    ]
-  );
+     RETURNING *`;
+  const params = [
+    workspaceId,
+    input.subjectType,
+    input.subjectId,
+    input.type,
+    input.title,
+    input.description || null,
+    input.linkUrl || null,
+    input.evidenceDate || null,
+    input.addedByPersonId || null,
+  ];
+  const rows = client ? await queryWithClient<EvidenceRow>(client, sql, params) : await query<EvidenceRow>(sql, params);
   const evidence = rows[0];
 
-  await writeAudit(workspaceId, actor, "evidence.created", EVIDENCE_SUBJECT_TYPE, evidence.id, {
-    subjectType: input.subjectType,
-    subjectId: input.subjectId,
-    title: input.title,
-  });
+  await writeAudit(
+    workspaceId,
+    actor,
+    "evidence.created",
+    EVIDENCE_SUBJECT_TYPE,
+    evidence.id,
+    { subjectType: input.subjectType, subjectId: input.subjectId, title: input.title },
+    client
+  );
 
   return evidence;
 }

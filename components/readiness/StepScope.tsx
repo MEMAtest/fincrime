@@ -219,7 +219,7 @@ export default function StepScope({ assessment, people, praAssessments, readOnly
         <label className="text-sm font-medium text-ink-soft">Owner (optional)</label>
         <div className="flex items-center gap-2 mt-1.5">
           <select
-            key={`${assessment.id}-owner`}
+            key={`${assessment.id}-owner-${assessment.owner_person_id ?? "none"}`}
             defaultValue={assessment.owner_person_id ?? ""}
             disabled={readOnly}
             onChange={(e) => void commit({ ownerPersonId: e.target.value || null })}

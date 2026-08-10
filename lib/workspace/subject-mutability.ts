@@ -1,6 +1,7 @@
 import { getIncident, isFinalIncidentStatus } from "@/lib/repo/incidents";
 import { getControlTest } from "@/lib/repo/control-tests";
 import { getControlChange } from "@/lib/repo/control-changes";
+import { getReadinessAssessment, getReadinessObligation, isFinalReadinessStatus } from "@/lib/repo/readiness";
 
 export type SubjectMutabilityResult = { ok: true } | { ok: false; reason: "subject_immutable" };
 
@@ -49,6 +50,25 @@ export async function assertSubjectMutable(
     const change = await getControlChange(workspaceId, subjectId);
     if (change && (change.status === "implemented" || change.status === "rolled_back")) {
       return { ok: false, reason: "subject_immutable" };
+    }
+    return { ok: true };
+  }
+
+  if (subjectType === "readiness_assessment") {
+    const assessment = await getReadinessAssessment(workspaceId, subjectId);
+    if (assessment && isFinalReadinessStatus(assessment.status)) {
+      return { ok: false, reason: "subject_immutable" };
+    }
+    return { ok: true };
+  }
+
+  if (subjectType === "readiness_obligation") {
+    const obligation = await getReadinessObligation(workspaceId, subjectId);
+    if (obligation) {
+      const assessment = await getReadinessAssessment(workspaceId, obligation.assessment_id);
+      if (assessment && isFinalReadinessStatus(assessment.status)) {
+        return { ok: false, reason: "subject_immutable" };
+      }
     }
     return { ok: true };
   }

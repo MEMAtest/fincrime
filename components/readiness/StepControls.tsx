@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CATEGORY_ORDER, CATEGORY_TITLE, type CddCategoryKey } from "@/data/kyc/types";
+import { summarizeObligations } from "@/lib/readiness/summary";
 import {
   READINESS_GAP_LABEL,
   READINESS_GAP_MEANING,
@@ -57,8 +58,9 @@ export default function StepControls({ obligations, controls, readOnly, onSave }
     }));
   }, [obligations]);
 
-  const fullCount = obligations.filter((o) => o.gap === "full").length;
-  const coveragePct = obligations.length === 0 ? 0 : Math.round((fullCount / obligations.length) * 100);
+  const coverageSummary = useMemo(() => summarizeObligations(obligations), [obligations]);
+  const fullCount = coverageSummary.byGap.full;
+  const coveragePct = coverageSummary.coveragePct;
 
   async function commit(obligationId: string, patch: ObligationControlPatch) {
     setSavingId(obligationId);

@@ -8,11 +8,12 @@ import {
   updateReadinessAssessment,
   type UpdateReadinessAssessmentInput,
 } from "@/lib/repo/readiness";
-import { listActionsBySubject } from "@/lib/repo/actions";
+import { listActionsBySubject, listActionsBySubjectIds } from "@/lib/repo/actions";
 import { listCommentsBySubject, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { listConditionsByDecision, listDecisionsBySubject } from "@/lib/repo/decisions";
 import {
   ACTOR,
+  OBLIGATION_SUBJECT_TYPE,
   SUBJECT_TYPE,
   badRequest,
   conflict,
@@ -45,7 +46,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
     const assessment = await requireReadinessAssessment(workspace.id, id);
     if (!assessment) return notFound("Readiness assessment not found");
 
-    const [obligations, summary, decisions, actions, evidence, comments] = await Promise.all([
+    const [obligations, summary, decisions, assessmentActions, evidence, comments] = await Promise.all([
       listReadinessObligations(workspace.id, id),
       readinessSummary(workspace.id, id),
       listDecisionsBySubject(workspace.id, SUBJECT_TYPE, id),
@@ -53,6 +54,19 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
       listEvidenceBySubject(workspace.id, SUBJECT_TYPE, id),
       listCommentsBySubject(workspace.id, SUBJECT_TYPE, id),
     ]);
+
+    // Actions are written under BOTH subject types: 'readiness_assessment'
+    // for assessment-level actions and 'readiness_obligation' for actions
+    // raised against a single obligation (see
+    // app/api/readiness/[id]/obligations/[obligationId]/action/route.ts).
+    // Loading only the former left every obligation-level action invisible
+    // to this route, StepGaps, and the exported pack - merge both here.
+    const obligationActions = await listActionsBySubjectIds(
+      workspace.id,
+      OBLIGATION_SUBJECT_TYPE,
+      obligations.map((o) => o.id)
+    );
+    const actions = [...assessmentActions, ...obligationActions];
 
     const conditionLists = await Promise.all(decisions.map((d) => listConditionsByDecision(workspace.id, d.id)));
     const conditions = conditionLists.flat();
@@ -67,11 +81,13 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * PATCH /api/readiness/[id] - partial update of {title, riskLevel, productId,
  * productNote, targetLaunchDate, ownerPersonId, summary, currentStep}. NOT
  * status (submit/approve-local/approve-global/reject have their own routes)
- * and NOT entityType/jurisdiction: once obligations have been generated,
- * changing either would leave the register no longer matching its stated
- * basis, so that transition always 409s once at least one obligation row
- * exists (checked here, not by updateReadinessAssessment, since the repo
- * layer never accepts those fields as patchable at all).
+ * and NOT entityType/jurisdiction: those are fixed at creation and rejected
+ * with an unconditional 400 (not a 409) even before any obligation has been
+ * generated, because the register that step 2 builds is derived from this
+ * exact (entityType, jurisdiction) pair and would no longer match its stated
+ * basis the moment either changed - the repo layer (updateReadinessAssessment
+ * in lib/repo/readiness.ts) never accepts those fields as patchable at all,
+ * so there is nothing for this route to condition on.
  */
 export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
