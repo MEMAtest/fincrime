@@ -10,7 +10,7 @@ import NextSteps from "@/components/shared/NextSteps";
 import RiskThemeIcon, { THEME_CONFIG } from "@/components/icons/RiskThemeIcon";
 import { RISK_THEME_LABEL } from "@/data/typologies/labels";
 import { enforcementCases } from "@/data/enforcement/cases";
-import { fmtGbp, effectiveFirmTypes } from "@/lib/enforcement/select";
+import { fmtGbp, effectiveFirmTypes, type CaseTypologySelection } from "@/lib/enforcement/select";
 import { caseSlug } from "@/lib/enforcement/case-slug";
 import type { EnforcementCase } from "@/data/enforcement/types";
 import type { Control } from "@/data/controls/types";
@@ -36,6 +36,7 @@ export default function EnforcementCaseClient({
   controls,
   isDirect,
   cSlug,
+  typologySelection,
 }: {
   caseData: EnforcementCase;
   rootCause: string;
@@ -43,6 +44,7 @@ export default function EnforcementCaseClient({
   controls: Control[];
   isDirect: boolean;
   cSlug: string;
+  typologySelection: CaseTypologySelection;
 }) {
   const { rank, total, topPct, medianX } = useMemo(() => computePercentile(c), [c]);
 
@@ -149,7 +151,7 @@ export default function EnforcementCaseClient({
       </section>
 
       {/* Turn this case into work */}
-      <EnforcementActionsPanel caseData={c} controls={controls} cSlug={cSlug} />
+      <EnforcementActionsPanel caseData={c} controls={controls} cSlug={cSlug} typologySelection={typologySelection} />
 
       {/* What would have caught it */}
       <section className="mb-8">

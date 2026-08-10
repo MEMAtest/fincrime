@@ -236,6 +236,21 @@ describe("nextTestDueFrom", () => {
     expect(due.toISOString().slice(0, 10)).toBe("2026-07-15");
   });
 
+  it("recognises bi-monthly as 2 months, not 1 - 'monthly' also matches as a substring of 'bi-monthly', and bi-monthly was listed after monthly, so without the negative lookbehind on the monthly pattern this silently resolved to +1 month", () => {
+    const due = nextTestDueFrom(testedAt, "Sanctions list refresh reviewed bi-monthly.");
+    expect(due.toISOString().slice(0, 10)).toBe("2026-03-15");
+  });
+
+  it("recognises unhyphenated 'bimonthly' as 2 months too", () => {
+    const due = nextTestDueFrom(testedAt, "Threshold reviewed bimonthly by the second line.");
+    expect(due.toISOString().slice(0, 10)).toBe("2026-03-15");
+  });
+
+  it("a plain 'monthly' mention (not bi-monthly) still resolves to 1 month", () => {
+    const due = nextTestDueFrom(testedAt, "Alerts reviewed monthly.");
+    expect(due.toISOString().slice(0, 10)).toBe("2026-02-15");
+  });
+
   it("clamps month-end overflow instead of rolling into the following month (31 Jan + 1 month -> 28 Feb, not 3 Mar)", () => {
     const endOfJan = new Date("2026-01-31T00:00:00.000Z");
     const due = nextTestDueFrom(endOfJan, "Monthly");

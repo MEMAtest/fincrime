@@ -5,14 +5,30 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShieldAlert, Wrench, ListChecks, CalendarPlus, Loader2, AlertTriangle, ArrowRight } from "lucide-react";
 import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
-import { typologySlugsForThemes } from "@/lib/enforcement/select";
+import type { CaseTypologySelection } from "@/lib/enforcement/select";
 import type { EnforcementCase } from "@/data/enforcement/types";
 import type { Control } from "@/data/controls/types";
 import type { ActionPriority } from "@/components/pra/types";
 
 const PRIORITIES: ActionPriority[] = ["high", "medium", "low"];
+const CONTROLS_SHOWN = 4;
 
 type ChangeState = { status: "idle" | "loading" } | { status: "error"; message: string };
+
+const DEFAULT_ACTION_TITLE = (c: EnforcementCase) => `Follow up on ${c.firm} (${c.year}) lessons`;
+
+/** Reads `{error: string}` off a failed response, falling back to a generic message rather than discarding the server's actual reason. */
+async function errorMessageFrom(res: Response, fallback: string): Promise<string> {
+  try {
+    const data: unknown = await res.json();
+    if (data && typeof data === "object" && typeof (data as { error?: unknown }).error === "string") {
+      return (data as { error: string }).error;
+    }
+  } catch {
+    // no JSON body
+  }
+  return fallback;
+}
 
 /**
  * "Turn this case into work": the enforcement-case-detail action panel.
@@ -25,10 +41,13 @@ export default function EnforcementActionsPanel({
   caseData: c,
   controls,
   cSlug,
+  typologySelection,
 }: {
   caseData: EnforcementCase;
   controls: Control[];
   cSlug: string;
+  /** Case-specific typology slugs computed server-side (see app/enforcement/[slug]/page.tsx), so the ~300KB typology catalogue never ships to this client component. */
+  typologySelection: CaseTypologySelection;
 }) {
   const router = useRouter();
   const { wsFetch, ready, workspaceId } = useWorkspace();
@@ -36,15 +55,15 @@ export default function EnforcementActionsPanel({
   const [changeStates, setChangeStates] = useState<Record<string, ChangeState>>({});
 
   const primaryControl = controls[0] ?? null;
-  const [actionTitle, setActionTitle] = useState(`Follow up on ${c.firm} (${c.year}) lessons`);
+  const [actionTitle, setActionTitle] = useState(DEFAULT_ACTION_TITLE(c));
   const [actionDueDate, setActionDueDate] = useState("");
   const [actionPriority, setActionPriority] = useState<ActionPriority>("medium");
   const [actionSubmitting, setActionSubmitting] = useState(false);
   const [actionResult, setActionResult] = useState<{ ok: boolean; message: string } | null>(null);
 
-  const typologySlugs = typologySlugsForThemes(c.riskThemes);
+  const { slugs: typologySlugs, totalBeforeCap, usedFallback } = typologySelection;
   const praHref = typologySlugs.length
-    ? `/assess/product-risk/new?typologies=${typologySlugs.join(",")}`
+    ? `/assess/product-risk/new?typologies=${typologySlugs.map(encodeURIComponent).join(",")}`
     : "/assess/product-risk/new";
 
   // Only used for copy ("already have a workspace" vs "this creates one"),
@@ -57,7 +76,9 @@ export default function EnforcementActionsPanel({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ controlSlug: control.slug }),
     });
-    if (!res.ok) throw new Error("Could not add this control to your workspace.");
+    if (!res.ok) {
+      throw new Error(await errorMessageFrom(res, "Could not add this control to your workspace."));
+    }
     const data: unknown = await res.json();
     const id =
       data && typeof data === "object" ? (data as { control?: { id?: unknown } }).control?.id : undefined;
@@ -67,21 +88,10 @@ export default function EnforcementActionsPanel({
 
   async function createChangeFor(control: Control) {
     setChangeStates((prev) => ({ ...prev, [control.slug]: { status: "loading" } }));
+
+    let workspaceControlId: string;
     try {
-      const workspaceControlId = await instantiateControl(control);
-      const title = `Strengthen ${control.name} after ${c.firm} ${c.year}`;
-      const rationale = `Raised from the ${c.regulator} enforcement action against ${c.firm} (${c.year}): ${c.summary}`;
-      const res = await wsFetch("/api/control-changes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceControlId, title, rationale }),
-      });
-      if (!res.ok) throw new Error("Could not create the control change.");
-      const data: unknown = await res.json();
-      const changeId =
-        data && typeof data === "object" ? (data as { change?: { id?: unknown } }).change?.id : undefined;
-      if (typeof changeId !== "string" || !changeId) throw new Error("Unexpected response creating the control change.");
-      router.push(`/change-lab/${changeId}`);
+      workspaceControlId = await instantiateControl(control);
     } catch (error) {
       setChangeStates((prev) => ({
         ...prev,
@@ -90,7 +100,44 @@ export default function EnforcementActionsPanel({
           message: error instanceof Error ? error.message : "Something went wrong.",
         },
       }));
+      return;
     }
+
+    // The control is now in the workspace regardless of what happens next, so
+    // any failure from here on must say so rather than implying nothing happened.
+    try {
+      const title = `Strengthen ${control.name} after ${c.firm} ${c.year}`;
+      const rationale = `Raised from the ${c.regulator} enforcement action against ${c.firm} (${c.year}): ${c.summary}`;
+      const res = await wsFetch("/api/control-changes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceControlId, title, rationale }),
+      });
+      if (!res.ok) {
+        throw new Error(await errorMessageFrom(res, "Could not create the control change."));
+      }
+      const data: unknown = await res.json();
+      const changeId =
+        data && typeof data === "object" ? (data as { change?: { id?: unknown } }).change?.id : undefined;
+      if (typeof changeId !== "string" || !changeId) throw new Error("Unexpected response creating the control change.");
+      router.push(`/change-lab/${changeId}`);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Something went wrong.";
+      setChangeStates((prev) => ({
+        ...prev,
+        [control.slug]: {
+          status: "error",
+          message: `${control.name} was added to your workspace, but the change proposal failed: ${detail}`,
+        },
+      }));
+    }
+  }
+
+  function resetActionForm() {
+    setActionResult(null);
+    setActionTitle(DEFAULT_ACTION_TITLE(c));
+    setActionDueDate("");
+    setActionPriority("medium");
   }
 
   async function onCreateAction(event: FormEvent<HTMLFormElement>) {
@@ -103,8 +150,20 @@ export default function EnforcementActionsPanel({
     }
     setActionSubmitting(true);
     setActionResult(null);
+
+    let workspaceControlId: string;
     try {
-      const workspaceControlId = await instantiateControl(primaryControl);
+      workspaceControlId = await instantiateControl(primaryControl);
+    } catch (error) {
+      setActionResult({
+        ok: false,
+        message: error instanceof Error ? error.message : "Something went wrong.",
+      });
+      setActionSubmitting(false);
+      return;
+    }
+
+    try {
       const res = await wsFetch("/api/workspace/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,17 +175,26 @@ export default function EnforcementActionsPanel({
           priority: actionPriority,
         }),
       });
-      if (!res.ok) throw new Error("Could not create the follow-up action.");
+      if (!res.ok) {
+        throw new Error(await errorMessageFrom(res, "Could not create the follow-up action."));
+      }
       setActionResult({ ok: true, message: "Action created. Find it on your workspace home." });
     } catch (error) {
+      const detail = error instanceof Error ? error.message : "Something went wrong.";
       setActionResult({
         ok: false,
-        message: error instanceof Error ? error.message : "Something went wrong.",
+        message: `${primaryControl.name} was added to your workspace, but the action wasn't created: ${detail}`,
       });
     } finally {
       setActionSubmitting(false);
     }
   }
+
+  // Once an action is successfully created, the form is locked (not just
+  // re-enabled once submitting flips back to false) so a second click can't
+  // fire the same title/date/priority again and create a duplicate action.
+  // "Create another" explicitly resets it.
+  const actionFormLocked = actionSubmitting || actionResult?.ok === true;
 
   return (
     <section className="glass-card rounded-2xl p-5 sm:p-6 mb-8">
@@ -175,7 +243,7 @@ export default function EnforcementActionsPanel({
               <p className="text-xs text-text-muted">No mapped controls for this case yet.</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {controls.slice(0, 4).map((control) => {
+                {controls.slice(0, CONTROLS_SHOWN).map((control) => {
                   const state = changeStates[control.slug] ?? { status: "idle" };
                   return (
                     <div key={control.slug} className="flex items-center flex-wrap gap-2">
@@ -200,6 +268,12 @@ export default function EnforcementActionsPanel({
                     </div>
                   );
                 })}
+                {controls.length > CONTROLS_SHOWN && (
+                  <p className="text-[11px] text-text-muted">
+                    Showing {CONTROLS_SHOWN} of {controls.length} mapped controls. Open the control builder below
+                    for the rest.
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -213,7 +287,13 @@ export default function EnforcementActionsPanel({
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">Add to a product risk assessment</p>
             <p className="text-xs text-text-muted mt-0.5 mb-1.5">
-              Start a PRA{typologySlugs.length ? " with this case's typologies pre-selected" : ""}.
+              {typologySlugs.length
+                ? `Start a PRA with ${typologySlugs.length}${
+                    totalBeforeCap > typologySlugs.length ? ` of ${totalBeforeCap}` : ""
+                  } ${usedFallback ? "risk-theme" : "case-specific"} typolog${
+                    typologySlugs.length === 1 ? "y" : "ies"
+                  } pre-selected.`
+                : "Start a PRA."}
             </p>
             <Link href={praHref} className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline">
               Go to product risk assessment <ArrowRight className="h-3 w-3" />
@@ -239,7 +319,8 @@ export default function EnforcementActionsPanel({
                   value={actionTitle}
                   onChange={(e) => setActionTitle(e.target.value)}
                   placeholder="Action title"
-                  className="w-full px-3 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+                  disabled={actionFormLocked}
+                  className="w-full px-3 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors disabled:opacity-60"
                   required
                 />
                 <div className="flex flex-wrap gap-2">
@@ -248,13 +329,15 @@ export default function EnforcementActionsPanel({
                     value={actionDueDate}
                     onChange={(e) => setActionDueDate(e.target.value)}
                     aria-label="Due date"
-                    className="px-3 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+                    disabled={actionFormLocked}
+                    className="px-3 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors disabled:opacity-60"
                   />
                   <select
                     value={actionPriority}
                     onChange={(e) => setActionPriority(e.target.value as ActionPriority)}
                     aria-label="Priority"
-                    className="px-3 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
+                    disabled={actionFormLocked}
+                    className="px-3 py-1.5 rounded-lg border border-line-2 bg-surface text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors disabled:opacity-60"
                   >
                     {PRIORITIES.map((p) => (
                       <option key={p} value={p}>
@@ -262,14 +345,24 @@ export default function EnforcementActionsPanel({
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="submit"
-                    disabled={actionSubmitting}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {actionSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                    Create action
-                  </button>
+                  {actionResult?.ok ? (
+                    <button
+                      type="button"
+                      onClick={resetActionForm}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-foreground transition-colors cursor-pointer"
+                    >
+                      Create another action
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={actionFormLocked}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-medium hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {actionSubmitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      Create action
+                    </button>
+                  )}
                 </div>
                 {actionResult && (
                   <p className={`text-[11px] ${actionResult.ok ? "text-accent" : "text-red-500"}`}>

@@ -57,6 +57,17 @@ function clampCount(value: number | null | undefined): number {
   return Math.max(0, Math.floor(value));
 }
 
+/**
+ * The two pass-rate thresholds from the decision table above. Exported so
+ * app/methodology/page.tsx renders these directly rather than retyping them.
+ */
+export const TEST_EFFECTIVENESS_THRESHOLDS = {
+  /** Below this (or any HIGH finding): fail, rated weak. */
+  failBelow: 0.7,
+  /** At or above this, with no medium/high findings: pass, rated strong. */
+  strongAtOrAbove: 0.9,
+} as const;
+
 export function scoreTestEffectiveness(input: TestEffectivenessInput): TestEffectivenessResult {
   const passed = clampCount(input.samplesPassed);
   const failed = clampCount(input.samplesFailed);
@@ -74,11 +85,11 @@ export function scoreTestEffectiveness(input: TestEffectivenessInput): TestEffec
   const hasHighFinding = findings.some((f) => f.severity === "high");
   const hasMediumOrHighFinding = findings.some((f) => f.severity === "medium" || f.severity === "high");
 
-  if (hasHighFinding || passRate < 0.7) {
+  if (hasHighFinding || passRate < TEST_EFFECTIVENESS_THRESHOLDS.failBelow) {
     return { passRate, result: "fail", rating: "weak" };
   }
 
-  if (passRate >= 0.9 && !hasMediumOrHighFinding) {
+  if (passRate >= TEST_EFFECTIVENESS_THRESHOLDS.strongAtOrAbove && !hasMediumOrHighFinding) {
     return { passRate, result: "pass", rating: "strong" };
   }
 
@@ -105,28 +116,38 @@ export function scoreTestEffectiveness(input: TestEffectivenessInput): TestEffec
  * more specific patterns ahead of the plain annual/yearly ones so a
  * semi-annual mention is picked up as 6 months in its own right (the
  * fact that \bannually\b also happens to match inside "semi-annually" is
- * harmless here precisely because we take the shortest match, not the
- * first-checked one that isn't also the shortest).
+ * harmless here precisely because semi-annual is checked, and therefore
+ * matched, first).
+ *
+ * The monthly pattern carries a negative lookbehind, `(?<!bi-?)`, for the
+ * same reason: without it, plain \bmonthly\b also matches the "monthly"
+ * inside "bi-monthly" (the hyphen is a non-word character, so a \b boundary
+ * sits right before the "m"), and because monthly is listed - and therefore
+ * checked - before bi-monthly, every bi-monthly cadence would silently
+ * resolve to 1 month instead of 2. No other rule in this list overlaps like
+ * that, so no other pattern needs the same treatment.
  *
  * Missing cadence text, or text with no recognised cadence word at all,
- * defaults to 12 months.
+ * defaults to DEFAULT_CADENCE_MONTHS.
  */
-type CadenceRule = { regex: RegExp; kind: "days" | "months"; amount: number };
+type CadenceRule = { regex: RegExp; kind: "days" | "months"; amount: number; label: string };
 
-const CADENCE_RULES: CadenceRule[] = [
-  { regex: /\bdaily\b/i, kind: "days", amount: 1 },
-  { regex: /\bweekly\b/i, kind: "days", amount: 7 },
-  { regex: /\bmonthly\b/i, kind: "months", amount: 1 },
-  { regex: /\bbi-?monthly\b/i, kind: "months", amount: 2 },
-  { regex: /\bquarterly\b/i, kind: "months", amount: 3 },
-  { regex: /\bsemi-?annual(?:ly)?\b/i, kind: "months", amount: 6 },
-  { regex: /\bhalf-yearly\b/i, kind: "months", amount: 6 },
-  { regex: /\bannual(?:ly)?\b/i, kind: "months", amount: 12 },
-  { regex: /\byearly\b/i, kind: "months", amount: 12 },
-  { regex: /\bbiennial(?:ly)?\b/i, kind: "months", amount: 24 },
+/** Exported so app/methodology/page.tsx lists the recognised cadence words directly rather than retyping them. */
+export const CADENCE_RULES: CadenceRule[] = [
+  { regex: /\bdaily\b/i, kind: "days", amount: 1, label: "daily" },
+  { regex: /\bweekly\b/i, kind: "days", amount: 7, label: "weekly" },
+  { regex: /(?<!bi-?)\bmonthly\b/i, kind: "months", amount: 1, label: "monthly" },
+  { regex: /\bbi-?monthly\b/i, kind: "months", amount: 2, label: "bi-monthly" },
+  { regex: /\bquarterly\b/i, kind: "months", amount: 3, label: "quarterly" },
+  { regex: /\bsemi-?annual(?:ly)?\b/i, kind: "months", amount: 6, label: "semi-annually" },
+  { regex: /\bhalf-yearly\b/i, kind: "months", amount: 6, label: "half-yearly" },
+  { regex: /\bannual(?:ly)?\b/i, kind: "months", amount: 12, label: "annually" },
+  { regex: /\byearly\b/i, kind: "months", amount: 12, label: "yearly" },
+  { regex: /\bbiennial(?:ly)?\b/i, kind: "months", amount: 24, label: "biennially" },
 ];
 
-const DEFAULT_CADENCE_MONTHS = 12;
+/** Exported so app/methodology/page.tsx renders this directly rather than retyping it. */
+export const DEFAULT_CADENCE_MONTHS = 12;
 
 /** Adds `months` to `base`, clamping the day-of-month to the last day of the target month rather than overflowing into the following month (e.g. 31 Jan + 1 month -> 28/29 Feb, not 3 Mar). */
 function addMonthsClamped(base: Date, months: number): Date {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
@@ -59,6 +59,19 @@ export default function AssessmentJourneyClient({
   preselectedTypologySlugs,
 }: AssessmentJourneyClientProps) {
   const { wsFetch, ready } = useWorkspace();
+
+  // Once the ?typologies= preselection has been applied (or skipped because
+  // the register was already curated), drop the param so a reload cannot
+  // re-run it and resurrect risks the user deleted. history.replaceState
+  // rather than router.replace: this must not re-render or refetch the
+  // journey, only tidy the address bar.
+  const dropPreselectFromUrl = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("typologies")) return;
+    url.searchParams.delete("typologies");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -487,6 +500,7 @@ export default function AssessmentJourneyClient({
                 product={product}
                 risks={risks}
                 preselectedTypologySlugs={preselectedTypologySlugs}
+                onPreselectApplied={dropPreselectFromUrl}
                 onCreateRisk={createRisk}
                 onUpdateRisk={updateRisk}
                 onDeleteRisk={deleteRisk}

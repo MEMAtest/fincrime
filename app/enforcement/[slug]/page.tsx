@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ToolFrame from "@/components/layout/ToolFrame";
 import EnforcementCaseClient from "./EnforcementCaseClient";
-import { fmtGbp } from "@/lib/enforcement/select";
+import { fmtGbp, typologySlugsForCase } from "@/lib/enforcement/select";
 import { lessonFor } from "@/data/enforcement/lessons";
 import { caseSlug, enforcementCaseSlugs, getEnforcementCaseBySlug } from "@/lib/enforcement/case-slug";
 import { controlsForCase, controlsForThemes } from "@/data/controls";
@@ -34,6 +34,13 @@ export default async function EnforcementCasePage({ params }: { params: Promise<
   // so every case page still teaches.
   const controls = direct.length ? direct : controlsForThemes(c.riskThemes).slice(0, 6);
 
+  // Computed here (a server component) rather than in the client action
+  // panel, so `allTypologies` (the ~300KB typology catalogue) never ships to
+  // the client bundle for this page - see lib/enforcement/select.ts.
+  const allMappedControls = direct.length ? direct : controlsForThemes(c.riskThemes);
+  const caseControlTypologySlugs = Array.from(new Set(allMappedControls.flatMap((ctrl) => ctrl.typologySlugs)));
+  const typologySelection = typologySlugsForCase(c.riskThemes, caseControlTypologySlugs);
+
   return (
     <ToolFrame>
       <main className="flex-1">
@@ -44,6 +51,7 @@ export default async function EnforcementCasePage({ params }: { params: Promise<
           controls={controls}
           isDirect={direct.length > 0}
           cSlug={caseSlug(c.firm, c.year)}
+          typologySelection={typologySelection}
         />
       </main>
       </ToolFrame>

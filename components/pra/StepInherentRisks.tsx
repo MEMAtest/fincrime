@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Building2, CreditCard, Plus, Users, AlertTriangle, X, Check } from "lucide-react";
 import MultiSelect from "@/components/shared/MultiSelect";
 import RiskRatingBadge from "@/components/shared/RiskRatingBadge";
@@ -10,6 +10,8 @@ import { allTypologies } from "@/data/typologies";
 import { FIRM_TYPE_LABEL, PRODUCT_LABEL, CUSTOMER_LABEL, RISK_THEME_LABEL } from "@/data/typologies/labels";
 import type { FirmType, ProductType, CustomerType, RiskTheme } from "@/data/typologies/types";
 import type { AssessmentRiskDTO, ProductDTO } from "./types";
+
+const MATCHES_SHOWN = 20;
 
 const FIRM_OPTIONS = (Object.keys(FIRM_TYPE_LABEL) as FirmType[]).map((v) => ({ value: v, label: FIRM_TYPE_LABEL[v] }));
 const PRODUCT_OPTIONS = (Object.keys(PRODUCT_LABEL) as ProductType[]).map((v) => ({ value: v, label: PRODUCT_LABEL[v] }));
@@ -59,6 +61,8 @@ interface StepInherentRisksProps {
   product: ProductDTO;
   risks: AssessmentRiskDTO[];
   preselectedTypologySlugs: string[];
+  /** Called once the deep-link preselection has been applied (or deliberately skipped), so the journey can drop ?typologies= from the URL and a reload cannot re-run it. */
+  onPreselectApplied?: () => void;
   onCreateRisk: (input: CreateRiskInput) => Promise<void>;
   onUpdateRisk: (id: string, input: UpdateRiskInput) => Promise<void>;
   onDeleteRisk: (id: string) => Promise<void>;
@@ -69,6 +73,7 @@ export default function StepInherentRisks({
   product,
   risks,
   preselectedTypologySlugs,
+  onPreselectApplied,
   onCreateRisk,
   onUpdateRisk,
   onDeleteRisk,
@@ -102,6 +107,54 @@ export default function StepInherentRisks({
     () => new Set(risks.map((r) => r.typology_slug).filter((s): s is string => !!s)),
     [risks]
   );
+
+  // The ?typologies= deep link (e.g. from an enforcement case) promises the
+  // carried-over typologies arrive "pre-selected". Seeding the profile filters
+  // (above) only surfaces them as candidates; it never actually ticks
+  // anything, so this effect turns any preselected slug that isn't already on
+  // the register into a real, saved risk the moment the step mounts - the
+  // user then sees it ticked and can edit or remove it like any other risk.
+  // Guarded three ways, because a ref alone is not enough. The ref stops a
+  // second run within one mount (and React Strict Mode's deliberate
+  // mount/cleanup/remount in dev), but it resets on a real remount, and the
+  // journey URL keeps ?typologies= on reload - so a ref-only guard would
+  // silently resurrect risks the user had deliberately deleted. Hence:
+  //   1. the ref, for the within-mount case,
+  //   2. only auto-create when the register is still EMPTY, so a curated
+  //      register is never added to behind the user's back, and
+  //   3. strip the query param once applied, so a reload cannot re-run it.
+  // Deliberately does NOT abort the in-flight loop from the effect cleanup:
+  // Strict Mode's cleanup would kill the loop after its first await, so only
+  // the first of several preselected slugs would ever be created.
+  const autoTickRan = useRef(false);
+  useEffect(() => {
+    if (autoTickRan.current) return;
+    autoTickRan.current = true;
+    if (!preselectedTypologySlugs.length) return;
+    // A non-empty register means the user has already been here and curated
+    // it. Adding to it now would be indistinguishable from re-adding what
+    // they removed.
+    if (risks.length > 0) {
+      onPreselectApplied?.();
+      return;
+    }
+
+    (async () => {
+      for (const slug of preselectedTypologySlugs) {
+        const typology = allTypologies.find((t) => t.slug === slug);
+        if (!typology) continue;
+        const match = matches.find((m) => m.typology.slug === slug);
+        await onCreateRisk({
+          typologySlug: slug,
+          title: typology.title,
+          inherentScore: match?.score ?? null,
+          inherentRationale: "Pre-selected from a linked enforcement case's typologies.",
+        });
+      }
+      onPreselectApplied?.();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleTypology = async (slug: string, title: string, score: number) => {
     setPendingSlug(slug);
@@ -192,8 +245,13 @@ export default function StepInherentRisks({
             typologies.
           </div>
         )}
+        {matches.length > MATCHES_SHOWN && (
+          <p className="text-xs text-text-muted mb-3">
+            Showing the top {MATCHES_SHOWN} of {matches.length} matches. Narrow the profile above to see others.
+          </p>
+        )}
         <div className="grid sm:grid-cols-2 gap-3">
-          {matches.slice(0, 20).map((m) => {
+          {matches.slice(0, MATCHES_SHOWN).map((m) => {
             const selected = selectedSlugs.has(m.typology.slug);
             const rating = getRiskRating(m.score).rating;
             const busy = pendingSlug === m.typology.slug;

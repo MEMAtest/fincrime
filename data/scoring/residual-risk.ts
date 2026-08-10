@@ -53,7 +53,8 @@ export interface ResidualRiskResult {
  * every effectiveness level because it leaves part of the risk untouched by
  * definition.
  */
-const MITIGATION_FACTORS: Record<ControlCoverage, Record<ControlEffectiveness, number>> = {
+/** Exported so app/methodology/page.tsx renders this table directly rather than retyping it. */
+export const MITIGATION_FACTORS: Record<ControlCoverage, Record<ControlEffectiveness, number>> = {
   full: { strong: 0.7, adequate: 0.5, weak: 0.25, not_assessed: 0 },
   partial: { strong: 0.45, adequate: 0.3, weak: 0.15, not_assessed: 0 },
   gap: { strong: 0, adequate: 0, weak: 0, not_assessed: 0 },
@@ -65,8 +66,13 @@ const MITIGATION_FACTORS: Record<ControlCoverage, Record<ControlEffectiveness, n
  * at least one control actually mitigates something; a risk with zero
  * controls, or only gap/not_assessed controls, keeps its raw (unfloored)
  * value so it can still equal the inherent score exactly.
+ *
+ * Exported so app/methodology/page.tsx renders this directly rather than
+ * retyping it. The floor is also capped by inherentScore itself (see
+ * `Math.min(residualScore, inherentScore)` below), so it never lifts a very
+ * low inherent score above its own value.
  */
-const RESIDUAL_FLOOR = 5;
+export const RESIDUAL_FLOOR = 5;
 
 function clampScore(value: number): number {
   if (typeof value !== "number" || Number.isNaN(value) || !Number.isFinite(value)) return 0;

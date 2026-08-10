@@ -112,6 +112,7 @@ export const POST = withWorkspace(async (request, workspace) => {
       lastTestedAt,
       nextTestDue,
     };
+    const hasOverrides = Object.values(overrides).some((v) => v !== undefined);
 
     const slug = optionalString(body.controlSlug);
     let input: CreateWorkspaceControlInput;
@@ -129,6 +130,16 @@ export const POST = withWorkspace(async (request, workspace) => {
       // defaults on top of it.
       const existing = await listWorkspaceControlBySlug(workspace.id, libraryControl.slug);
       if (existing) {
+        // A bare {controlSlug} POST (e.g. "add this control to my
+        // workspace" from the enforcement action panel) supplies no
+        // overrides at all. Against an already-instantiated control that is
+        // a true no-op: applying library defaults on top of an existing row
+        // changes nothing, so don't bump its version or write a snapshot for
+        // it - every override field resolving to undefined is exactly the
+        // "nothing was actually supplied this time" case.
+        if (!hasOverrides) {
+          return NextResponse.json({ control: existing }, { status: 200 });
+        }
         const updated = await updateWorkspaceControl(
           workspace.id,
           existing.id,
@@ -164,6 +175,9 @@ export const POST = withWorkspace(async (request, workspace) => {
         if (!isUniqueViolation(error)) throw error;
         const raced = await listWorkspaceControlBySlug(workspace.id, libraryControl.slug);
         if (!raced) throw error;
+        if (!hasOverrides) {
+          return NextResponse.json({ control: raced }, { status: 200 });
+        }
         const updated = await updateWorkspaceControl(workspace.id, raced.id, overrides, "workspace", "saved from library");
         return NextResponse.json({ control: updated }, { status: 200 });
       }

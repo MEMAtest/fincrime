@@ -44,7 +44,8 @@ export interface TypologyScore {
   };
 }
 
-const WEIGHTS = {
+/** Exported so app/methodology/page.tsx renders these directly rather than retyping them. */
+export const WEIGHTS = {
   firmType: 30,
   product: 25,
   customerType: 20,

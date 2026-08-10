@@ -18,7 +18,8 @@ export interface ScreeningScore {
   };
 }
 
-const WEIGHTS = {
+/** Exported so app/methodology/page.tsx renders these directly rather than retyping them. */
+export const WEIGHTS = {
   category: 50,
   firmType: 25,
   trigger: 25,

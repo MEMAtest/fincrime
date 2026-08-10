@@ -22,10 +22,11 @@ export function effectiveFirmTypes(c: EnforcementCase): FirmType[] {
 
 /**
  * Typology slugs whose risk theme is among the given themes, in catalogue
- * order and de-duplicated. Used to carry an enforcement case's risk themes
- * into a PRA deep link (?typologies=) via the same riskTheme field the
- * deterministic typology scorer matches on, rather than inventing a bespoke
- * case-to-typology mapping that could drift from the scoring model.
+ * order and de-duplicated. This is the WHOLE theme bucket (e.g. every
+ * money_laundering typology in the catalogue), which is too broad to be
+ * case-specific on its own - see `typologySlugsForCase` below, which is what
+ * every caller carrying a real enforcement case into a PRA deep link should
+ * use instead. Kept exported for that narrowing and for tests.
  */
 export function typologySlugsForThemes(themes: RiskTheme[]): string[] {
   if (!themes.length) return [];
@@ -39,6 +40,51 @@ export function typologySlugsForThemes(themes: RiskTheme[]): string[] {
     }
   }
   return out;
+}
+
+/** Hard cap on how many typology slugs a case-to-PRA deep link carries. */
+export const CASE_TYPOLOGY_SLUG_CAP = 12;
+
+export interface CaseTypologySelection {
+  /** The slugs to actually carry into the deep link, capped at `CASE_TYPOLOGY_SLUG_CAP`. */
+  slugs: string[];
+  /** How many slugs were available before the cap was applied (>= slugs.length). */
+  totalBeforeCap: number;
+  /** True when the case's own mapped controls carried no typology slugs in the theme bucket, so we fell back to the whole theme bucket. */
+  usedFallback: boolean;
+}
+
+/**
+ * Case-specific typology slugs for a PRA deep link (?typologies=), narrowed
+ * from the theme bucket (`typologySlugsForThemes`, which is the same for
+ * every case sharing a theme - e.g. all 26 pure money_laundering cases would
+ * otherwise produce byte-identical links) down to the slugs the case's OWN
+ * mapped controls actually carry. Falls back to the full theme bucket only
+ * when that intersection is empty (an unmapped case, or one whose mapped
+ * controls happen to carry no typology slugs at all), so a case with no
+ * bespoke control mapping still produces a usable, if broader, link.
+ *
+ * `caseControlTypologySlugs` should be the union of `typologySlugs` across
+ * whatever controls the caller already computed for the case (e.g.
+ * `controlsForCase(firm, year)` with the `controlsForThemes` fallback) -
+ * passed in rather than recomputed here so this stays a pure function of
+ * data the caller already has, and does not need to know about `data/controls`.
+ */
+export function typologySlugsForCase(
+  themes: RiskTheme[],
+  caseControlTypologySlugs: string[],
+  cap: number = CASE_TYPOLOGY_SLUG_CAP
+): CaseTypologySelection {
+  const themeBucket = typologySlugsForThemes(themes);
+  const controlSlugSet = new Set(caseControlTypologySlugs);
+  const intersection = themeBucket.filter((slug) => controlSlugSet.has(slug));
+  const usedFallback = intersection.length === 0;
+  const chosen = usedFallback ? themeBucket : intersection;
+  return {
+    slugs: chosen.slice(0, cap),
+    totalBeforeCap: chosen.length,
+    usedFallback,
+  };
 }
 
 /** Look up a real enforcement case by firm + year (trim/lowercase matched). */
