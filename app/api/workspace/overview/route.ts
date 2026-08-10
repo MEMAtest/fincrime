@@ -7,6 +7,8 @@ import { listOverdueConditions } from "@/lib/repo/decisions";
 import { listAuditLog } from "@/lib/repo/audit";
 import { listPeople } from "@/lib/repo/people";
 import { getRegCommitment, REG_COMMITMENT_SUBJECT_TYPE } from "@/lib/repo/reg-requests";
+import { listWorkspaceControls } from "@/lib/repo/controls";
+import { computeControlsDueForTesting } from "@/lib/governance/portfolio";
 
 const RECENT_ACTIVITY_LIMIT = 15;
 
@@ -41,14 +43,22 @@ function toOverviewAssessment(row: AssessmentRow, productNameById: Map<string, s
  */
 export const GET = withWorkspace(async (_request, workspace) => {
   try {
-    const [assessments, products, overdueActions, overdueConditions, recentActivity, people] = await Promise.all([
+    const [assessments, products, overdueActions, overdueConditions, recentActivity, people, workspaceControls] = await Promise.all([
       listAssessments(workspace.id),
       listProducts(workspace.id),
       listOverdueActions(workspace.id),
       listOverdueConditions(workspace.id),
       listAuditLog(workspace.id, { limit: RECENT_ACTIVITY_LIMIT }),
       listPeople(workspace.id),
+      listWorkspaceControls(workspace.id),
     ]);
+
+    // Controls due or overdue for their next test - the surface Phase 5
+    // deliberately skipped, wired here now the aggregation exists. Reuses
+    // the EXACT predicate the Governance Dashboard uses (see
+    // lib/governance/portfolio.ts's computeControlsDueForTesting) so the two
+    // views can never disagree on what counts as "due".
+    const controlsDueForTesting = computeControlsDueForTesting(workspaceControls, new Date());
 
     const productNameById = new Map(products.map((p) => [p.id, p.name]));
     const personNameById = new Map(people.map((p) => [p.id, p.name]));
@@ -86,6 +96,7 @@ export const GET = withWorkspace(async (_request, workspace) => {
         ...c,
         ownerName: c.owner_person_id ? (personNameById.get(c.owner_person_id) ?? null) : null,
       })),
+      controlsDueForTesting: controlsDueForTesting.items,
       recentActivity,
     });
   } catch (error) {

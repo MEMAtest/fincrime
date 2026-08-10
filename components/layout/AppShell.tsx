@@ -28,7 +28,7 @@ export type SidebarId =
   | "home" | "firm-research" | "firm-profiles" | "typology-iq" | "enforcement"
   | "control-builder" | "controls-library" | "screening-designer" | "partner-map" | "kyc" | "maturity"
   | "assess-pra" | "change-lab" | "market-readiness" | "control-testing" | "incidents" | "workspace"
-  | "regulatory-response" | "reports" | "settings" | "help";
+  | "regulatory-response" | "governance-dashboard" | "reports" | "settings" | "help";
 
 interface SidebarItem {
   id: SidebarId;
@@ -81,9 +81,10 @@ const GROUPS: SidebarGroup[] = [
   {
     label: "Govern",
     items: [
+      { id: "governance-dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/govern/dashboard" },
       { id: "workspace", label: "Workspace", icon: LayoutDashboard, href: "/workspace" },
       { id: "regulatory-response", label: "Regulatory Response", icon: Gavel, href: "/govern/regulatory-response" },
-      { id: "reports", label: "Reports", icon: FileText, soon: true },
+      { id: "reports", label: "Reports", icon: FileText, href: "/govern/reports" },
       { id: "settings", label: "Settings", icon: Settings, soon: true },
     ],
   },

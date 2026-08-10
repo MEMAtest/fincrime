@@ -716,6 +716,15 @@ export async function listRegCommitments(workspaceId: string, requestId: string)
   ]);
 }
 
+/**
+ * Every commitment across the whole workspace (not scoped to one request) -
+ * the governance dashboard's "regulatory commitments" surface. One query
+ * rather than an N+1 over listRegCommitments per request.
+ */
+export async function listAllRegCommitments(workspaceId: string): Promise<RegCommitmentRow[]> {
+  return query<RegCommitmentRow>(`SELECT * FROM reg_commitments WHERE workspace_id = $1 ORDER BY due_date ASC NULLS LAST`, [workspaceId]);
+}
+
 export async function getRegCommitment(workspaceId: string, id: string): Promise<RegCommitmentRow | null> {
   const rows = await query<RegCommitmentRow>(`SELECT * FROM reg_commitments WHERE workspace_id = $1 AND id = $2`, [workspaceId, id]);
   return rows[0] ?? null;

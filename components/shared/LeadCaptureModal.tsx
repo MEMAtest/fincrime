@@ -23,6 +23,7 @@ const MODULE_LABEL: Record<PDFModule, string> = {
   incident: "Incident",
   readiness: "MarketReadiness",
   reg_response: "RegulatoryResponse",
+  governance_pack: "GovernancePack",
 };
 
 interface LeadCaptureModalProps {

@@ -45,6 +45,12 @@ export async function listDecisionsBySubject(
   );
 }
 
+/** Batch-loads decisions by id, scoped to the workspace, for callers (e.g. the governance portfolio) that would otherwise N+1 a getDecision per row - e.g. once per open condition, to resolve the parent decision's subject for a link. */
+export async function listDecisionsByIds(workspaceId: string, ids: string[]): Promise<DecisionRow[]> {
+  if (ids.length === 0) return [];
+  return query<DecisionRow>(`SELECT * FROM decisions WHERE workspace_id = $1 AND id = ANY($2::uuid[])`, [workspaceId, ids]);
+}
+
 export async function getDecision(workspaceId: string, id: string): Promise<DecisionRow | null> {
   const rows = await query<DecisionRow>(`SELECT * FROM decisions WHERE workspace_id = $1 AND id = $2`, [
     workspaceId,
@@ -167,6 +173,22 @@ export async function listOverdueConditions(workspaceId: string): Promise<Condit
     `SELECT * FROM conditions
      WHERE workspace_id = $1 AND status NOT IN ('met', 'breached') AND due_date IS NOT NULL AND due_date < CURRENT_DATE
      ORDER BY due_date ASC`,
+    [workspaceId]
+  );
+}
+
+/**
+ * Every non-terminal condition (not yet met or breached) across the whole
+ * workspace, regardless of due date - a superset of listOverdueConditions.
+ * The governance dashboard's "open launch conditions" surface: a condition
+ * with no due date (or one not yet due) is still open work a committee needs
+ * to see, not just the overdue subset.
+ */
+export async function listOpenConditions(workspaceId: string): Promise<ConditionRow[]> {
+  return query<ConditionRow>(
+    `SELECT * FROM conditions
+     WHERE workspace_id = $1 AND status NOT IN ('met', 'breached')
+     ORDER BY due_date ASC NULLS LAST`,
     [workspaceId]
   );
 }

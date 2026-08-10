@@ -52,6 +52,8 @@ const TOOLS: { title: string; subtitle: string; href: string; kw?: string }[] = 
   { title: "Control Testing", subtitle: "Test a live control, record findings and evidence, and set its effectiveness rating", href: "/assure/control-testing", kw: "control testing sample walkthrough reperformance findings effectiveness rating assurance" },
   { title: "Incidents", subtitle: "Log, contain, trace, remediate and close a financial crime incident", href: "/assure/incidents", kw: "incident assurance containment root cause remediation traceability close reopen" },
   { title: "Regulatory Response", subtitle: "Turn a regulator request into tracked questions, substantiated answers and commitments", href: "/govern/regulatory-response", kw: "regulatory response fca s165 information request commitments substantiation approve submit close" },
+  { title: "Governance Dashboard", subtitle: "Everything outstanding across every workstream, in one committee-ready view", href: "/govern/dashboard", kw: "governance dashboard portfolio committee decisions required risk appetite blockers overdue" },
+  { title: "Reports", subtitle: "Every pack this workspace can produce, grouped by kind, with a direct export", href: "/govern/reports", kw: "reports export pdf pack governance pack committee" },
   { title: "AI Firm Research", subtitle: "Draft a firm risk profile with AI", href: "/firm-research", kw: "ai research firm profile suggest risks" },
   { title: "Firm Profiles", subtitle: "Business models and inherent risk", href: "/firm-profiles", kw: "emi pi bank msb crypto business model" },
   { title: "TypologyIQ", subtitle: "Match typologies to controls", href: "/typology-iq", kw: "wizard typology match assessment" },

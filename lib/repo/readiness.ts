@@ -314,6 +314,32 @@ export async function listReadinessSummaries(workspaceId: string): Promise<Map<s
   return summaries;
 }
 
+export interface OpenReadinessBlockerRow extends ReadinessObligationRow {
+  assessment_title: string;
+}
+
+/**
+ * Every unresolved launch blocker (blocker = true AND gap != 'full') across
+ * the whole workspace whose parent assessment is still open (not
+ * approved_global/rejected/cancelled) - the governance dashboard's "open
+ * launch blockers" surface. One join query rather than an N+1 over
+ * listReadinessObligations per assessment; mirrors listReadinessSummaries'
+ * whole-workspace-in-one-query shape. Uses the same isUnresolvedBlocker
+ * predicate (blocker && gap != 'full') as lib/readiness/summary.ts, just
+ * expressed in SQL rather than re-fetched-then-filtered in memory.
+ */
+export async function listOpenReadinessBlockers(workspaceId: string): Promise<OpenReadinessBlockerRow[]> {
+  return query<OpenReadinessBlockerRow>(
+    `SELECT ro.*, ra.title AS assessment_title
+     FROM readiness_obligations ro
+     JOIN readiness_assessments ra ON ra.id = ro.assessment_id AND ra.workspace_id = ro.workspace_id
+     WHERE ro.workspace_id = $1 AND ro.blocker = true AND ro.gap != 'full'
+       AND ra.status NOT IN ('approved_global', 'rejected', 'cancelled')
+     ORDER BY ro.due_date ASC NULLS LAST`,
+    [workspaceId]
+  );
+}
+
 export async function getReadinessObligation(workspaceId: string, id: string): Promise<ReadinessObligationRow | null> {
   const rows = await query<ReadinessObligationRow>(
     `SELECT * FROM readiness_obligations WHERE workspace_id = $1 AND id = $2`,

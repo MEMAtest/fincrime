@@ -11,9 +11,11 @@ import { generateTestPDF } from "@/lib/pdf/test-pdf";
 import { generateIncidentPDF } from "@/lib/pdf/incident-pdf";
 import { generateReadinessPDF } from "@/lib/pdf/readiness-pdf";
 import { generateRegResponsePDF } from "@/lib/pdf/reg-response-pdf";
+import { generateGovernancePDF, type GovernancePackPayload } from "@/lib/pdf/governance-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
 import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
 import { updateWorkspace } from "@/lib/repo/workspace";
+import { loadGovernancePortfolio } from "@/lib/governance/load";
 import type { PraExportPayload } from "@/components/pra/types";
 import type { ChangeExportPayload } from "@/components/change-lab/types";
 import type { TestExportPayload } from "@/components/control-testing/types";
@@ -48,6 +50,7 @@ const MODULE_TITLE: Record<string, string> = {
   incident: "Incident Report",
   readiness: "Entity & Market Readiness Pack",
   reg_response: "Regulatory Response Pack",
+  governance_pack: "Governance Pack",
 };
 
 /** Loose runtime check of the core fields the PRA committee pack needs before handing the payload to jsPDF - the client (not a DB row) is the source of truth here, so this is the only validation. */
@@ -545,6 +548,72 @@ function isValidRegResponseExportPayload(value: unknown): value is RegResponseEx
   return true;
 }
 
+function isValidPortfolioItem(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const i = v as Record<string, unknown>;
+  return (
+    typeof i.id === "string" &&
+    typeof i.label === "string" &&
+    typeof i.subjectType === "string" &&
+    (i.href === null || typeof i.href === "string") &&
+    isStrOrNull(i.dueDate) &&
+    typeof i.status === "string" &&
+    typeof i.urgency === "string"
+  );
+}
+
+function isValidPortfolioSection(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const s = v as Record<string, unknown>;
+  return typeof s.count === "number" && Array.isArray(s.items) && s.items.every(isValidPortfolioItem);
+}
+
+/**
+ * Runtime check of the governance pack payload before handing it to jsPDF.
+ * Unlike every other module's validator in this route, this payload is NOT
+ * client-asserted - it is built SERVER-SIDE below from the caller's own
+ * verified workspace via loadGovernancePortfolio, so a crafted POST cannot
+ * forge or falsify a committee governance pack. This check is defence in
+ * depth against a bug in that builder producing a malformed shape, 400ing
+ * rather than 500ing inside jsPDF/.toLocaleString(), mirroring the shape
+ * discipline of every isValid*ExportPayload above.
+ */
+function isValidGovernancePackPayload(value: unknown): value is GovernancePackPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.asOf !== "string" || typeof v.generatedAt !== "string") return false;
+  const p = v.portfolio as Record<string, unknown> | null;
+  if (!p || typeof p !== "object") return false;
+
+  if (!isValidPortfolioSection(p.decisionsRequired)) return false;
+  const appetite = p.riskOutsideAppetite as Record<string, unknown> | null;
+  if (!appetite || !isValidPortfolioSection(appetite.outside) || !isValidPortfolioSection(appetite.tolerated)) return false;
+  if (!isValidPortfolioSection(p.openConditionsAndBlockers)) return false;
+  if (!isValidPortfolioSection(p.controlChangesInFlight)) return false;
+  if (!isValidPortfolioSection(p.controlChangesImplementedNotTested)) return false;
+  if (!isValidPortfolioSection(p.controlsDueForTesting)) return false;
+  if (!isValidPortfolioSection(p.failedControlTests)) return false;
+
+  const incidents = p.incidents as Record<string, unknown> | null;
+  if (!incidents || !isValidPortfolioSection(incidents.open) || !isValidPortfolioSection(incidents.pastTarget)) return false;
+  if (typeof incidents.bySeverity !== "object" || incidents.bySeverity === null) return false;
+  if (typeof incidents.byStatus !== "object" || incidents.byStatus === null) return false;
+
+  const commitments = p.regulatoryCommitments as Record<string, unknown> | null;
+  if (
+    !commitments ||
+    !isValidPortfolioSection(commitments.open) ||
+    !isValidPortfolioSection(commitments.overdue) ||
+    !isValidPortfolioSection(commitments.dueSoon)
+  ) {
+    return false;
+  }
+
+  if (!isValidPortfolioSection(p.overdueActions)) return false;
+
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -796,6 +865,26 @@ export async function POST(request: NextRequest) {
         .replace(/^-+|-+$/g, "")
         .slice(0, 60) || "reg-response";
       filename = `MEMA-RegResponse-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "governance_pack") {
+      // Unlike every module above, the client sends no meaningful payload
+      // for this one - assessmentData is ignored. The pack is a committee
+      // artefact, so it is built SERVER-SIDE from loadGovernancePortfolio
+      // against the CALLER'S OWN verified workspace (the same headers
+      // LeadCaptureModal already carries for the opportunistic owner_email
+      // backfill below), never from client-asserted numbers. A missing or
+      // invalid workspace credential 401s outright - there is no anonymous
+      // "preview" of a governance pack.
+      const workspace = await getAuthenticatedWorkspace(request);
+      if (!workspace) {
+        return NextResponse.json({ error: "Missing or invalid workspace credentials" }, { status: 401 });
+      }
+      const portfolio = await loadGovernancePortfolio(workspace.id);
+      const payload: GovernancePackPayload = { asOf: portfolio.asOf, generatedAt: new Date().toISOString(), portfolio };
+      if (!isValidGovernancePackPayload(payload)) {
+        return NextResponse.json({ error: "Failed to build governance pack" }, { status: 500 });
+      }
+      pdfBuffer = generateGovernancePDF(payload);
+      filename = `MEMA-GovernancePack-${portfolio.asOf}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
-  Briefcase, Gavel, AlertTriangle, Hourglass, History, ArrowRight, Plus, ClipboardList,
+  Briefcase, Gavel, AlertTriangle, Hourglass, History, ArrowRight, Plus, ClipboardList, ClipboardCheck,
 } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import ToolPageHeader from "@/components/shared/ToolPageHeader";
@@ -69,6 +69,14 @@ const ACTION_STATUS_LABEL: Record<ActionStatus, string> = {
   cancelled: "Cancelled",
 };
 
+interface OverviewControlDue {
+  id: string;
+  label: string;
+  href: string | null;
+  dueDate: string | null;
+  urgency: "overdue" | "due_soon" | "info" | string;
+}
+
 interface OverviewActivity {
   id: string;
   actor: string;
@@ -82,6 +90,7 @@ interface OverviewResponse {
   decisionsRequired: OverviewAssessment[];
   overdueActions: OverviewAction[];
   overdueConditions: OverviewCondition[];
+  controlsDueForTesting: OverviewControlDue[];
   recentActivity: OverviewActivity[];
 }
 
@@ -232,11 +241,12 @@ export default function WorkspacePage() {
           ) : (
             <>
               {/* KPI strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
                 <Kpi label="Open Assessments" value={overview?.assessments.length} loading={state === "loading"} />
                 <Kpi label="Decisions Required" value={overview?.decisionsRequired.length} loading={state === "loading"} />
                 <Kpi label="Overdue Actions" value={overview?.overdueActions.length} loading={state === "loading"} />
                 <Kpi label="Overdue Conditions" value={overview?.overdueConditions.length} loading={state === "loading"} />
+                <Kpi label="Controls Due for Testing" value={overview?.controlsDueForTesting.length} loading={state === "loading"} />
               </div>
 
               <div className="grid lg:grid-cols-2 gap-5">
@@ -304,6 +314,19 @@ export default function WorkspacePage() {
                 >
                   {overview?.decisionsRequired.map((a) => (
                     <AssessmentRow key={a.id} assessment={a} showStep />
+                  ))}
+                </SectionCard>
+
+                <SectionCard
+                  eyebrow="Assurance"
+                  title="Controls Due for Testing"
+                  icon={ClipboardCheck}
+                  count={overview?.controlsDueForTesting.length ?? 0}
+                  loading={state === "loading"}
+                  emptyMessage="No control is overdue or due for testing in the next 30 days."
+                >
+                  {overview?.controlsDueForTesting.map((c) => (
+                    <ControlDueRow key={c.id} control={c} />
                   ))}
                 </SectionCard>
               </div>
@@ -521,6 +544,26 @@ function ConditionRow({
       </div>
       {error && <p className="text-xs text-red-500 mt-1.5">{error}</p>}
     </div>
+  );
+}
+
+function ControlDueRow({ control }: { control: OverviewControlDue }) {
+  const overdue = control.urgency === "overdue";
+  const row = (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-surface-border px-3 py-2.5 hover:bg-surface-hover transition-colors">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground truncate">{control.label}</p>
+        <p className={`text-xs mt-0.5 ${overdue ? "text-red-500" : "text-text-muted"}`}>
+          Next test due {fmtDate(control.dueDate)}
+        </p>
+      </div>
+      <Badge variant={overdue ? "danger" : "warning"}>{overdue ? "Overdue" : "Due soon"}</Badge>
+    </div>
+  );
+  return control.href ? (
+    <Link href={control.href}>{row}</Link>
+  ) : (
+    row
   );
 }
 
