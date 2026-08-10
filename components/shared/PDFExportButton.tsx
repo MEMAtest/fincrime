@@ -16,7 +16,8 @@ export type PDFModule =
   | "control_change"
   | "control_test"
   | "incident"
-  | "readiness";
+  | "readiness"
+  | "reg_response";
 
 export type ExportFormat = "pdf" | "docx";
 

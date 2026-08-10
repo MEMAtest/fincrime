@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Circle, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2, Circle, FileText, RotateCcw } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { PriorityBadge } from "@/components/controls/ControlBits";
@@ -184,6 +185,14 @@ export default function StepClosure({ incident, links, actions, evidence, people
           />
           <span className="text-sm font-medium text-foreground">This incident is reportable to a regulator</span>
         </label>
+        {incident.reportable && (
+          <Link
+            href={`/govern/regulatory-response/new?incidentId=${incident.id}`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline"
+          >
+            <FileText className="h-3.5 w-3.5" /> Draft a regulatory response
+          </Link>
+        )}
         {incident.reportable && (
           <div className="grid sm:grid-cols-2 gap-3 pt-1">
             <div className="flex flex-col gap-1.5">

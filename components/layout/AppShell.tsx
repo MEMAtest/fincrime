@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Home, ClipboardCheck, Crosshair, Blocks, Sparkles, Building2, ShieldCheck, UserCheck,
   Scale, Network, FileText, Settings, HelpCircle, PanelLeftClose, ListChecks, LayoutDashboard,
-  ScanSearch, PanelLeftOpen, ChevronDown, ChevronRight, Menu, X, History, ClipboardList, ShieldAlert, Flag,
+  ScanSearch, PanelLeftOpen, ChevronDown, ChevronRight, Menu, X, History, ClipboardList, ShieldAlert, Flag, Gavel,
 } from "lucide-react";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import WorkflowBar from "@/components/workflow/WorkflowBar";
@@ -28,7 +28,7 @@ export type SidebarId =
   | "home" | "firm-research" | "firm-profiles" | "typology-iq" | "enforcement"
   | "control-builder" | "controls-library" | "screening-designer" | "partner-map" | "kyc" | "maturity"
   | "assess-pra" | "change-lab" | "market-readiness" | "control-testing" | "incidents" | "workspace"
-  | "reports" | "settings" | "help";
+  | "regulatory-response" | "reports" | "settings" | "help";
 
 interface SidebarItem {
   id: SidebarId;
@@ -82,6 +82,7 @@ const GROUPS: SidebarGroup[] = [
     label: "Govern",
     items: [
       { id: "workspace", label: "Workspace", icon: LayoutDashboard, href: "/workspace" },
+      { id: "regulatory-response", label: "Regulatory Response", icon: Gavel, href: "/govern/regulatory-response" },
       { id: "reports", label: "Reports", icon: FileText, soon: true },
       { id: "settings", label: "Settings", icon: Settings, soon: true },
     ],

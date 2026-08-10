@@ -10,6 +10,7 @@ import { generateChangePDF } from "@/lib/pdf/change-pdf";
 import { generateTestPDF } from "@/lib/pdf/test-pdf";
 import { generateIncidentPDF } from "@/lib/pdf/incident-pdf";
 import { generateReadinessPDF } from "@/lib/pdf/readiness-pdf";
+import { generateRegResponsePDF } from "@/lib/pdf/reg-response-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
 import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
 import { updateWorkspace } from "@/lib/repo/workspace";
@@ -18,6 +19,7 @@ import type { ChangeExportPayload } from "@/components/change-lab/types";
 import type { TestExportPayload } from "@/components/control-testing/types";
 import type { IncidentExportPayload } from "@/components/incidents/types";
 import type { ReadinessExportPayload } from "@/components/readiness/types";
+import type { RegResponseExportPayload } from "@/components/reg-response/types";
 import { getControlBySlug } from "@/data/controls";
 import type { ControlOverride } from "@/data/controls/types";
 import { buildMergedRequirements } from "@/data/kyc/merge";
@@ -45,6 +47,7 @@ const MODULE_TITLE: Record<string, string> = {
   control_test: "Control Test Report",
   incident: "Incident Report",
   readiness: "Entity & Market Readiness Pack",
+  reg_response: "Regulatory Response Pack",
 };
 
 /** Loose runtime check of the core fields the PRA committee pack needs before handing the payload to jsPDF - the client (not a DB row) is the source of truth here, so this is the only validation. */
@@ -429,6 +432,119 @@ function isValidReadinessExportPayload(value: unknown): value is ReadinessExport
   return true;
 }
 
+function isValidRegResponseExportLink(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const l = v as Record<string, unknown>;
+  return typeof l.linkType === "string" && typeof l.label === "string" && isStrOrNull(l.note);
+}
+
+function isValidRegResponseExportQuestion(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const q = v as Record<string, unknown>;
+  return (
+    typeof q.position === "number" &&
+    typeof q.question === "string" &&
+    isStrOrNull(q.response) &&
+    isStrOrNull(q.exceptionNote) &&
+    typeof q.status === "string" &&
+    Array.isArray(q.links) &&
+    q.links.every(isValidRegResponseExportLink)
+  );
+}
+
+function isValidRegResponseExportCommitment(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const c = v as Record<string, unknown>;
+  return (
+    typeof c.description === "string" &&
+    isStrOrNull(c.dueDate) &&
+    isStrOrNull(c.ownerName) &&
+    typeof c.status === "string" &&
+    typeof c.hasTrackedAction === "boolean" &&
+    isStrOrNull(c.note)
+  );
+}
+
+function isValidRegResponseExportAction(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const a = v as Record<string, unknown>;
+  return (
+    typeof a.title === "string" &&
+    isStrOrNull(a.ownerName) &&
+    isStrOrNull(a.dueDate) &&
+    typeof a.priority === "string" &&
+    typeof a.status === "string"
+  );
+}
+
+function isValidRegResponseExportCondition(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const c = v as Record<string, unknown>;
+  return typeof c.description === "string" && isStrOrNull(c.dueDate) && isStrOrNull(c.ownerName) && typeof c.status === "string";
+}
+
+function isValidRegResponseExportEvidence(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const e = v as Record<string, unknown>;
+  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl);
+}
+
+function isValidRegResponseExportDecision(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const d = v as Record<string, unknown>;
+  return typeof d.outcome === "string" && typeof d.decidedByName === "string" && typeof d.decidedAt === "string" && isStrOrNull(d.rationale);
+}
+
+/**
+ * Runtime check of the regulatory response pack payload before handing it to
+ * jsPDF - the client (not a DB row) is the source of truth here, mirroring
+ * isValidReadinessExportPayload above. Every numeric key is checked as
+ * number|null and every array element is checked as an object with the exact
+ * string fields lib/pdf/reg-response-pdf.ts reads, so a partial/hostile
+ * payload (e.g. questions: [null], progress: {}) 400s here instead of 500ing
+ * inside jsPDF/.toLocaleString().
+ */
+function isValidRegResponseExportPayload(value: unknown): value is RegResponseExportPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  const progress = v.progress as Record<string, unknown> | null;
+
+  if (!isStrOrNull(v.reference) || typeof v.title !== "string" || typeof v.regulator !== "string") return false;
+  if (v.channel !== null && typeof v.channel !== "string") return false;
+  if (typeof v.status !== "string") return false;
+  if (!isStrOrNull(v.receivedAt) || !isStrOrNull(v.deadline) || !isStrOrNull(v.submittedAt) || !isStrOrNull(v.ownerName) || !isStrOrNull(v.summary)) {
+    return false;
+  }
+
+  if (typeof progress !== "object" || progress === null) return false;
+  const questionsByStatus = progress.questionsByStatus as Record<string, unknown> | null;
+  const commitmentsByStatus = progress.commitmentsByStatus as Record<string, unknown> | null;
+  if (
+    typeof progress.totalQuestions !== "number" ||
+    typeof questionsByStatus !== "object" ||
+    questionsByStatus === null ||
+    typeof progress.answeredCount !== "number" ||
+    typeof progress.unansweredCount !== "number" ||
+    typeof progress.answeredPct !== "number" ||
+    typeof progress.totalCommitments !== "number" ||
+    typeof commitmentsByStatus !== "object" ||
+    commitmentsByStatus === null ||
+    typeof progress.overdueCommitmentCount !== "number" ||
+    (progress.daysUntilDeadline !== null && typeof progress.daysUntilDeadline !== "number")
+  ) {
+    return false;
+  }
+
+  if (!Array.isArray(v.questions) || !v.questions.every(isValidRegResponseExportQuestion)) return false;
+  if (!Array.isArray(v.commitments) || !v.commitments.every(isValidRegResponseExportCommitment)) return false;
+  if (!Array.isArray(v.actions) || !v.actions.every(isValidRegResponseExportAction)) return false;
+  if (!Array.isArray(v.conditions) || !v.conditions.every(isValidRegResponseExportCondition)) return false;
+  if (!Array.isArray(v.evidence) || !v.evidence.every(isValidRegResponseExportEvidence)) return false;
+  if (!Array.isArray(v.decisions) || !v.decisions.every(isValidRegResponseExportDecision)) return false;
+
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -665,6 +781,21 @@ export async function POST(request: NextRequest) {
         .replace(/^-+|-+$/g, "")
         .slice(0, 60) || "readiness";
       filename = `MEMA-Readiness-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
+    } else if (module === "reg_response") {
+      // Same pattern as readiness: the client sends the full response-pack
+      // payload it already holds (request + questions with responses,
+      // exception notes and substantiating links + commitments + actions +
+      // conditions + evidence + decisions) rather than an id.
+      if (!isValidRegResponseExportPayload(assessmentData)) {
+        return NextResponse.json({ error: "Missing or invalid regulatory response data" }, { status: 400 });
+      }
+      pdfBuffer = generateRegResponsePDF(assessmentData);
+      const slug = assessmentData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60) || "reg-response";
+      filename = `MEMA-RegResponse-${slug}-${new Date().toISOString().split("T")[0]}.pdf`;
     } else {
       return NextResponse.json({ error: "Invalid module" }, { status: 400 });
     }

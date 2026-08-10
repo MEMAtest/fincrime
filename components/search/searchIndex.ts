@@ -51,6 +51,7 @@ const TOOLS: { title: string; subtitle: string; href: string; kw?: string }[] = 
   { title: "Market Readiness", subtitle: "Turn the KYC obligation register into a go/no-go launch decision", href: "/assure/market-readiness", kw: "entity market readiness obligation register launch blocker gap control mapping approval go no-go" },
   { title: "Control Testing", subtitle: "Test a live control, record findings and evidence, and set its effectiveness rating", href: "/assure/control-testing", kw: "control testing sample walkthrough reperformance findings effectiveness rating assurance" },
   { title: "Incidents", subtitle: "Log, contain, trace, remediate and close a financial crime incident", href: "/assure/incidents", kw: "incident assurance containment root cause remediation traceability close reopen" },
+  { title: "Regulatory Response", subtitle: "Turn a regulator request into tracked questions, substantiated answers and commitments", href: "/govern/regulatory-response", kw: "regulatory response fca s165 information request commitments substantiation approve submit close" },
   { title: "AI Firm Research", subtitle: "Draft a firm risk profile with AI", href: "/firm-research", kw: "ai research firm profile suggest risks" },
   { title: "Firm Profiles", subtitle: "Business models and inherent risk", href: "/firm-profiles", kw: "emi pi bank msb crypto business model" },
   { title: "TypologyIQ", subtitle: "Match typologies to controls", href: "/typology-iq", kw: "wizard typology match assessment" },
