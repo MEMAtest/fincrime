@@ -188,7 +188,10 @@ export default function GovernanceDashboardPage() {
                   />
                 </div>
                 <p className="text-xs text-text-muted mt-6 text-center">
-                  Snapshot as of {fmtDate(portfolio.asOf)}.
+                  Snapshot as of {fmtDate(portfolio.asOf)}. Sections can overlap - e.g. an overdue regulatory
+                  commitment also appears under Overdue actions as its tracked action, and an incident past its
+                  remediation target also appears there as its own overdue action - so totals should not be
+                  added across sections.
                 </p>
               </>
             )
@@ -199,6 +202,24 @@ export default function GovernanceDashboardPage() {
   );
 }
 
+// Audited against every field the dashboard actually renders below: the six
+// GovSection/TwoUpSection blocks (decisionsRequired; riskOutsideAppetite.
+// outside AND .tolerated; openConditionsAndBlockers; controlChangesInFlight
+// AND .controlChangesImplementedNotTested; controlsDueForTesting AND
+// failedControlTests; regulatoryCommitments.overdue AND .dueSoon),
+// IncidentSection (incidents.open - pastTarget and bySeverity/byStatus are
+// annotations ON that same set, never non-zero while open.count is 0), and
+// the closing overdueActions section. regulatoryCommitments.open itself is
+// not separately rendered (only its overdue/dueSoon subsets are), so it is
+// checked here for the same reason .outside/.tolerated both are: a count can
+// be non-zero (e.g. an open commitment further than 30 days out) while every
+// rendered subset is empty, which must still not report "Nothing
+// outstanding". riskOutsideAppetite.tolerated was the field previously
+// missing here - a workspace whose only outstanding item was a tolerated
+// assessment rendered this page's full "Nothing outstanding" empty state
+// while the pack (built from the identical snapshot) still printed a "Risk
+// tolerated outside appetite (1)" table, the exact drift this shared loader
+// exists to prevent.
 function isPortfolioEmpty(p: PortfolioSnapshot): boolean {
   return (
     p.decisionsRequired.count === 0 &&
@@ -372,7 +393,7 @@ function GovItemRow({ item, compact }: { item: PortfolioItem; compact?: boolean 
         <p className={`font-medium text-foreground truncate ${compact ? "text-xs" : "text-sm"}`}>{item.label}</p>
         <p className="text-xs text-text-muted mt-0.5">
           {SUBJECT_TYPE_LABEL[item.subjectType] ?? item.subjectType}
-          {item.dueDate ? ` · Due ${fmtDate(item.dueDate)}` : ""}
+          {item.dueDate ? ` · ${item.dueDateLabel ?? "Due"} ${fmtDate(item.dueDate)}` : ""}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">

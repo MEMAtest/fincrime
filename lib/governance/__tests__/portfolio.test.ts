@@ -323,19 +323,31 @@ describe("buildGovernancePortfolio - decisions required", () => {
     ];
 
     const result = buildGovernancePortfolio(input);
-    expect(result.decisionsRequired.count).toBe(5); // 1 PRA + 1 change + 1 readiness + 2 reg (in_review + approved)
+    expect(result.decisionsRequired.count).toBe(4); // 1 PRA + 1 change + 1 readiness + 1 reg (in_review only)
     const ids = result.decisionsRequired.items.map((i) => i.id).sort();
-    expect(ids).toEqual(["assess-1", "change-1", "readiness-1", "request-1", "request-2"].sort());
+    expect(ids).toEqual(["assess-1", "change-1", "readiness-1", "request-1"].sort());
+  });
+
+  // Regression for defect #6: an approved reg_request has already had its
+  // decision (approveResponse) - its next step is submission, not sign-off -
+  // so it must not still count as "waiting on a decision", the section's own
+  // on-screen caption. Before the fix this assertion would read 5, not 4.
+  it("regression: excludes an approved reg_request even though its status used to be counted", () => {
+    const input = emptyInput();
+    input.regRequests = [regRequest({ id: "req-approved", status: "approved" }), regRequest({ id: "req-review", status: "in_review" })];
+    const result = buildGovernancePortfolio(input);
+    expect(result.decisionsRequired.count).toBe(1);
+    expect(result.decisionsRequired.items[0].id).toBe("req-review");
   });
 });
 
 describe("buildGovernancePortfolio - risk outside appetite", () => {
-  it("separates outside from tolerated", () => {
+  it("separates outside from tolerated for a live (approved) assessment", () => {
     const input = emptyInput();
     input.assessments = [
-      assessment({ id: "a-outside", appetite_result: "outside" }),
-      assessment({ id: "a-tolerated", appetite_result: "tolerated" }),
-      assessment({ id: "a-within", appetite_result: "within" }),
+      assessment({ id: "a-outside", appetite_result: "outside", status: "approved" }),
+      assessment({ id: "a-tolerated", appetite_result: "tolerated", status: "approved" }),
+      assessment({ id: "a-within", appetite_result: "within", status: "approved" }),
     ];
     const result = buildGovernancePortfolio(input);
     expect(result.riskOutsideAppetite.outside.count).toBe(1);
@@ -343,6 +355,34 @@ describe("buildGovernancePortfolio - risk outside appetite", () => {
     expect(result.riskOutsideAppetite.outside.items[0].urgency).toBe("critical");
     expect(result.riskOutsideAppetite.tolerated.count).toBe(1);
     expect(result.riskOutsideAppetite.tolerated.items[0].urgency).toBe("high");
+  });
+
+  it("counts an in_review or conditions_applied assessment as a live position too", () => {
+    const input = emptyInput();
+    input.assessments = [
+      assessment({ id: "a-review", appetite_result: "outside", status: "in_review" }),
+      assessment({ id: "a-conditions", appetite_result: "outside", status: "conditions_applied" }),
+    ];
+    const result = buildGovernancePortfolio(input);
+    expect(result.riskOutsideAppetite.outside.count).toBe(2);
+  });
+
+  // Regression for defect #3: an assessment carries appetite_result the
+  // moment a user reaches step 6, so 'draft' can sit half-finished
+  // indefinitely with appetite_result set; 'rejected' means the product was
+  // never launched. Neither is a live risk position. Before the fix, all
+  // three of these (draft, rejected, approved) counted, reading 3 instead
+  // of 1.
+  it("regression: excludes draft and rejected assessments even though appetite_result is set outside", () => {
+    const input = emptyInput();
+    input.assessments = [
+      assessment({ id: "a-draft", appetite_result: "outside", status: "draft" }),
+      assessment({ id: "a-rejected", appetite_result: "outside", status: "rejected" }),
+      assessment({ id: "a-live", appetite_result: "outside", status: "approved" }),
+    ];
+    const result = buildGovernancePortfolio(input);
+    expect(result.riskOutsideAppetite.outside.count).toBe(1);
+    expect(result.riskOutsideAppetite.outside.items[0].id).toBe("a-live");
   });
 });
 
@@ -395,6 +435,39 @@ describe("buildGovernancePortfolio - control changes", () => {
     // change-never-tested: control-2 has no last_tested_at at all -> included.
     expect(ids).toEqual(["change-never-tested", "change-untested"]);
   });
+
+  // Regression for defect #1: last_tested_at and implemented_at are both
+  // TIMESTAMPTZ. Flooring both to UTC midnight before comparing (the old
+  // toEpochMs-for-everything behaviour) makes a same-day morning-test then
+  // afternoon-implementation compare as simultaneous - lastTestedMs <
+  // implementedMs is false either way - so the change reads as already
+  // retested. A morning test followed by an afternoon implementation is an
+  // ordinary Tuesday and must still count as implemented-not-tested. Before
+  // the fix this section's count would read 0 here, not 1.
+  it("regression: a same-day morning test then afternoon implementation still counts as implemented-not-tested", () => {
+    const input = emptyInput();
+    input.workspaceControls = [workspaceControl({ id: "control-1", last_tested_at: "2026-08-10T09:00:00.000Z" })];
+    input.controlChanges = [
+      controlChange({ id: "change-same-day", status: "implemented", implemented_at: "2026-08-10T15:00:00.000Z", workspace_control_id: "control-1" }),
+    ];
+    const result = buildGovernancePortfolio(input);
+    expect(result.controlChangesImplementedNotTested.count).toBe(1);
+    expect(result.controlChangesImplementedNotTested.items[0].id).toBe("change-same-day");
+  });
+
+  // Regression for defect #8: implemented_at should never happen to be NULL
+  // on an 'implemented' row via the normal implement() path, but if it is (a
+  // data-entry gap), the change must still be counted - with a null due date
+  // - rather than silently dropped from the section, which would hide the
+  // gap instead of surfacing it.
+  it("counts an implemented change with a null implemented_at instead of dropping it", () => {
+    const input = emptyInput();
+    input.controlChanges = [controlChange({ id: "change-no-timestamp", status: "implemented", implemented_at: null })];
+    const result = buildGovernancePortfolio(input);
+    expect(result.controlChangesImplementedNotTested.count).toBe(1);
+    expect(result.controlChangesImplementedNotTested.items[0].id).toBe("change-no-timestamp");
+    expect(result.controlChangesImplementedNotTested.items[0].dueDate).toBeNull();
+  });
 });
 
 describe("buildGovernancePortfolio - controls due for testing", () => {
@@ -414,6 +487,58 @@ describe("buildGovernancePortfolio - controls due for testing", () => {
     expect(byId.has("c-none")).toBe(false);
     expect(result.controlsDueForTesting.count).toBe(2);
   });
+
+  // Boundary tests, all against TODAY = 2026-08-10 and the module's real
+  // 30-day due-soon window: today-1 is overdue, today is due_soon (the
+  // window is inclusive of today), today+30 is still due_soon (the window's
+  // exact upper edge), and today+31 is excluded entirely (info, outside the
+  // window and not overdue). These lock in behaviour the runtime already
+  // gets right but that nothing previously asserted - the same shape of gap
+  // that let defect #1 (also boundary/date arithmetic) ship unnoticed.
+  it("boundary: today-1 overdue, today due_soon, today+30 due_soon, today+31 excluded", () => {
+    const input = emptyInput();
+    input.workspaceControls = [
+      workspaceControl({ id: "c-yesterday", next_test_due: "2026-08-09" }), // today - 1
+      workspaceControl({ id: "c-today", next_test_due: "2026-08-10" }), // today
+      workspaceControl({ id: "c-plus30", next_test_due: "2026-09-09" }), // today + 30
+      workspaceControl({ id: "c-plus31", next_test_due: "2026-09-10" }), // today + 31
+    ];
+    const result = buildGovernancePortfolio(input);
+    const byId = new Map(result.controlsDueForTesting.items.map((i) => [i.id, i]));
+    expect(byId.get("c-yesterday")?.urgency).toBe("overdue");
+    expect(byId.get("c-today")?.urgency).toBe("due_soon");
+    expect(byId.get("c-plus30")?.urgency).toBe("due_soon");
+    expect(byId.has("c-plus31")).toBe(false);
+    expect(result.controlsDueForTesting.count).toBe(3);
+  });
+});
+
+describe("buildGovernancePortfolio - regulatory commitments boundary", () => {
+  it("boundary: today-1 overdue, today due_soon, today+30 due_soon, today+31 excluded from both overdue and due-soon (but still open)", () => {
+    const input = emptyInput();
+    input.regRequests = [regRequest()];
+    input.regCommitments = [
+      regCommitment({ id: "rc-yesterday", due_date: "2026-08-09", status: "open" }),
+      regCommitment({ id: "rc-today", due_date: "2026-08-10", status: "open" }),
+      regCommitment({ id: "rc-plus30", due_date: "2026-09-09", status: "open" }),
+      regCommitment({ id: "rc-plus31", due_date: "2026-09-10", status: "open" }),
+    ];
+    const result = buildGovernancePortfolio(input);
+    expect(result.regulatoryCommitments.overdue.items.map((i) => i.id)).toEqual(["rc-yesterday"]);
+    expect(result.regulatoryCommitments.dueSoon.items.map((i) => i.id).sort()).toEqual(["rc-plus30", "rc-today"]);
+    expect(result.regulatoryCommitments.open.count).toBe(4);
+  });
+});
+
+describe("buildGovernancePortfolio - conditions and blockers boundary (0-day window)", () => {
+  it("boundary: a condition due today is due_soon, not overdue - only strictly past today is overdue", () => {
+    const input = emptyInput();
+    input.openConditions = [condition({ id: "cond-today", due_date: "2026-08-10" }), condition({ id: "cond-yesterday", due_date: "2026-08-09" })];
+    const result = buildGovernancePortfolio(input);
+    const byId = new Map(result.openConditionsAndBlockers.items.map((i) => [i.id, i]));
+    expect(byId.get("cond-today")?.urgency).toBe("due_soon");
+    expect(byId.get("cond-yesterday")?.urgency).toBe("overdue");
+  });
 });
 
 describe("buildGovernancePortfolio - failed control tests", () => {
@@ -423,6 +548,39 @@ describe("buildGovernancePortfolio - failed control tests", () => {
     const result = buildGovernancePortfolio(input);
     expect(result.failedControlTests.count).toBe(1);
     expect(result.failedControlTests.items[0].id).toBe("test-1");
+  });
+
+  it("excludes a fail result on a test that is not actually complete (status still in_progress)", () => {
+    const input = emptyInput();
+    input.controlTests = [controlTest({ id: "test-planned", result: "fail", status: "in_progress" })];
+    const result = buildGovernancePortfolio(input);
+    expect(result.failedControlTests.count).toBe(0);
+  });
+
+  // Regression for defect #7: a control that failed in January and passed a
+  // retest in June must clear from this section, not show Critical forever.
+  // "Latest test per control" (by tested_at) is what determines whether a
+  // fail has been superseded.
+  it("regression: a failed test is superseded once a later test on the same control completes, even a passing one", () => {
+    const input = emptyInput();
+    input.controlTests = [
+      controlTest({ id: "test-jan-fail", workspace_control_id: "control-1", result: "fail", tested_at: "2026-01-15T00:00:00.000Z" }),
+      controlTest({ id: "test-jun-pass", workspace_control_id: "control-1", result: "pass", tested_at: "2026-06-01T00:00:00.000Z" }),
+    ];
+    const result = buildGovernancePortfolio(input);
+    expect(result.failedControlTests.count).toBe(0);
+  });
+
+  it("still shows a fail on a different control while another control's fail has been superseded", () => {
+    const input = emptyInput();
+    input.controlTests = [
+      controlTest({ id: "test-jan-fail", workspace_control_id: "control-1", result: "fail", tested_at: "2026-01-15T00:00:00.000Z" }),
+      controlTest({ id: "test-jun-pass", workspace_control_id: "control-1", result: "pass", tested_at: "2026-06-01T00:00:00.000Z" }),
+      controlTest({ id: "test-still-failing", workspace_control_id: "control-2", result: "fail", tested_at: "2026-07-01T00:00:00.000Z" }),
+    ];
+    const result = buildGovernancePortfolio(input);
+    expect(result.failedControlTests.count).toBe(1);
+    expect(result.failedControlTests.items[0].id).toBe("test-still-failing");
   });
 });
 

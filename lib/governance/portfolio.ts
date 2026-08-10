@@ -16,20 +16,39 @@
  * TIMESTAMPTZ columns (last_tested_at, implemented_at, tested_at) come back
  * from `query()` as JS Date objects (only DATE columns get the string-passthrough
  * type parser registered in lib/db.ts), so every date-ish input here is typed
- * `string | Date | null` and normalised through toEpochMs before comparison -
- * never compared or formatted directly. See lib/reg-response/summary.ts's
- * identical toEpochMs for the same trap.
+ * `string | Date | null` and never compared or formatted directly - always
+ * normalised first, through ONE of two helpers depending on what the
+ * comparison needs:
+ *   - toEpochMs floors to UTC midnight, for DATE columns and for comparing
+ *     any date against `today` (both genuinely have day granularity - see
+ *     lib/reg-response/summary.ts's identical toEpochMs).
+ *   - toInstantMs keeps the full instant, for ordering two TIMESTAMPTZ
+ *     columns against EACH OTHER (last_tested_at vs implemented_at):
+ *     flooring both to midnight before that comparison would score a same-day
+ *     morning-test-then-afternoon-implementation as simultaneous instead of
+ *     "implemented after the test", which is exactly the ordinary case this
+ *     module must get right.
+ *
+ * Two workspace-level session-timezone traps that this module does NOT need
+ * to worry about, because they are fixed once, elsewhere: (1) lib/db.ts pins
+ * every pooled connection's session timezone to UTC, so SQL's CURRENT_DATE
+ * agrees with the UTC `today` this module is always handed; (2) every SQL
+ * predicate this module's callers rely on (listAllRegCommitments,
+ * listOpenReadinessBlockers) already excludes rows this module must not see
+ * at all (a final-status parent request's commitments; a draft/final-status
+ * assessment's blockers) - see those repo functions' doc comments.
  */
-import type { AssessmentRow, AppetiteResult } from "../repo/assessments";
+import type { AssessmentRow, AppetiteResult, AssessmentStatus } from "../repo/assessments";
 import type { ControlChangeRow } from "../repo/control-changes";
 import type { ControlTestRow } from "../repo/control-tests";
 import type { WorkspaceControlRow } from "../repo/controls";
 import type { IncidentRow, IncidentSeverity, IncidentStatus } from "../repo/incidents";
+import { isFinalIncidentStatus } from "../repo/incidents";
 import type { ReadinessAssessmentRow, OpenReadinessBlockerRow } from "../repo/readiness";
 import type { RegRequestRow, RegCommitmentRow } from "../repo/reg-requests";
+import { REG_COMMITMENT_SUBJECT_TYPE, isTerminalCommitmentStatus } from "../repo/reg-requests";
 import type { ConditionRow, DecisionRow } from "../repo/decisions";
 import type { ActionRow } from "../repo/actions";
-import { REG_COMMITMENT_SUBJECT_TYPE } from "../repo/reg-requests";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** Window (inclusive) for "due soon", applied consistently across controls and regulatory commitments. */
@@ -44,6 +63,17 @@ export interface PortfolioItem {
   /** null when the item's subject cannot be resolved to a live route (should not happen for the subject types this module emits, but never fabricated). */
   href: string | null;
   dueDate: string | null;
+  /**
+   * What `dueDate` actually means for this item - null whenever `dueDate` is
+   * null. Most sections put a genuine forward-looking due date here ("Due"),
+   * but two do not: failedControlTests' dueDate is `tested_at` (when the test
+   * WAS performed, a fact about the past) and the readiness items inside
+   * decisionsRequired use `target_launch_date` (a planning date, not
+   * something owed). Both the dashboard and the pack render this label next
+   * to the date instead of a hardcoded "Due" so a committee never reads "Due
+   * 1 August" for a test that was already carried out on that date.
+   */
+  dueDateLabel: string | null;
   status: string;
   urgency: PortfolioUrgency;
 }
@@ -76,6 +106,25 @@ function toEpochMs(value: string | Date | null | undefined): number | null {
   const parsed = new Date(`${iso}T00:00:00.000Z`);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.getTime();
+}
+
+/**
+ * Normalises a TIMESTAMPTZ-ish value (ISO string OR a pg-driver Date) to its
+ * full epoch ms - the actual instant, NOT floored to UTC midnight. Unlike
+ * toEpochMs above (for DATE columns, where "midnight" IS the whole value),
+ * flooring a TIMESTAMPTZ to midnight before comparing two of them throws away
+ * the time-of-day entirely: a control tested at 09:00 and a change
+ * implemented the same day at 15:00 would both floor to the same midnight and
+ * compare as simultaneous (lastTestedMs < implementedMs false either way),
+ * scoring an afternoon implementation as already retested that morning. Used
+ * for last_tested_at/implemented_at, which this module only ever needs to
+ * order against EACH OTHER (not against a UTC-midnight "today"), so no
+ * day-bucketing is wanted here at all.
+ */
+function toInstantMs(value: string | Date | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
 }
 
 function startOfUtcDay(date: Date): number {
@@ -192,8 +241,8 @@ const EMPTY_INCIDENT_STATUS: Record<IncidentStatus, number> = {
   cancelled: 0,
 };
 
-/** Non-final incident statuses: work still outstanding against the incident. */
-const OPEN_INCIDENT_STATUSES = new Set<IncidentStatus>(["open", "contained", "investigating", "remediating"]);
+/** Live positions a risk assessment's appetite result can still represent: excludes 'draft' (appetite_result can be set mid-journey, long before the assessment is finished or even submitted) and 'rejected' (the product was never launched, so its outside-appetite finding is a dead record, not a live risk). */
+const LIVE_APPETITE_ASSESSMENT_STATUSES = new Set<AssessmentStatus>(["approved", "conditions_applied", "in_review"]);
 
 // ---------------------------------------------------------------------------
 // build
@@ -221,6 +270,7 @@ export function computeControlsDueForTesting(workspaceControls: WorkspaceControl
       subjectType: "workspace_control",
       href: `/assure/control-testing/new?controlId=${c.id}`,
       dueDate: isoDateOnly(c.next_test_due),
+      dueDateLabel: "Due",
       status: c.status,
       urgency: urgencyForDueDate(c.next_test_due, today),
     }));
@@ -246,6 +296,7 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
         subjectType: "pra_assessment",
         href: hrefForSubject("pra_assessment", a.id, commitmentById),
         dueDate: null,
+        dueDateLabel: null,
         status: a.status,
         urgency: "medium" as PortfolioUrgency,
       })),
@@ -257,6 +308,7 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
         subjectType: "control_change",
         href: hrefForSubject("control_change", c.id, commitmentById),
         dueDate: null,
+        dueDateLabel: null,
         status: c.status,
         urgency: "medium" as PortfolioUrgency,
       })),
@@ -268,32 +320,50 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
         subjectType: "readiness_assessment",
         href: hrefForSubject("readiness_assessment", r.id, commitmentById),
         dueDate: r.target_launch_date,
+        dueDateLabel: r.target_launch_date ? "Target launch" : null,
         status: r.status,
         urgency: "medium" as PortfolioUrgency,
       })),
+    // 'approved' is deliberately EXCLUDED here: an approved reg_request has
+    // already had its decision (approveResponse) - its next step is
+    // markSubmitted, not a sign-off - so it is no longer "waiting on a
+    // decision", which is exactly what this section's on-screen caption
+    // claims about every item in it. Only 'in_review' requests still await
+    // one.
     ...input.regRequests
-      .filter((r) => r.status === "in_review" || r.status === "approved")
+      .filter((r) => r.status === "in_review")
       .map((r) => ({
         id: r.id,
         label: `Regulatory response: ${r.reference ? `${r.reference} - ` : ""}${r.title}`,
         subjectType: "reg_request",
         href: hrefForSubject("reg_request", r.id, commitmentById),
         dueDate: r.deadline,
+        dueDateLabel: r.deadline ? "Due" : null,
         status: r.status,
         urgency: "medium" as PortfolioUrgency,
       })),
   ];
 
   // -- risk outside appetite ---------------------------------------------
+  // Restricted to statuses that represent a LIVE position: 'draft' can carry
+  // an appetite_result from the moment a user reaches step 6 and may then sit
+  // half-finished indefinitely (an unfinished journey, not a risk position
+  // the firm is actually carrying), and 'rejected' means the product was
+  // never launched - its outside-appetite finding is a dead historical
+  // record, not something the committee needs to act on today. 'approved',
+  // 'conditions_applied' and 'in_review' are the only statuses where the
+  // assessed risk is (or is about to become) something the firm is actually
+  // carrying. Same reasoning applies to both 'outside' and 'tolerated'.
   const byAppetite = (result: AppetiteResult): PortfolioItem[] =>
     input.assessments
-      .filter((a) => a.appetite_result === result)
+      .filter((a) => a.appetite_result === result && LIVE_APPETITE_ASSESSMENT_STATUSES.has(a.status))
       .map((a) => ({
         id: a.id,
         label: input.productNameById.get(a.product_id) ?? "Untitled product",
         subjectType: "pra_assessment",
         href: hrefForSubject("pra_assessment", a.id, commitmentById),
         dueDate: null,
+        dueDateLabel: null,
         status: a.status,
         urgency: (result === "outside" ? "critical" : "high") as PortfolioUrgency,
       }));
@@ -308,19 +378,36 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
       subjectType: "condition",
       href,
       dueDate: isoDateOnly(c.due_date),
+      dueDateLabel: c.due_date ? "Due" : null,
       status: c.status,
       urgency: urgencyForDueDate(c.due_date, today, 0),
     };
   });
-  const blockerItems: PortfolioItem[] = input.openReadinessBlockers.map((b) => ({
-    id: b.id,
-    label: `${b.assessment_title}: ${b.title}`,
-    subjectType: "readiness_obligation",
-    href: hrefForSubject("readiness_assessment", b.assessment_id, commitmentById),
-    dueDate: isoDateOnly(b.due_date),
-    status: b.gap,
-    urgency: urgencyForDueDate(b.due_date, today, 0) === "overdue" ? "overdue" : "high",
-  }));
+  // A "not yet assessed" obligation (gap = 'not_assessed') marked as a
+  // blocker means someone flagged it as launch-blocking before deciding
+  // whether the firm actually has a gap there - genuinely unstarted work, not
+  // a confirmed compliance shortfall. An "identified gap" (gap = 'partial' or
+  // 'none') means the assessment WAS done and a real gap was found. Both stop
+  // approval identically (isUnresolvedBlocker in lib/readiness/summary.ts
+  // does not distinguish them, correctly - readiness's own byGap summary is
+  // where that distinction already lives), but a committee dashboard should
+  // not present "nobody has looked at this yet" with the same severity as "we
+  // looked and found a gap": the former gets 'high' like before, the latter
+  // 'medium' unless it is also overdue.
+  const blockerItems: PortfolioItem[] = input.openReadinessBlockers.map((b) => {
+    const overdue = urgencyForDueDate(b.due_date, today, 0) === "overdue";
+    const urgency: PortfolioUrgency = overdue ? "overdue" : b.gap === "not_assessed" ? "medium" : "high";
+    return {
+      id: b.id,
+      label: `${b.assessment_title}: ${b.title}`,
+      subjectType: "readiness_obligation",
+      href: hrefForSubject("readiness_assessment", b.assessment_id, commitmentById),
+      dueDate: isoDateOnly(b.due_date),
+      dueDateLabel: b.due_date ? "Due" : null,
+      status: b.gap,
+      urgency,
+    };
+  });
 
   // -- control changes ------------------------------------------------
   const inFlightItems: PortfolioItem[] = input.controlChanges
@@ -331,17 +418,33 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
       subjectType: "control_change",
       href: hrefForSubject("control_change", c.id, commitmentById),
       dueDate: null,
+      dueDateLabel: null,
       status: c.status,
       urgency: "medium" as PortfolioUrgency,
     }));
 
+  // A change with implemented_at NULL (a data-entry gap: the row is
+  // 'implemented' but the timestamp was never stamped, which should not
+  // happen via the normal implement() path but must not be silently invented
+  // or dropped if it does) still counts as implemented-not-tested - it is
+  // counted WITH a null due date instead, making the gap visible rather than
+  // making the change disappear from the section entirely.
+  //
+  // The two TIMESTAMPTZ columns being compared here (implemented_at,
+  // last_tested_at) are compared via toInstantMs (full epoch ms), NOT
+  // toEpochMs (UTC-midnight-floored): a control tested at 09:00 and a change
+  // implemented later the same day at 15:00 must count as "implemented,
+  // ordering after that test" (implementedMs > lastTestedMs), not as
+  // simultaneous - toEpochMs would floor both to the same midnight and
+  // report the change as already retested.
   const implementedNotTestedItems: PortfolioItem[] = input.controlChanges
     .filter((c) => {
       if (c.status !== "implemented") return false;
       const control = controlById.get(c.workspace_control_id);
-      const implementedMs = toEpochMs(c.implemented_at);
-      const lastTestedMs = control ? toEpochMs(control.last_tested_at) : null;
-      if (implementedMs === null) return false;
+      if (c.implemented_at === null) return true;
+      const implementedMs = toInstantMs(c.implemented_at);
+      const lastTestedMs = control ? toInstantMs(control.last_tested_at) : null;
+      if (implementedMs === null) return true;
       return lastTestedMs === null || lastTestedMs < implementedMs;
     })
     .map((c) => ({
@@ -350,6 +453,7 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
       subjectType: "control_change",
       href: hrefForSubject("control_change", c.id, commitmentById),
       dueDate: null,
+      dueDateLabel: null,
       status: c.status,
       urgency: "high" as PortfolioUrgency,
     }));
@@ -358,14 +462,41 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
   const controlsDue = computeControlsDueForTesting(input.workspaceControls, today);
 
   // -- failed control tests --------------------------------------------
+  // Scoped to COMPLETED tests only (matching the on-screen caption "Completed
+  // control tests whose recorded result was a fail" - result is only ever
+  // populated by completeControlTest, so in practice this excludes nothing
+  // extra today, but the filter documents the caption's own claim rather than
+  // leaving it unenforced), and bounded to each control's CURRENT test cycle:
+  // a control that failed in January and passed a retest in June must clear,
+  // not show Critical forever. "Current cycle" is the test with the latest
+  // tested_at per workspace_control_id (ties keep both) - NOT
+  // applied_version >= control.version, because the control's version also
+  // bumps on unrelated edits (a control-change applying a threshold update,
+  // an owner reassignment), which would silently supersede a still-failing
+  // test that was never actually retested.
+  const latestTestedAtByControl = new Map<string, number>();
+  for (const t of input.controlTests) {
+    if (t.status !== "complete") continue;
+    const ms = toInstantMs(t.tested_at);
+    if (ms === null) continue;
+    const current = latestTestedAtByControl.get(t.workspace_control_id);
+    if (current === undefined || ms > current) latestTestedAtByControl.set(t.workspace_control_id, ms);
+  }
   const failedTestItems: PortfolioItem[] = input.controlTests
-    .filter((t) => t.result === "fail")
+    .filter((t) => {
+      if (t.status !== "complete" || t.result !== "fail") return false;
+      const ms = toInstantMs(t.tested_at);
+      if (ms === null) return true; // no tested_at recorded - cannot determine supersession, keep visible rather than silently drop
+      const latest = latestTestedAtByControl.get(t.workspace_control_id);
+      return latest === undefined || ms >= latest;
+    })
     .map((t) => ({
       id: t.id,
       label: `${t.title} (${controlNameById.get(t.workspace_control_id) ?? "Unknown control"})`,
       subjectType: "control_test",
       href: hrefForSubject("control_test", t.id, commitmentById),
       dueDate: isoDateOnly(t.tested_at),
+      dueDateLabel: t.tested_at ? "Tested" : null,
       status: t.status,
       urgency: "critical" as PortfolioUrgency,
     }));
@@ -378,13 +509,14 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
     byStatus[i.status] += 1;
   }
   const openIncidentItems: PortfolioItem[] = input.incidents
-    .filter((i) => OPEN_INCIDENT_STATUSES.has(i.status))
+    .filter((i) => !isFinalIncidentStatus(i.status))
     .map((i) => ({
       id: i.id,
       label: i.title,
       subjectType: "incident",
       href: hrefForSubject("incident", i.id, commitmentById),
       dueDate: null,
+      dueDateLabel: null,
       status: i.status,
       urgency: i.severity as PortfolioUrgency,
     }));
@@ -395,7 +527,14 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
   const pastTargetIncidentItems: PortfolioItem[] = openIncidentItems.filter((item) => overdueActionSubjectIds.has(item.id));
 
   // -- regulatory commitments --------------------------------------------
-  const openCommitmentRows = input.regCommitments.filter((c) => c.status === "open" || c.status === "in_progress");
+  // input.regCommitments is already scoped to non-final parent requests by
+  // listAllRegCommitments (see lib/repo/reg-requests.ts) - a commitment whose
+  // request was rejected/cancelled never reaches this module at all, so it
+  // cannot be counted open or overdue here. isTerminalCommitmentStatus is the
+  // commitment's OWN terminal states (met/missed/withdrawn), imported rather
+  // than re-typed, per this module's own doc comment about never redefining a
+  // workstream's predicate.
+  const openCommitmentRows = input.regCommitments.filter((c) => !isTerminalCommitmentStatus(c.status));
   const toCommitmentItem = (c: RegCommitmentRow): PortfolioItem => {
     const request = regRequestById.get(c.request_id);
     return {
@@ -404,6 +543,7 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
       subjectType: "reg_commitment",
       href: `/govern/regulatory-response/${c.request_id}`,
       dueDate: isoDateOnly(c.due_date),
+      dueDateLabel: c.due_date ? "Due" : null,
       status: c.status,
       urgency: urgencyForDueDate(c.due_date, today),
     };
@@ -419,6 +559,7 @@ export function buildGovernancePortfolio(input: BuildPortfolioInput): PortfolioS
     subjectType: a.subject_type,
     href: hrefForSubject(a.subject_type, a.subject_id, commitmentById),
     dueDate: isoDateOnly(a.due_date),
+    dueDateLabel: a.due_date ? "Due" : null,
     status: a.status,
     urgency: "overdue" as PortfolioUrgency,
   }));

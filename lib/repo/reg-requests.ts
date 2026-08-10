@@ -720,9 +720,28 @@ export async function listRegCommitments(workspaceId: string, requestId: string)
  * Every commitment across the whole workspace (not scoped to one request) -
  * the governance dashboard's "regulatory commitments" surface. One query
  * rather than an N+1 over listRegCommitments per request.
+ *
+ * Joins to the parent request and excludes commitments whose request has
+ * reached a final status (closed/cancelled, i.e. isFinalRegRequestStatus -
+ * inlined into the predicate below since this is SQL, not TS) - reject()
+ * flips a request to 'cancelled' without touching its commitments (a
+ * commitment IS still a historical record of what was promised, so it is not
+ * deleted or force-terminated), and a commitment attached to a withdrawn or
+ * long-closed request is not live work: it must not still count as "open" or
+ * "overdue" on the governance dashboard. Filtering here (rather than having
+ * reject() cascade a status change onto every open commitment) keeps
+ * historically-accurate data too: the commitment rows still show whatever
+ * status they were actually in when the request was cancelled, they are just
+ * excluded from this whole-workspace roll-up.
  */
 export async function listAllRegCommitments(workspaceId: string): Promise<RegCommitmentRow[]> {
-  return query<RegCommitmentRow>(`SELECT * FROM reg_commitments WHERE workspace_id = $1 ORDER BY due_date ASC NULLS LAST`, [workspaceId]);
+  return query<RegCommitmentRow>(
+    `SELECT rc.* FROM reg_commitments rc
+     JOIN reg_requests rr ON rr.id = rc.request_id AND rr.workspace_id = rc.workspace_id
+     WHERE rc.workspace_id = $1 AND rr.status NOT IN ('closed', 'cancelled')
+     ORDER BY rc.due_date ASC NULLS LAST`,
+    [workspaceId]
+  );
 }
 
 export async function getRegCommitment(workspaceId: string, id: string): Promise<RegCommitmentRow | null> {

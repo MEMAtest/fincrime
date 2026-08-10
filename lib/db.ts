@@ -50,6 +50,20 @@ const pool = new Pool({
   statement_timeout: statementTimeoutMillis,
   idleTimeoutMillis: Number.parseInt(process.env.PG_IDLE_TIMEOUT_MS || "10000", 10),
   keepAlive: true,
+  // The DB server's session timezone otherwise defaults to whatever the
+  // server/role is configured with (Europe/London on the Hetzner host used
+  // here), while every "today" computed in application code (lib/governance/
+  // portfolio.ts, lib/reg-response/summary.ts, etc.) is deliberately UTC.
+  // CURRENT_DATE-based SQL predicates (listOverdueActions, etc.) would then
+  // disagree with the TS arithmetic for part of the day whenever the two
+  // zones' local dates differ (e.g. 23:00-00:00 UTC during BST). Forcing
+  // every pooled connection's session timezone to UTC at connection start
+  // (a Postgres startup parameter, applied before any query can run on that
+  // connection - unlike a post-connect `SET TIME ZONE`, which would race the
+  // first query issued on a freshly acquired client) makes CURRENT_DATE and
+  // `now()` agree with `new Date()` on the app side everywhere in this
+  // codebase, in one place, rather than patching each SQL predicate.
+  options: "-c TimeZone=UTC",
 });
 
 export async function query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T[]> {

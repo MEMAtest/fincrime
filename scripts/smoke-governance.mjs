@@ -119,7 +119,17 @@ async function main() {
     await fetch(`${BASE_URL}/api/pra/assessments`, { method: "POST", headers: H, body: JSON.stringify({ productName: "Smoke Product Tolerated" }) })
   );
   const praToleratedId = praTolerated.assessment?.id;
-  await fetch(`${BASE_URL}/api/pra/assessments/${praToleratedId}`, { method: "PATCH", headers: H, body: JSON.stringify({ appetiteResult: "tolerated" }) });
+  // status must be a LIVE position (not the default 'draft') for the
+  // tolerated appetite result to count at all - riskOutsideAppetite excludes
+  // 'draft' (appetite_result can be set mid-journey on an assessment that
+  // never gets finished) and 'rejected' (product never launched). 'approved'
+  // here (not 'in_review') keeps this row out of decisionsRequired, per the
+  // comment above.
+  await fetch(`${BASE_URL}/api/pra/assessments/${praToleratedId}`, {
+    method: "PATCH",
+    headers: H,
+    body: JSON.stringify({ appetiteResult: "tolerated", status: "approved" }),
+  });
   ok("PRA tolerated seeded");
 
   // --- 3. workspace controls: A (failed test), B (implemented change, never tested), C (due soon) ---
@@ -208,6 +218,19 @@ async function main() {
   });
   expect("incident overdue action -> 201", incidentAction.status, 201);
 
+  // Boundary: an action due exactly TODAY must not count as overdue -
+  // listOverdueActions filters `due_date < CURRENT_DATE` (strictly past),
+  // not `<=`. This is a DB/SQL predicate (lib/repo/actions.ts), so it can
+  // only be proven end-to-end here, not in the pure vitest unit tests.
+  const incidentActionToday = await body(
+    await fetch(`${BASE_URL}/api/incidents/${incidentId}/actions`, {
+      method: "POST",
+      headers: H,
+      body: JSON.stringify({ title: "Smoke: due today, not overdue", dueDate: isoDate(0) }),
+    })
+  );
+  const incidentActionTodayId = incidentActionToday.action?.id;
+
   // --- 5. readiness assessment: in_review with an unresolved blocker (decisionsRequired + openConditionsAndBlockers) ---
   const readiness = await body(
     await fetch(`${BASE_URL}/api/readiness`, {
@@ -283,9 +306,13 @@ async function main() {
   expect("seeded portfolio -> 200", seeded.status, 200);
   const p = seeded.data.portfolio;
 
-  expect("decisionsRequired count", p.decisionsRequired.count, 4); // PRA + change1 + readiness + regRequest
+  // regRequest is EXCLUDED here: it was approved above (approveRes.request.status
+  // === "approved"), and an approved request has already had its decision -
+  // its next step is submission, not sign-off - so decisionsRequired (whose
+  // caption reads "...waiting on a decision") must not still count it.
+  expect("decisionsRequired count", p.decisionsRequired.count, 3); // PRA + change1 + readiness (regRequest is approved, not in_review)
   const decisionSubjects = p.decisionsRequired.items.map((i) => i.subjectType).sort();
-  expect("decisionsRequired subject types", decisionSubjects.join(","), ["control_change", "pra_assessment", "readiness_assessment", "reg_request"].sort().join(","));
+  expect("decisionsRequired subject types", decisionSubjects.join(","), ["control_change", "pra_assessment", "readiness_assessment"].sort().join(","));
 
   expect("riskOutsideAppetite.outside count", p.riskOutsideAppetite.outside.count, 1);
   expect("riskOutsideAppetite.outside item id", p.riskOutsideAppetite.outside.items[0]?.id, praOutsideId);
@@ -322,11 +349,47 @@ async function main() {
   expect("regulatoryCommitments.dueSoon item id", p.regulatoryCommitments.dueSoon.items[0]?.id, commitDueSoon.commitment.id);
   expect("regulatoryCommitments.dueSoon href points at parent request", p.regulatoryCommitments.dueSoon.items[0]?.href, `/govern/regulatory-response/${requestId}`);
 
-  expect("overdueActions count", p.overdueActions.count, 2); // incident action + overdue commitment action
+  // --- regression: a commitment on a REJECTED (cancelled) reg_request must
+  //     not count as open/overdue, even though its own status stays 'open'
+  //     and its due date is in the past - reject() cancels the request but
+  //     deliberately does not touch its commitments (they remain an accurate
+  //     historical record), so the exclusion must come from the governance
+  //     roll-up reading the parent request's status, not from the
+  //     commitment's own row. Before the fix, listAllRegCommitments had no
+  //     parent-status filter at all, so this would have pushed
+  //     regulatoryCommitments.open to 3 and .overdue to 2 here. ---
+  const cancelledRequest = await body(
+    await fetch(`${BASE_URL}/api/reg-requests`, { method: "POST", headers: H, body: JSON.stringify({ title: "Smoke request - will be cancelled", regulator: "FCA" }) })
+  );
+  const cancelledRequestId = cancelledRequest.request?.id;
+  if (!cancelledRequestId) return fail("create reg request to cancel", JSON.stringify(cancelledRequest).slice(0, 160));
+  const cancelledCommitment = await body(
+    await fetch(`${BASE_URL}/api/reg-requests/${cancelledRequestId}/commitments`, {
+      method: "POST",
+      headers: H,
+      body: JSON.stringify({ description: "Smoke commitment on a request about to be cancelled", dueDate: "2020-01-01" }),
+    })
+  );
+  expect("commitment-to-be-orphaned created with a tracked action", typeof cancelledCommitment.commitment?.action_id === "string", true);
+  const rejectRes = await body(
+    await fetch(`${BASE_URL}/api/reg-requests/${cancelledRequestId}/reject`, { method: "POST", headers: H, body: JSON.stringify({ decidedByPersonId: personId }) })
+  );
+  expect("reg request reject -> cancelled status", rejectRes.request?.status, "cancelled");
+
+  const afterCancel = await getPortfolio(H);
+  const pc = afterCancel.data.portfolio;
+  expect("regulatoryCommitments.open unchanged after cancelling a request with an open commitment", pc.regulatoryCommitments.open.count, 2);
+  expect("regulatoryCommitments.overdue unchanged after cancelling a request with an overdue commitment", pc.regulatoryCommitments.overdue.count, 1);
+  const orphanedInOpen = pc.regulatoryCommitments.open.items.some((i) => i.id === cancelledCommitment.commitment?.id);
+  expect("cancelled request's commitment absent from open", orphanedInOpen, false);
+
+  expect("overdueActions count", p.overdueActions.count, 2); // incident action + overdue commitment action (NOT the due-today one)
   const overdueSubjectTypes = p.overdueActions.items.map((i) => i.subjectType).sort();
   expect("overdueActions subject types", overdueSubjectTypes.join(","), ["incident", "reg_commitment"].sort().join(","));
   const commitmentOverdueAction = p.overdueActions.items.find((i) => i.subjectType === "reg_commitment");
   expect("overdue reg_commitment action resolves to its parent request", commitmentOverdueAction?.href, `/govern/regulatory-response/${requestId}`);
+  const dueTodayIncluded = p.overdueActions.items.some((i) => i.id === incidentActionTodayId);
+  expect("action due today is NOT counted as overdue", dueTodayIncluded, false);
 
   // --- cross-tenant isolation: `other`'s portfolio must remain all-zero ---
   const otherPortfolio = await getPortfolio(other);

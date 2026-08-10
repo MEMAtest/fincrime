@@ -45,8 +45,20 @@ function renderTable(doc: jsPDF, y: number, title: string, items: PortfolioItem[
 
   autoTable(doc, {
     startY: y,
-    head: [["Item", "Type", "Status", "Due", "Urgency"]],
-    body: items.map((i) => [str(i.label), str(i.subjectType).replace(/_/g, " "), str(i.status), fmtDate(i.dueDate), URGENCY_LABEL[i.urgency] ?? str(i.urgency)]),
+    head: [["Item", "Type", "Status", "Date", "Urgency"]],
+    // The "Date" column is labelled per-row (i.dueDateLabel: "Due", "Tested",
+    // "Target launch") rather than a blanket "Due" header, because not every
+    // section's date IS a due date - failedControlTests' date is when the
+    // test was performed (a past fact) and decisionsRequired's readiness rows
+    // use a planning target, not something owed. See PortfolioItem's
+    // dueDateLabel doc comment in lib/governance/portfolio.ts.
+    body: items.map((i) => [
+      str(i.label),
+      str(i.subjectType).replace(/_/g, " "),
+      str(i.status),
+      i.dueDate ? `${i.dueDateLabel ?? "Due"} ${fmtDate(i.dueDate)}` : "-",
+      URGENCY_LABEL[i.urgency] ?? str(i.urgency),
+    ]),
     theme: "grid",
     headStyles: { fillColor: MEMA_COLORS.accent, textColor: "#ffffff" },
     styles: { fontSize: 7, cellPadding: 1.8 },
@@ -115,6 +127,18 @@ export function generateGovernancePDF(data: GovernancePackPayload): Buffer {
   y = renderTable(doc, y, "Regulatory commitments - overdue", p.regulatoryCommitments.overdue.items, "No overdue commitments.");
   y = renderTable(doc, y, "Regulatory commitments - due within 30 days", p.regulatoryCommitments.dueSoon.items, "Nothing due in the next 30 days.");
   y = renderTable(doc, y, "Overdue actions (all workstreams)", p.overdueActions.items, "No overdue actions.");
+
+  y = checkPageBreak(doc, y, 12);
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(120, 120, 120);
+  doc.text(
+    "Note: sections can overlap - e.g. an overdue regulatory commitment also appears under Overdue actions as",
+    20,
+    y
+  );
+  y += 4;
+  doc.text("its tracked action - so totals across sections should not be summed.", 20, y);
 
   addFootersToAll(doc);
   return Buffer.from(doc.output("arraybuffer"));

@@ -320,13 +320,22 @@ export interface OpenReadinessBlockerRow extends ReadinessObligationRow {
 
 /**
  * Every unresolved launch blocker (blocker = true AND gap != 'full') across
- * the whole workspace whose parent assessment is still open (not
- * approved_global/rejected/cancelled) - the governance dashboard's "open
+ * the whole workspace whose parent assessment is a LIVE review still being
+ * worked (in_review or approved_local) - the governance dashboard's "open
  * launch blockers" surface. One join query rather than an N+1 over
  * listReadinessObligations per assessment; mirrors listReadinessSummaries'
  * whole-workspace-in-one-query shape. Uses the same isUnresolvedBlocker
  * predicate (blocker && gap != 'full') as lib/readiness/summary.ts, just
  * expressed in SQL rather than re-fetched-then-filtered in memory.
+ *
+ * Excludes 'draft' as well as the final statuses (approved_global/rejected/
+ * cancelled): a draft assessment can sit half-finished indefinitely (a
+ * requirement gets blocker=true the moment a user reaches the gaps step,
+ * long before the register or the rest of the assessment is complete), so
+ * surfacing its blockers on a committee dashboard is premature work-in-
+ * progress, not a genuine outstanding item the committee needs to act on -
+ * only once the assessment is actually submitted (in_review) does an
+ * unresolved blocker represent live, decision-relevant work.
  */
 export async function listOpenReadinessBlockers(workspaceId: string): Promise<OpenReadinessBlockerRow[]> {
   return query<OpenReadinessBlockerRow>(
@@ -334,7 +343,7 @@ export async function listOpenReadinessBlockers(workspaceId: string): Promise<Op
      FROM readiness_obligations ro
      JOIN readiness_assessments ra ON ra.id = ro.assessment_id AND ra.workspace_id = ro.workspace_id
      WHERE ro.workspace_id = $1 AND ro.blocker = true AND ro.gap != 'full'
-       AND ra.status NOT IN ('approved_global', 'rejected', 'cancelled')
+       AND ra.status IN ('in_review', 'approved_local')
      ORDER BY ro.due_date ASC NULLS LAST`,
     [workspaceId]
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search } from "lucide-react";
@@ -48,16 +48,21 @@ const PILL_LABELS: Record<string, string> = {
   agents_intermediaries: "Agents",
 };
 
-export default function TypologyListPage() {
-  const [activeTheme, setActiveTheme] = useState<RiskTheme | null>(null);
-  const [query, setQuery] = useState("");
+// Read ?theme= once, outside React state entirely, so deep-links from
+// enforcement case pages work without a setState-in-effect (which trips
+// react-hooks/set-state-in-effect: it would render once with no theme, then
+// immediately re-render with the theme from the URL). window is undefined
+// during SSR/the initial server render, so this falls back to null there,
+// matching the effect-based version's first render.
+function themeFromUrl(): RiskTheme | null {
+  if (typeof window === "undefined") return null;
+  const t = new URLSearchParams(window.location.search).get("theme") as RiskTheme | null;
+  return t && ALL_RISK_THEMES.includes(t) ? t : null;
+}
 
-  // Read ?theme= on mount so deep-links from enforcement case pages work.
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
-    const t = p.get("theme") as RiskTheme | null;
-    if (t && ALL_RISK_THEMES.includes(t)) setActiveTheme(t);
-  }, []);
+export default function TypologyListPage() {
+  const [activeTheme, setActiveTheme] = useState<RiskTheme | null>(themeFromUrl);
+  const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
