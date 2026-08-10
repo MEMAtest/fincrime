@@ -51,7 +51,7 @@ export const PATCH = withWorkspace(async (request, workspace) => {
     name?: string | null;
     ownerEmail?: string | null;
     appetiteThresholds?: { toleratedFrom: number; outsideFrom: number };
-    settings?: Record<string, unknown>;
+    settingsPatch?: Record<string, unknown>;
   } = {};
 
   if ("name" in b) {
@@ -76,14 +76,18 @@ export const PATCH = withWorkspace(async (request, workspace) => {
     update.appetiteThresholds = result.thresholds;
   }
 
-  let mergedSettings: Record<string, unknown> | undefined;
   if ("settings" in b) {
     const result = validateSettingsPatch(b.settings);
     if (!result.ok) {
       return NextResponse.json({ error: result.reason }, { status: 400 });
     }
-    mergedSettings = { ...(workspace.settings ?? {}), ...result.patch };
-    update.settings = mergedSettings;
+    // The PARTIAL patch itself, not a merge computed against `workspace.settings`
+    // here: that snapshot is read at request start and would be stale by the
+    // time this write lands against a concurrent PATCH. updateWorkspace merges
+    // this patch in SQL, inside a transaction that locks the row, so concurrent
+    // partial patches of different keys both persist instead of one clobbering
+    // the other.
+    update.settingsPatch = result.patch;
   }
 
   const updated = await updateWorkspace(workspace.id, update, "workspace");

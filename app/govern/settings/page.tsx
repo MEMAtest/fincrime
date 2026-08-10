@@ -109,18 +109,39 @@ export default function SettingsPage() {
   const [newEmail, setNewEmail] = useState("");
   const [addingPerson, setAddingPerson] = useState(false);
 
-  const applyFromServer = useCallback((response: SettingsResponse) => {
+  // Split by section rather than one applyFromServer that resets every
+  // field: the Organisation card PATCHes on blur of each field while the
+  // Operational card has its own save button, so a save in one section must
+  // never discard unsaved edits the user is mid-typing in another.
+  const applyOrganisation = useCallback((response: SettingsResponse) => {
     setData(response);
     setName(response.name ?? "");
     setOwnerEmail(response.ownerEmail ?? "");
     setOrganisationName(response.settings.organisationName ?? "");
     setDateFormat(response.settings.dateFormat);
+  }, []);
+
+  const applyAppetite = useCallback((response: SettingsResponse) => {
+    setData(response);
     setToleratedFrom(String(response.appetiteThresholds.toleratedFrom));
     setOutsideFrom(String(response.appetiteThresholds.outsideFrom));
+  }, []);
+
+  const applyOperational = useCallback((response: SettingsResponse) => {
+    setData(response);
     setHourlyCost(String(response.settings.defaultHourlyCostGbp));
     setSampleSize(String(response.settings.defaultTestSampleSize));
     setReminderDays(String(response.settings.reviewReminderDays));
   }, []);
+
+  const applyAll = useCallback(
+    (response: SettingsResponse) => {
+      applyOrganisation(response);
+      applyAppetite(response);
+      applyOperational(response);
+    },
+    [applyOrganisation, applyAppetite, applyOperational]
+  );
 
   useEffect(() => {
     if (!ready || !workspaceId) return;
@@ -133,7 +154,7 @@ export default function SettingsPage() {
         ]);
         if (!settingsRes.ok) throw new Error("failed");
         const settingsData: SettingsResponse = await settingsRes.json();
-        if (!cancelled) applyFromServer(settingsData);
+        if (!cancelled) applyAll(settingsData);
 
         if (peopleRes.ok) {
           const peopleData = await peopleRes.json();
@@ -148,7 +169,7 @@ export default function SettingsPage() {
     return () => {
       cancelled = true;
     };
-  }, [ready, workspaceId, wsFetch, applyFromServer]);
+  }, [ready, workspaceId, wsFetch, applyAll]);
 
   const saveOrganisation = async () => {
     setOrgSave("saving");
@@ -169,7 +190,7 @@ export default function SettingsPage() {
         setOrgError(typeof body?.error === "string" ? body.error : "Could not save.");
         return;
       }
-      applyFromServer(body);
+      applyOrganisation(body);
       setOrgSave("saved");
     } catch {
       setOrgSave("error");
@@ -194,7 +215,7 @@ export default function SettingsPage() {
         setAppetiteError(typeof body?.error === "string" ? body.error : "Could not save.");
         return;
       }
-      applyFromServer(body);
+      applyAppetite(body);
       setAppetiteSave("saved");
     } catch {
       setAppetiteSave("error");
@@ -223,7 +244,7 @@ export default function SettingsPage() {
         setOpError(typeof body?.error === "string" ? body.error : "Could not save.");
         return;
       }
-      applyFromServer(body);
+      applyOperational(body);
       setOpSave("saved");
     } catch {
       setOpSave("error");
@@ -275,10 +296,16 @@ export default function SettingsPage() {
   const noWorkspaceYet = ready && !workspaceId;
 
   const previewScoreNum = Number(previewScore);
+  // `|| fallback` treats a genuinely-typed 0 the same as an empty/invalid
+  // field (0 is falsy), silently swapping a real "0" threshold for the
+  // fallback value. Number.isFinite distinguishes "parsed to a real number"
+  // (including 0) from "not a usable number at all".
+  const toleratedFromNum = Number(toleratedFrom);
+  const outsideFromNum = Number(outsideFrom);
   const previewBand: AppetiteResult | null = Number.isFinite(previewScoreNum)
     ? compareToAppetite(previewScoreNum, {
-        toleratedFrom: Number(toleratedFrom) || 0,
-        outsideFrom: Number(outsideFrom) || 100,
+        toleratedFrom: Number.isFinite(toleratedFromNum) ? toleratedFromNum : 0,
+        outsideFrom: Number.isFinite(outsideFromNum) ? outsideFromNum : 100,
       })
     : null;
 
@@ -389,6 +416,11 @@ export default function SettingsPage() {
                   <SaveStatus state={appetiteSave} />
                   {appetiteError && <span className="text-xs text-red-500">{appetiteError}</span>}
                 </div>
+                <p className="text-xs text-text-muted">
+                  Changing these thresholds does not retroactively reclassify assessments already saved: the
+                  dashboard reads each assessment&apos;s stored appetite result, while the assessment journey and its
+                  committee pack recompute live against whatever thresholds are current.
+                </p>
 
                 <div className="pt-3 border-t border-surface-border">
                   <div className="flex items-end gap-3 flex-wrap">

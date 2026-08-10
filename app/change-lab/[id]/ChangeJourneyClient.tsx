@@ -15,6 +15,7 @@ import StepImpact from "@/components/change-lab/StepImpact";
 import StepApproval, { type ChangeDecisionPayload } from "@/components/change-lab/StepApproval";
 import StepMonitoring from "@/components/change-lab/StepMonitoring";
 import StepImplement from "@/components/change-lab/StepImplement";
+import { DEFAULT_HOURLY_COST_GBP } from "@/data/scoring/operational-load";
 import {
   CONTROL_CHANGE_STATUS_LABEL,
   LAST_UNLOCKED_STEP,
@@ -59,6 +60,7 @@ export default function ChangeJourneyClient({ changeId }: ChangeJourneyClientPro
   const [control, setControl] = useState<WorkspaceControlDTO | null>(null);
   const [people, setPeople] = useState<PersonDTO[]>([]);
   const [decisionData, setDecisionData] = useState<DecisionRecord>(EMPTY_DECISION_RECORD);
+  const [defaultHourlyCostGbp, setDefaultHourlyCostGbp] = useState<number>(DEFAULT_HOURLY_COST_GBP);
   const [step, setStep] = useState(1);
   const [navigating, setNavigating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -90,10 +92,19 @@ export default function ChangeJourneyClient({ changeId }: ChangeJourneyClientPro
           actions: Array.isArray(data.actions) ? data.actions : [],
         });
 
-        const peopleRes = await wsFetch(`/api/workspace/people`).catch(() => null);
+        const [peopleRes, meRes] = await Promise.all([
+          wsFetch(`/api/workspace/people`).catch(() => null),
+          wsFetch(`/api/workspace/me`).catch(() => null),
+        ]);
         if (!cancelled && peopleRes?.ok) {
           const p = await peopleRes.json();
           setPeople(Array.isArray(p.people) ? p.people : []);
+        }
+        if (!cancelled && meRes?.ok) {
+          const m = await meRes.json();
+          if (typeof m?.settings?.defaultHourlyCostGbp === "number") {
+            setDefaultHourlyCostGbp(m.settings.defaultHourlyCostGbp);
+          }
         }
       } catch {
         if (!cancelled) setLoadError("Could not load this control change. Try reloading the page.");
@@ -320,7 +331,7 @@ export default function ChangeJourneyClient({ changeId }: ChangeJourneyClientPro
             {step === 3 && (
               <StepSupportingData changeId={change.id} supportingData={change.supporting_data} onSave={saveSupportingData} />
             )}
-            {step === 4 && <StepImpact change={change} onSave={saveImpact} />}
+            {step === 4 && <StepImpact change={change} onSave={saveImpact} defaultHourlyCostGbp={defaultHourlyCostGbp} />}
             {step === 5 && (
               <StepApproval
                 change={change}
@@ -341,6 +352,7 @@ export default function ChangeJourneyClient({ changeId }: ChangeJourneyClientPro
                 onSaveRollbackCriteria={saveRollbackCriteria}
                 onImplement={implementChange}
                 onRollback={rollbackChange}
+                defaultHourlyCostGbp={defaultHourlyCostGbp}
               />
             )}
           </div>

@@ -36,9 +36,18 @@ export function isIsoDate(value: unknown): value is string {
   return d.toISOString().slice(0, 10) === value;
 }
 
-/** True for a value that is a non-negative integer (used for sample counts). */
+/**
+ * Matches lib/workspace/settings.ts's defaultTestSampleSize upper bound -
+ * sampleSize/samplesPassed/samplesFailed/samplesPartial are all int4
+ * columns in Postgres (max ~2.1 billion); a value beyond that overflows the
+ * column and 500s instead of 400ing cleanly. 100000 is already an
+ * unrealistically large sample for any control test.
+ */
+export const MAX_SAMPLE_COUNT = 100000;
+
+/** True for a value that is a non-negative integer within MAX_SAMPLE_COUNT (used for sample counts). */
 export function isNonNegativeInt(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_SAMPLE_COUNT;
 }
 
 export type StepParseResult = { ok: true; value: number | undefined } | { ok: false };

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, RotateCcw, Rocket, FlaskConical } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, FileText, Loader2, RotateCcw, Rocket, FlaskConical } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { PriorityBadge } from "@/components/controls/ControlBits";
@@ -36,6 +36,8 @@ interface StepImplementProps {
   onSaveRollbackCriteria: (text: string) => Promise<void>;
   onImplement: () => Promise<{ ok: true } | { ok: false; message: string }>;
   onRollback: () => Promise<{ ok: true } | { ok: false; message: string }>;
+  /** Workspace Settings > Operational defaults > hourly cost, used when this change never had a per-change hourly cost recorded on Step 4. Falls back to DEFAULT_HOURLY_COST_GBP when not supplied. */
+  defaultHourlyCostGbp?: number;
 }
 
 function fmtDate(iso: string | null): string {
@@ -75,6 +77,7 @@ export default function StepImplement({
   onSaveRollbackCriteria,
   onImplement,
   onRollback,
+  defaultHourlyCostGbp = DEFAULT_HOURLY_COST_GBP,
 }: StepImplementProps) {
   const { wsFetch } = useWorkspace();
 
@@ -83,6 +86,8 @@ export default function StepImplement({
   const [busy, setBusy] = useState<"implement" | "rollback" | null>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [evidence, setEvidence] = useState<EvidenceDTO[]>([]);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +106,37 @@ export default function StepImplement({
 
   const personById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
 
+  // Evidence blobs are private (lib/storage/blob.ts) - a plain <a href> to
+  // the stored URL would 403, so this fetches the bytes through the
+  // authenticated GET /api/evidence/[id]/file route, same pattern as
+  // components/evidence/EvidenceStep.tsx. Read-only display only: control
+  // change has no UI (here or elsewhere) to add a new evidence item or
+  // attach a file to one, unlike control testing, incidents and readiness.
+  const downloadEvidenceFile = async (evidenceId: string, fileName: string) => {
+    setDownloadingId(evidenceId);
+    setDownloadError(null);
+    try {
+      const res = await wsFetch(`/api/evidence/${evidenceId}/file`);
+      if (!res.ok) {
+        setDownloadError("Could not download that file.");
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName || "evidence";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setDownloadError("Could not download that file. Please try again.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   const fieldDiffs = useMemo(() => {
     return FIELD_LABELS.map(({ key, label }) => {
       const baselineValue = change.baseline[key];
@@ -117,7 +153,7 @@ export default function StepImplement({
   const baselineAlertVolume = numOrNull(supportingData.baselineAlertVolume);
   const expectedVolume = numOrNull(supportingData.expectedVolume);
   const handlingMinutes = numOrNull(change.impact.handlingMinutes);
-  const hourlyCostGbp = numOrNull(change.impact.hourlyCostGbp) ?? DEFAULT_HOURLY_COST_GBP;
+  const hourlyCostGbp = numOrNull(change.impact.hourlyCostGbp) ?? defaultHourlyCostGbp;
 
   const before =
     baselineAlertVolume !== null && handlingMinutes !== null
@@ -430,6 +466,41 @@ export default function StepImplement({
       <section className="glass-card rounded-xl p-5">
         <h4 className="text-sm font-semibold text-foreground mb-2">Rollback criteria</h4>
         <p className="text-sm text-text-muted whitespace-pre-wrap">{change.rollback_criteria || "Not recorded."}</p>
+      </section>
+
+      <section className="glass-card rounded-xl p-5">
+        <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+          <FileText className="h-4 w-4 text-accent" /> Evidence ({evidence.length})
+        </h4>
+        <p className="text-xs text-text-muted mb-2">
+          Control change has no UI to add evidence or attach a file to this change - this section only displays
+          evidence that already exists.
+        </p>
+        {evidence.length === 0 ? (
+          <p className="text-sm text-text-muted">No evidence recorded.</p>
+        ) : (
+          <div className="space-y-1">
+            {evidence.map((e) => (
+              <div key={e.id} className="flex items-center gap-2 text-sm text-foreground flex-wrap">
+                <span>
+                  {e.title} <span className="text-xs text-text-muted">({e.type.replace(/_/g, " ")})</span>
+                </span>
+                {e.file_url && (
+                  <button
+                    type="button"
+                    onClick={() => void downloadEvidenceFile(e.id, e.file_name || "evidence")}
+                    disabled={downloadingId === e.id}
+                    className="inline-flex items-center gap-1 text-xs text-accent hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    {downloadingId === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}{" "}
+                    {e.file_name}
+                  </button>
+                )}
+              </div>
+            ))}
+            {downloadError && <p className="text-xs text-red-500">{downloadError}</p>}
+          </div>
+        )}
       </section>
     </div>
   );

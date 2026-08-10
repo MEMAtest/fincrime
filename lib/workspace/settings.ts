@@ -53,8 +53,18 @@ const SETTINGS_KEYS = Object.keys(DEFAULT_WORKSPACE_SETTINGS) as (keyof Workspac
 
 const DATE_FORMATS = new Set(["en-GB", "iso"]);
 
-/** Same pattern used by app/api/export/pdf/route.ts's email validation - kept in sync deliberately rather than imported cross-module, since that route validates a request field with the same shape but a different purpose (lead-capture email vs workspace owner email). */
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * Same pattern used by app/api/export/pdf/route.ts's email validation - kept
+ * in sync deliberately rather than imported cross-module, since that route
+ * validates a request field with the same shape but a different purpose
+ * (lead-capture email vs workspace owner email). Deliberately excludes
+ * `<`, `>`, whitespace and other characters not valid in an email address's
+ * local part (the standard HTML5 input[type=email] pattern) - the previous
+ * `[^\s@]+@[^\s@]+\.[^\s@]+` shape accepted anything without whitespace or
+ * "@", including `<script>@b.com`.
+ */
+const EMAIL_RE =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
 export function isValidEmail(value: string): boolean {
   return EMAIL_RE.test(value);
@@ -72,13 +82,27 @@ export function resolveWorkspaceSettings(raw: Record<string, unknown> | null | u
   const stored = (raw ?? {}) as Partial<Record<keyof WorkspaceSettings, unknown>>;
   const resolved = { ...DEFAULT_WORKSPACE_SETTINGS };
 
-  if (typeof stored.defaultHourlyCostGbp === "number" && Number.isFinite(stored.defaultHourlyCostGbp)) {
+  // Re-enforce the same bounds validateSettingsPatch checks at write time -
+  // a stored value from before a bound existed/tightened (or written by any
+  // future path that bypasses validateSettingsPatch) must not silently pass
+  // straight through to every consumer of resolveWorkspaceSettings.
+  if (
+    typeof stored.defaultHourlyCostGbp === "number" &&
+    Number.isFinite(stored.defaultHourlyCostGbp) &&
+    stored.defaultHourlyCostGbp > 0 &&
+    stored.defaultHourlyCostGbp <= 10000
+  ) {
     resolved.defaultHourlyCostGbp = stored.defaultHourlyCostGbp;
   }
-  if (typeof stored.defaultTestSampleSize === "number" && Number.isFinite(stored.defaultTestSampleSize)) {
+  if (
+    typeof stored.defaultTestSampleSize === "number" &&
+    Number.isInteger(stored.defaultTestSampleSize) &&
+    stored.defaultTestSampleSize >= 1 &&
+    stored.defaultTestSampleSize <= 100000
+  ) {
     resolved.defaultTestSampleSize = stored.defaultTestSampleSize;
   }
-  if (typeof stored.organisationName === "string" && stored.organisationName.trim()) {
+  if (typeof stored.organisationName === "string" && stored.organisationName.trim() && stored.organisationName.length <= 200) {
     resolved.organisationName = stored.organisationName.trim();
   } else if (stored.organisationName === null) {
     resolved.organisationName = null;
@@ -86,7 +110,12 @@ export function resolveWorkspaceSettings(raw: Record<string, unknown> | null | u
   if (typeof stored.dateFormat === "string" && DATE_FORMATS.has(stored.dateFormat)) {
     resolved.dateFormat = stored.dateFormat as WorkspaceSettings["dateFormat"];
   }
-  if (typeof stored.reviewReminderDays === "number" && Number.isFinite(stored.reviewReminderDays)) {
+  if (
+    typeof stored.reviewReminderDays === "number" &&
+    Number.isInteger(stored.reviewReminderDays) &&
+    stored.reviewReminderDays >= 0 &&
+    stored.reviewReminderDays <= 365
+  ) {
     resolved.reviewReminderDays = stored.reviewReminderDays;
   }
 
@@ -122,8 +151,12 @@ export function validateSettingsPatch(input: unknown): SettingsPatchResult {
 
   if ("defaultHourlyCostGbp" in obj) {
     const v = obj.defaultHourlyCostGbp;
-    if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > 10000) {
-      return { ok: false, reason: "defaultHourlyCostGbp must be a number between 0 and 10000" };
+    // Strictly greater than 0, not >= 0: this feeds a multiplication in
+    // scoreOperationalLoad's cost calculation, so 0 does not mean "no
+    // default" - it silently zeroes every control's estimated monthly cost
+    // that falls back to it.
+    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0 || v > 10000) {
+      return { ok: false, reason: "defaultHourlyCostGbp must be a number greater than 0 and at most 10000" };
     }
     patch.defaultHourlyCostGbp = v;
   }

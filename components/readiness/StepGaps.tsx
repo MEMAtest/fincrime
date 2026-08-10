@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ChevronDown, ChevronRight, Download, FileText, Loader2, Paperclip, Plus } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -84,7 +84,27 @@ export default function StepGaps({ obligations, people, actions, readOnly, onSav
   const [evidenceById, setEvidenceById] = useState<Record<string, EvidenceDTO[]>>({});
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [fileBusyId, setFileBusyId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  // See components/evidence/EvidenceStep.tsx's identical flag - optimistic
+  // true so the control never flashes disabled while GET /api/workspace/me
+  // loads.
+  const [fileUploadEnabled, setFileUploadEnabled] = useState(true);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    wsFetch("/api/workspace/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.fileUploadEnabled === "boolean") {
+          setFileUploadEnabled(data.fileUploadEnabled);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [wsFetch]);
 
   // Keyed by obligation id so text typed while obligation A's panel is open
   // can never be submitted against obligation B after switching panels -
@@ -198,6 +218,35 @@ export default function StepGaps({ obligations, people, actions, readOnly, onSav
       setEvidenceById((prev) => ({ ...prev, [obligationId]: list }));
     } finally {
       setFileBusyId(null);
+    }
+  }
+
+  // Evidence blobs are private (lib/storage/blob.ts) - a plain <a href> to
+  // the stored URL would 403, so this fetches the bytes through the
+  // authenticated GET /api/evidence/[id]/file route, same pattern as
+  // components/evidence/EvidenceStep.tsx.
+  async function downloadEvidenceFile(evidenceId: string, fileName: string) {
+    setDownloadingId(evidenceId);
+    setEvError(null);
+    try {
+      const res = await wsFetch(`/api/evidence/${evidenceId}/file`);
+      if (!res.ok) {
+        setEvError("Could not download that file.");
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName || "evidence";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setEvError("Could not download that file. Please try again.");
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -385,11 +434,18 @@ export default function StepGaps({ obligations, people, actions, readOnly, onSav
                               {e.title} ({e.type.replace(/_/g, " ")})
                             </span>
                             {e.file_url ? (
-                              <a href={e.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">
-                                <Download className="h-3 w-3" /> {e.file_name}
-                              </a>
+                              <button
+                                type="button"
+                                onClick={() => void downloadEvidenceFile(e.id, e.file_name || "evidence")}
+                                disabled={downloadingId === e.id}
+                                className="inline-flex items-center gap-1 text-accent hover:underline cursor-pointer disabled:opacity-50"
+                              >
+                                {downloadingId === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}{" "}
+                                {e.file_name}
+                              </button>
                             ) : (
-                              !readOnly && (
+                              !readOnly &&
+                              (fileUploadEnabled ? (
                                 <>
                                   <input
                                     ref={(el) => {
@@ -412,7 +468,9 @@ export default function StepGaps({ obligations, people, actions, readOnly, onSav
                                     {fileBusyId === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />} Attach file
                                   </button>
                                 </>
-                              )
+                              ) : (
+                                <span className="text-text-muted">File upload is not configured for this deployment.</span>
+                              ))
                             )}
                           </div>
                         ))}

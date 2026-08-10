@@ -189,9 +189,33 @@ async function main() {
   expect("reviewReminderDays=30: control 10 days out IS due-soon", wideHasControl, true);
 
   // --- 7. defaultTestSampleSize reaches a new control test -----------------
+  // NewTestClient.tsx's prefill is a purely CLIENT-SIDE default (it reads
+  // GET /api/workspace/me on mount and seeds the sampleSize input, still
+  // freely editable before submit) - the server never applies the setting
+  // itself when sampleSize is omitted from a POST. So the real thing to
+  // prove here is the SOURCE of the prefill: that /api/workspace/me's
+  // resolved defaultTestSampleSize genuinely tracks whatever was just
+  // PATCHed, for TWO distinct values (not one value asserted once, which
+  // could coincidentally match a hardcoded expectation) - that is what the
+  // browser-side prefill actually reads.
   await fetch(`${BASE_URL}/api/workspace/settings`, { method: "PATCH", headers: H, body: JSON.stringify({ settings: { defaultTestSampleSize: 42 } }) });
   const settingsForPrefill = await body(await fetch(`${BASE_URL}/api/workspace/me`, { headers: H }));
-  expect("workspace/me exposes resolved defaultTestSampleSize", settingsForPrefill.settings.defaultTestSampleSize, 42);
+  expect("workspace/me exposes resolved defaultTestSampleSize (first value)", settingsForPrefill.settings.defaultTestSampleSize, 42);
+
+  await fetch(`${BASE_URL}/api/workspace/settings`, { method: "PATCH", headers: H, body: JSON.stringify({ settings: { defaultTestSampleSize: 77 } }) });
+  const settingsForPrefillUpdated = await body(await fetch(`${BASE_URL}/api/workspace/me`, { headers: H }));
+  expect(
+    "workspace/me's prefill source tracks a changed setting (second, different value)",
+    settingsForPrefillUpdated.settings.defaultTestSampleSize,
+    77
+  );
+
+  // Reset to the value the rest of this smoke run expects, then create the
+  // test exactly as NewTestClient.tsx's submit handler would: sampleSize
+  // taken from what the prefill read (simulating an assessor who never
+  // touched the pre-filled field).
+  await fetch(`${BASE_URL}/api/workspace/settings`, { method: "PATCH", headers: H, body: JSON.stringify({ settings: { defaultTestSampleSize: 42 } }) });
+  const settingsForNewTest = await body(await fetch(`${BASE_URL}/api/workspace/me`, { headers: H }));
   const newTest = await body(
     await fetch(`${BASE_URL}/api/control-tests`, {
       method: "POST",
@@ -199,7 +223,7 @@ async function main() {
       body: JSON.stringify({
         workspaceControlId: control.control.id,
         title: "Sample-size prefill test",
-        sampleSize: settingsForPrefill.settings.defaultTestSampleSize,
+        sampleSize: settingsForNewTest.settings.defaultTestSampleSize,
       }),
     })
   );
@@ -299,6 +323,81 @@ async function main() {
   // --- 11. Non-UUID path param -> 404, not 500 -----------------------------
   const nonUuidRes = await fetch(`${BASE_URL}/api/evidence/not-a-uuid/file`, { method: "DELETE", headers: H });
   expect("non-uuid evidence id -> 404", nonUuidRes.status, 404);
+
+  // Same guard on /api/workspace/people/[id] (PATCH and DELETE) - copied
+  // from the evidence file route's isUuid check, see review must-fix #3.
+  const nonUuidPersonPatchRes = await fetch(`${BASE_URL}/api/workspace/people/not-a-uuid`, {
+    method: "PATCH",
+    headers: H,
+    body: JSON.stringify({ name: "x" }),
+  });
+  expect("non-uuid person id -> 404 on PATCH, not 500", nonUuidPersonPatchRes.status, 404);
+  const nonUuidPersonDeleteRes = await fetch(`${BASE_URL}/api/workspace/people/not-a-uuid`, { method: "DELETE", headers: H });
+  expect("non-uuid person id -> 404 on DELETE, not 500", nonUuidPersonDeleteRes.status, 404);
+
+  // --- 12. Concurrent partial settings patches must not lose writes -------
+  // Must-fix #4: the settings merge used to be read-then-write outside a
+  // transaction. Three concurrent PATCHes of three DIFFERENT settings keys,
+  // fired together, must all persist - a read-then-write race would lose
+  // whichever finished its read first.
+  await Promise.all([
+    fetch(`${BASE_URL}/api/workspace/settings`, { method: "PATCH", headers: H, body: JSON.stringify({ settings: { organisationName: "Concurrent Co" } }) }),
+    fetch(`${BASE_URL}/api/workspace/settings`, { method: "PATCH", headers: H, body: JSON.stringify({ settings: { defaultHourlyCostGbp: 88 } }) }),
+    fetch(`${BASE_URL}/api/workspace/settings`, { method: "PATCH", headers: H, body: JSON.stringify({ settings: { reviewReminderDays: 21 } }) }),
+  ]);
+  const afterConcurrent = await body(await fetch(`${BASE_URL}/api/workspace/settings`, { headers: H }));
+  expect("concurrent patch 1/3 persisted: organisationName", afterConcurrent.settings.organisationName, "Concurrent Co");
+  expect("concurrent patch 2/3 persisted: defaultHourlyCostGbp", afterConcurrent.settings.defaultHourlyCostGbp, 88);
+  expect("concurrent patch 3/3 persisted: reviewReminderDays", afterConcurrent.settings.reviewReminderDays, 21);
+
+  // --- 13. fileUploadEnabled is surfaced so the UI can disable the control -
+  const meForUpload = await body(await fetch(`${BASE_URL}/api/workspace/me`, { headers: H }));
+  expect("workspace/me exposes a boolean fileUploadEnabled flag", typeof meForUpload.fileUploadEnabled, "boolean");
+
+  // --- 14. Magic-byte mismatch: declared type must match actual content ---
+  // A PDF Content-Type on bytes that are not a PDF must 400, whether or not
+  // Blob storage is configured (this check runs before the storage check).
+  // newTest is already complete/final by this point (see #9's immutability
+  // check above), so evidence needs a fresh, still-open test to attach to.
+  const magicByteTest = await body(
+    await fetch(`${BASE_URL}/api/control-tests`, {
+      method: "POST",
+      headers: H,
+      body: JSON.stringify({ workspaceControlId: control.control.id, title: "Magic-byte smoke test" }),
+    })
+  );
+  const secondEvidenceRes = await body(
+    await fetch(`${BASE_URL}/api/control-tests/${magicByteTest.test.id}/evidence`, {
+      method: "POST",
+      headers: H,
+      body: JSON.stringify({ type: "test_result", title: "Magic-byte smoke evidence" }),
+    })
+  );
+  if (secondEvidenceRes?.evidence?.id) {
+    const magicMismatchForm = new FormData();
+    magicMismatchForm.append("file", new Blob(["not actually a pdf"], { type: "application/pdf" }), "fake.pdf");
+    const magicMismatchRes = await fetch(`${BASE_URL}/api/evidence/${secondEvidenceRes.evidence.id}/file`, {
+      method: "POST",
+      headers: { "x-workspace-id": H["x-workspace-id"], "x-workspace-token": H["x-workspace-token"] },
+      body: magicMismatchForm,
+    });
+    expect("magic-byte mismatch (fake PDF) -> 400", magicMismatchRes.status, 400);
+  } else {
+    fail("could not create a second evidence row to test magic-byte mismatch", JSON.stringify(secondEvidenceRes));
+  }
+
+  // --- 15. Private blob download: owning workspace can, a foreign one cannot ---
+  // Only meaningful when Blob storage is actually configured in this
+  // environment (validUploadRes above); otherwise there is no file to
+  // download and this is skipped, same graceful-degradation pattern as #9.
+  if (validUploadRes.ok) {
+    const ownDownloadRes = await fetch(`${BASE_URL}/api/evidence/${evidenceId}/file`, { headers: H });
+    expect("owning workspace can download the private blob -> 200", ownDownloadRes.status, 200);
+    const foreignDownloadRes = await fetch(`${BASE_URL}/api/evidence/${evidenceId}/file`, { headers: H2 });
+    expect("a foreign workspace cannot download the private blob -> 404", foreignDownloadRes.status, 404);
+  } else {
+    ok("private blob download not exercised: storage not configured in this environment", "skipped (consistent with #9)");
+  }
 
   console.log(`\n${passed}/${passed + failed} assertions passed`);
   if (failed > 0) process.exit(1);

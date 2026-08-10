@@ -1,4 +1,4 @@
-import { put, del } from "@vercel/blob";
+import { put, del, get } from "@vercel/blob";
 
 /**
  * Thin wrapper over @vercel/blob for evidence file uploads. The app is
@@ -8,10 +8,11 @@ import { put, del } from "@vercel/blob";
  *
  * A local dev environment (or a preview deploy) may not have that token
  * set - `isBlobConfigured()` is the single source of truth every caller
- * (the upload route, and the Settings/evidence UI's "file upload disabled"
- * messaging) checks before attempting a file operation, so a missing token
- * degrades to "file upload is disabled, link-only evidence still works"
- * rather than a 500 or a crashed page.
+ * (the upload route, GET /api/workspace/me's fileUploadEnabled flag, and
+ * the evidence UI's "file upload disabled" messaging) checks before
+ * attempting a file operation, so a missing token degrades to "file upload
+ * is disabled, link-only evidence still works" rather than a 500 or a
+ * crashed page.
  */
 export function isBlobConfigured(): boolean {
   return Boolean((process.env.BLOB_READ_WRITE_TOKEN || "").trim());
@@ -29,6 +30,13 @@ export interface UploadedBlob {
  * Callers must check isBlobConfigured() first; this throws if the token is
  * absent rather than silently no-op-ing, so a caller that forgot the check
  * fails loudly in dev rather than pretending to succeed.
+ *
+ * `access: "private"` deliberately: a store holding KYC samples and working
+ * papers must not have a permanent, unexpiring, unauthenticated bearer URL
+ * (the previous `access: "public"` shape) - the blob's URL is meaningless
+ * on its own now, and is only ever resolved back to bytes via
+ * getEvidenceFileStream, itself only reachable through the authenticated
+ * GET /api/evidence/[id]/file route below.
  */
 export async function uploadEvidenceFile(
   workspaceId: string,
@@ -42,11 +50,32 @@ export async function uploadEvidenceFile(
   }
   const pathname = `evidence/${workspaceId}/${evidenceId}/${fileName}`;
   const blob = await put(pathname, data, {
-    access: "public",
+    access: "private",
     contentType,
     addRandomSuffix: true,
   });
   return { url: blob.url, pathname: blob.pathname };
+}
+
+export interface EvidenceFileStream {
+  stream: ReadableStream<Uint8Array>;
+  contentType: string | null;
+  size: number | null;
+}
+
+/**
+ * Streams a private blob's bytes back through this app rather than handing
+ * out a URL: the ONLY caller is GET /api/evidence/[id]/file, which has
+ * already verified the requesting workspace owns the evidence row. Returns
+ * null if the blob has been deleted out from under a still-referencing
+ * evidence row (best-effort deletes elsewhere in this module mean that is
+ * possible, if rare).
+ */
+export async function getEvidenceFileStream(url: string): Promise<EvidenceFileStream | null> {
+  if (!isBlobConfigured()) return null;
+  const result = await get(url, { access: "private" });
+  if (!result || !result.stream) return null;
+  return { stream: result.stream, contentType: result.blob.contentType, size: result.blob.size };
 }
 
 /**

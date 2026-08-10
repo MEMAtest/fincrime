@@ -30,6 +30,27 @@ describe("resolveWorkspaceSettings", () => {
     const resolved = resolveWorkspaceSettings({ organisationName: null });
     expect(resolved.organisationName).toBeNull();
   });
+
+  it("re-enforces write-time bounds on read, falling back to the default for an out-of-range stored value", () => {
+    // A value that could never be written today via validateSettingsPatch
+    // but might exist from before a bound existed/tightened, or from any
+    // future write path that bypasses it.
+    expect(resolveWorkspaceSettings({ defaultHourlyCostGbp: 0 }).defaultHourlyCostGbp).toBe(
+      DEFAULT_WORKSPACE_SETTINGS.defaultHourlyCostGbp
+    );
+    expect(resolveWorkspaceSettings({ defaultHourlyCostGbp: -5 }).defaultHourlyCostGbp).toBe(
+      DEFAULT_WORKSPACE_SETTINGS.defaultHourlyCostGbp
+    );
+    expect(resolveWorkspaceSettings({ defaultHourlyCostGbp: 999999 }).defaultHourlyCostGbp).toBe(
+      DEFAULT_WORKSPACE_SETTINGS.defaultHourlyCostGbp
+    );
+    expect(resolveWorkspaceSettings({ defaultTestSampleSize: 0 }).defaultTestSampleSize).toBe(
+      DEFAULT_WORKSPACE_SETTINGS.defaultTestSampleSize
+    );
+    expect(resolveWorkspaceSettings({ reviewReminderDays: 400 }).reviewReminderDays).toBe(
+      DEFAULT_WORKSPACE_SETTINGS.reviewReminderDays
+    );
+  });
 });
 
 describe("validateSettingsPatch", () => {
@@ -54,6 +75,10 @@ describe("validateSettingsPatch", () => {
     expect(validateSettingsPatch({ defaultHourlyCostGbp: -5 }).ok).toBe(false);
     expect(validateSettingsPatch({ defaultHourlyCostGbp: 999999 }).ok).toBe(false);
     expect(validateSettingsPatch({ defaultHourlyCostGbp: "50" }).ok).toBe(false);
+  });
+
+  it("rejects a zero defaultHourlyCostGbp (would zero every op-load estimate that falls back to it)", () => {
+    expect(validateSettingsPatch({ defaultHourlyCostGbp: 0 }).ok).toBe(false);
   });
 
   it("rejects a non-integer or out-of-range defaultTestSampleSize", () => {
@@ -151,5 +176,14 @@ describe("isValidEmail", () => {
     expect(isValidEmail("not-an-email")).toBe(false);
     expect(isValidEmail("a@b")).toBe(false);
     expect(isValidEmail("@b.com")).toBe(false);
+  });
+
+  it("rejects a local part containing characters that are not valid in an email address", () => {
+    expect(isValidEmail("<script>@b.com")).toBe(false);
+    expect(isValidEmail("a b@b.com")).toBe(false);
+  });
+
+  it("accepts the punctuation characters that are legitimately valid in a local part", () => {
+    expect(isValidEmail("a.b+tag_c-d@example.com")).toBe(true);
   });
 });

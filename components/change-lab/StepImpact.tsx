@@ -12,6 +12,8 @@ import type { ControlChangeDTO } from "./types";
 interface StepImpactProps {
   change: ControlChangeDTO;
   onSave: (data: Record<string, unknown>) => Promise<void>;
+  /** Workspace Settings > Operational defaults > hourly cost, used as the fallback whenever the assessor has not typed a value in the field below. Falls back to DEFAULT_HOURLY_COST_GBP when not supplied. */
+  defaultHourlyCostGbp?: number;
 }
 
 function numberOrNull(value: unknown): number | null {
@@ -27,7 +29,7 @@ function numberOrNull(value: unknown): number | null {
  * alertRatePct fixed at 100 rather than reimplementing the volume->alert
  * arithmetic that module already owns.
  */
-export default function StepImpact({ change, onSave }: StepImpactProps) {
+export default function StepImpact({ change, onSave, defaultHourlyCostGbp = DEFAULT_HOURLY_COST_GBP }: StepImpactProps) {
   const supportingData = change.supporting_data;
   const baselineAlertVolume = numberOrNull(supportingData.baselineAlertVolume);
   const expectedVolume = numberOrNull(supportingData.expectedVolume);
@@ -53,9 +55,9 @@ export default function StepImpact({ change, onSave }: StepImpactProps) {
       monthlyVolume: baselineAlertVolume,
       alertRatePct: 100,
       handlingMinutes,
-      hourlyCostGbp: hourlyCostGbp === "" ? DEFAULT_HOURLY_COST_GBP : hourlyCostGbp,
+      hourlyCostGbp: hourlyCostGbp === "" ? defaultHourlyCostGbp : hourlyCostGbp,
     });
-  }, [baselineAlertVolume, handlingMinutes, hourlyCostGbp]);
+  }, [baselineAlertVolume, handlingMinutes, hourlyCostGbp, defaultHourlyCostGbp]);
 
   const after: OperationalLoadResult | null = useMemo(() => {
     if (expectedVolume === null || handlingMinutes === "") return null;
@@ -63,9 +65,9 @@ export default function StepImpact({ change, onSave }: StepImpactProps) {
       monthlyVolume: expectedVolume,
       alertRatePct: 100,
       handlingMinutes,
-      hourlyCostGbp: hourlyCostGbp === "" ? DEFAULT_HOURLY_COST_GBP : hourlyCostGbp,
+      hourlyCostGbp: hourlyCostGbp === "" ? defaultHourlyCostGbp : hourlyCostGbp,
     });
-  }, [expectedVolume, handlingMinutes, hourlyCostGbp]);
+  }, [expectedVolume, handlingMinutes, hourlyCostGbp, defaultHourlyCostGbp]);
 
   const baselineRating = (change.baseline.effectivenessRating as ControlRating | null | undefined) ?? "not_assessed";
   const proposedRating = (change.proposed.effectivenessRating as ControlRating | null | undefined) ?? baselineRating;
@@ -115,10 +117,10 @@ export default function StepImpact({ change, onSave }: StepImpactProps) {
         />
         <Input
           type="number"
-          label={`Hourly analyst cost, £ (default £${DEFAULT_HOURLY_COST_GBP})`}
+          label={`Hourly analyst cost, £ (default £${defaultHourlyCostGbp})`}
           value={hourlyCostGbp}
           onChange={(e) => setHourlyCostGbp(e.target.value === "" ? "" : Number(e.target.value))}
-          placeholder={String(DEFAULT_HOURLY_COST_GBP)}
+          placeholder={String(defaultHourlyCostGbp)}
         />
       </div>
 

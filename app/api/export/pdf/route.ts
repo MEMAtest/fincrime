@@ -15,6 +15,7 @@ import { generateGovernancePDF, type GovernancePackPayload } from "@/lib/pdf/gov
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
 import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
 import { updateWorkspace } from "@/lib/repo/workspace";
+import { isNumOrNull, isStrOrNull, isValidExportEvidence } from "@/lib/pdf/evidence-validation";
 import { resolveWorkspaceSettings } from "@/lib/workspace/settings";
 import { loadGovernancePortfolio } from "@/lib/governance/load";
 import type { PraExportPayload } from "@/components/pra/types";
@@ -80,20 +81,11 @@ function isValidPraExportPayload(value: unknown): value is PraExportPayload {
   );
 }
 
-/** number, or null - never NaN/Infinity, never a stray string/object/array. */
-function isNumOrNull(v: unknown): v is number | null {
-  return v === null || (typeof v === "number" && Number.isFinite(v));
-}
-/** string, or null - the shape every free-text field in ChangeExportPayload uses. */
-function isStrOrNull(v: unknown): v is string | null {
-  return v === null || typeof v === "string";
-}
-
-function isValidChangeEvidence(v: unknown): boolean {
-  if (!v || typeof v !== "object") return false;
-  const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
-}
+// isNumOrNull/isStrOrNull/isValidExportEvidence live in lib/pdf/evidence-validation.ts,
+// shared across all five *ExportEvidence shapes below (extracted so the
+// evidence.fileName/fileSizeBytes-optional fix - see that module's doc
+// comment - is unit tested in one place rather than duplicated five times).
+const isValidChangeEvidence = isValidExportEvidence;
 
 function isValidChangeCondition(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
@@ -219,11 +211,7 @@ function isValidTestExportAction(v: unknown): boolean {
   );
 }
 
-function isValidTestExportEvidence(v: unknown): boolean {
-  if (!v || typeof v !== "object") return false;
-  const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
-}
+const isValidTestExportEvidence = isValidExportEvidence;
 
 /**
  * Runtime check of the control-test report payload before handing it to
@@ -277,11 +265,7 @@ function isValidIncidentExportAction(v: unknown): boolean {
   );
 }
 
-function isValidIncidentExportEvidence(v: unknown): boolean {
-  if (!v || typeof v !== "object") return false;
-  const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
-}
+const isValidIncidentExportEvidence = isValidExportEvidence;
 
 /**
  * Runtime check of the incident report payload before handing it to jsPDF -
@@ -355,11 +339,7 @@ function isValidReadinessExportObligation(v: unknown): boolean {
   );
 }
 
-function isValidReadinessExportEvidence(v: unknown): boolean {
-  if (!v || typeof v !== "object") return false;
-  const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
-}
+const isValidReadinessExportEvidence = isValidExportEvidence;
 
 function isValidReadinessExportAction(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
@@ -487,11 +467,7 @@ function isValidRegResponseExportCondition(v: unknown): boolean {
   return typeof c.description === "string" && isStrOrNull(c.dueDate) && isStrOrNull(c.ownerName) && typeof c.status === "string";
 }
 
-function isValidRegResponseExportEvidence(v: unknown): boolean {
-  if (!v || typeof v !== "object") return false;
-  const e = v as Record<string, unknown>;
-  return typeof e.title === "string" && typeof e.type === "string" && isStrOrNull(e.description) && isStrOrNull(e.linkUrl) && isStrOrNull(e.fileName) && isNumOrNull(e.fileSizeBytes);
-}
+const isValidRegResponseExportEvidence = isValidExportEvidence;
 
 function isValidRegResponseExportDecision(v: unknown): boolean {
   if (!v || typeof v !== "object") return false;
@@ -625,8 +601,17 @@ export async function POST(request: NextRequest) {
     }
 
     // email drives delivery AND the workspace owner_email backfill below, so
-    // reject anything that is not a plausible address string outright.
-    if (email !== undefined && (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
+    // reject anything that is not a plausible address string outright. Same
+    // pattern as lib/workspace/settings.ts's isValidEmail, kept in sync
+    // deliberately - excludes `<`, `>` and other characters not valid in an
+    // email address's local part.
+    if (
+      email !== undefined &&
+      (typeof email !== "string" ||
+        !/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(
+          email.trim()
+        ))
+    ) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
     // The trimmed form is what gets stored and mailed - validating the
@@ -887,15 +872,17 @@ export async function POST(request: NextRequest) {
       // LeadCaptureModal already carries for the opportunistic owner_email
       // backfill below), never from client-asserted numbers. A missing or
       // invalid workspace credential 401s outright - there is no anonymous
-      // "preview" of a governance pack.
-      const workspace = await getAuthenticatedWorkspace(request);
+      // "preview" of a governance pack. Reuses requestingWorkspace (resolved
+      // once, above, for orgInfo) rather than re-verifying the same headers
+      // a second time.
+      const workspace = requestingWorkspace;
       if (!workspace) {
         return NextResponse.json({ error: "Missing or invalid workspace credentials" }, { status: 401 });
       }
       const portfolio = await loadGovernancePortfolio(
         workspace.id,
         new Date(),
-        resolveWorkspaceSettings(workspace.settings).reviewReminderDays
+        requestingWorkspaceSettings.reviewReminderDays
       );
       const payload: GovernancePackPayload = { asOf: portfolio.asOf, generatedAt: new Date().toISOString(), portfolio };
       if (!isValidGovernancePackPayload(payload)) {
@@ -913,9 +900,10 @@ export async function POST(request: NextRequest) {
     // or fails the export if verification or the update errors.
     if (cleanEmail) {
       try {
-        const workspace = await getAuthenticatedWorkspace(request);
-        if (workspace && !workspace.owner_email) {
-          await updateWorkspace(workspace.id, { ownerEmail: cleanEmail }, "lead_capture");
+        // Reuses requestingWorkspace (resolved once, above, for orgInfo)
+        // rather than re-verifying the same auth headers a second time.
+        if (requestingWorkspace && !requestingWorkspace.owner_email) {
+          await updateWorkspace(requestingWorkspace.id, { ownerEmail: cleanEmail }, "lead_capture");
         }
       } catch (error) {
         console.error("Workspace owner_email backfill error:", error);

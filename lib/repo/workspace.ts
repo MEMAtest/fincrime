@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID, createHash, timingSafeEqual } from "node:crypto";
-import { query } from "@/lib/db";
+import { query, withTransaction } from "@/lib/db";
 import { writeAudit } from "./audit";
 import {
   DEFAULT_APPETITE_THRESHOLDS,
@@ -98,36 +98,67 @@ export interface UpdateWorkspaceInput {
   name?: string | null;
   ownerEmail?: string | null;
   appetiteThresholds?: AppetiteThresholds;
-  settings?: Record<string, unknown>;
+  /**
+   * A PARTIAL patch onto the stored settings JSONB, merged with Postgres's
+   * `||` operator INSIDE the same transaction that locks the row (see
+   * below) - never a full replacement value computed by the caller outside
+   * a transaction. Two concurrent PATCHes of different keys (e.g. the
+   * Settings page's per-field blur-save on Organisation fields racing the
+   * Operational card's own save button) must both persist; merging a
+   * caller-computed `{...old, ...patch}` object at write time loses
+   * whichever request's read happened first, because the second write's
+   * `old` is already stale by the time it lands.
+   */
+  settingsPatch?: Record<string, unknown>;
 }
 
-/** Generic partial update of workspace fields; only sets what is passed in. */
+/**
+ * Generic partial update of workspace fields; only sets what is passed in.
+ * Runs inside a transaction with `SELECT ... FOR UPDATE` to serialise
+ * concurrent writers against the SAME workspace row, and merges
+ * `settingsPatch` in SQL (`settings || $n::jsonb`) rather than in
+ * application code, so no concurrent partial settings patch can be lost to
+ * a read-then-write race. name/ownerEmail/appetiteThresholds remain
+ * last-write-wins full replacements (as before) since callers always
+ * supply their complete intended value for those, not a partial patch.
+ */
 export async function updateWorkspace(
   id: string,
   input: UpdateWorkspaceInput,
   actor: string
 ): Promise<WorkspaceRow | null> {
-  const current = await getWorkspace(id);
-  if (!current) return null;
+  return withTransaction(async (client) => {
+    const lockedRows = await client.query<WorkspaceRow>(`SELECT * FROM workspaces WHERE id = $1 FOR UPDATE`, [id]);
+    const current = lockedRows.rows[0];
+    if (!current) return null;
 
-  const name = input.name !== undefined ? input.name : current.name;
-  const ownerEmail = input.ownerEmail !== undefined ? input.ownerEmail : current.owner_email;
-  const appetiteThresholds = input.appetiteThresholds ?? current.appetite_thresholds;
-  const settings = input.settings ?? current.settings;
+    const name = input.name !== undefined ? input.name : current.name;
+    const ownerEmail = input.ownerEmail !== undefined ? input.ownerEmail : current.owner_email;
+    const appetiteThresholds = input.appetiteThresholds ?? current.appetite_thresholds;
+    const settingsPatchJson = JSON.stringify(input.settingsPatch ?? {});
 
-  const rows = await query<WorkspaceRow>(
-    `UPDATE workspaces
-     SET name = $2, owner_email = $3, appetite_thresholds = $4, settings = $5, updated_at = now()
-     WHERE id = $1
-     RETURNING *`,
-    [id, name, ownerEmail, JSON.stringify(appetiteThresholds), JSON.stringify(settings)]
-  );
+    const rows = await client.query<WorkspaceRow>(
+      `UPDATE workspaces
+       SET name = $2, owner_email = $3, appetite_thresholds = $4, settings = settings || $5::jsonb, updated_at = now()
+       WHERE id = $1
+       RETURNING *`,
+      [id, name, ownerEmail, JSON.stringify(appetiteThresholds), settingsPatchJson]
+    );
 
-  const updated = rows[0] ?? null;
-  if (updated) {
-    await writeAudit(id, actor, "workspace.updated", "workspace", id, { ...input });
-  }
-  return updated;
+    const updated = rows.rows[0] ?? null;
+    if (updated) {
+      // MUST pass `client` here: writeAudit's default path opens a NEW
+      // pooled connection, and audit_log.workspace_id has a FK to
+      // workspaces(id) - inserting from a second connection would need a
+      // lock on the row this transaction's SELECT ... FOR UPDATE already
+      // holds and has not yet committed, self-deadlocking the two
+      // connections until pg's query_timeout kills it ("Query read
+      // timeout"). Participating in the same transaction avoids that
+      // entirely.
+      await writeAudit(id, actor, "workspace.updated", "workspace", id, { ...input }, client);
+    }
+    return updated;
+  });
 }
 
 /** Updates only the appetite thresholds used by the residual-risk scoring module. */
@@ -139,11 +170,11 @@ export async function updateAppetiteThresholds(
   return updateWorkspace(id, { appetiteThresholds }, actor);
 }
 
-/** Updates only the free-form settings blob. */
+/** Merges a partial patch onto the free-form settings blob (see updateWorkspace's settingsPatch doc). */
 export async function updateSettings(
   id: string,
-  settings: Record<string, unknown>,
+  settingsPatch: Record<string, unknown>,
   actor: string
 ): Promise<WorkspaceRow | null> {
-  return updateWorkspace(id, { settings }, actor);
+  return updateWorkspace(id, { settingsPatch }, actor);
 }

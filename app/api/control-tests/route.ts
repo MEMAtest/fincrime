@@ -81,7 +81,7 @@ export const POST = withWorkspace(async (request, workspace) => {
     }
 
     const sampleSizeParsed = parseOptionalCount(body?.sampleSize);
-    if (!sampleSizeParsed.ok) return badRequest("Invalid sampleSize: must be a non-negative integer or null");
+    if (!sampleSizeParsed.ok) return badRequest("Invalid sampleSize: must be a non-negative integer (max 100000) or null");
 
     const test = await createControlTest(
       workspace.id,

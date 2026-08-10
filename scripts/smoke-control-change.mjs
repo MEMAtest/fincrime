@@ -243,6 +243,21 @@ async function main() {
   const implementAfterRollback = await api(`/api/control-changes/${change.id}/implement`, { method: "POST" }, authHeaders);
   assert(implementAfterRollback.status === 409, `implement after rollback -> 409 (got ${implementAfterRollback.status})`);
 
+  // 11. A different workspace's token must not see or act on this change -
+  // every module's smoke suite exercises this (see docs/auth-and-notifications.md),
+  // control change had been the one gap.
+  const otherBootstrap = await api("/api/workspace/bootstrap", { method: "POST", body: JSON.stringify({ name: "Smoke test (other)" }) });
+  assert(otherBootstrap.status === 201, `bootstrap second workspace -> 201 (got ${otherBootstrap.status})`);
+  const otherHeaders = { "x-workspace-id": otherBootstrap.body.id, "x-workspace-token": otherBootstrap.body.token };
+  const foreignGet = await api(`/api/control-changes/${change.id}`, {}, otherHeaders);
+  assert(foreignGet.status === 404, `foreign workspace GET change -> 404 (got ${foreignGet.status})`);
+  const foreignPatch = await api(
+    `/api/control-changes/${change.id}`,
+    { method: "PATCH", body: JSON.stringify({ title: "hijack" }) },
+    otherHeaders
+  );
+  assert(foreignPatch.status === 404, `foreign workspace PATCH change -> 404 (got ${foreignPatch.status})`);
+
   console.log("");
   if (failures > 0) {
     console.error(`${failures} assertion(s) failed.`);

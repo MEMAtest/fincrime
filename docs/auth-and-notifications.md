@@ -18,6 +18,45 @@ to them at all - a decision records `decided_by_person_id`, but nothing ever
 authenticates that the person clicking "Approve" in the browser is the named
 approver rather than anyone else who happens to hold the workspace token.
 
+**The localStorage token is a bearer credential, full stop.** `lib/workspace-auth.ts`'s
+`withWorkspace()` treats "knows `{id, token}`" as "is this workspace" - there
+is no expiry, no rotation, and no revocation path. Anyone who reads the
+`fincrime-workspace` key out of a browser's localStorage (a stolen laptop, a
+XSS on a page that somehow runs script in this origin, a support screenshare
+where DevTools is open, a synced-and-later-compromised browser profile) has
+permanent, undetectable access to that workspace for as long as the row
+exists - there is no "log out everywhere," no session list, nothing to
+revoke. This phase (Phase 7) raised the stakes of that specific gap: file
+storage now lives behind the same token (`app/api/evidence/[id]/file/route.ts`),
+so a copied token is no longer just "read some risk scores" but "download
+every KYC sample and working paper this workspace has uploaded." This is the
+single strongest argument for real authentication in this document - stronger
+than the funnel/conversion argument below, because it is a live exposure
+today, not a missing feature. **What "real auth" (see below) actually buys
+here**: a session cookie with a real expiry and a server-side revocation
+list, so a compromised session can be killed without the workspace itself
+becoming unusable, is a fix specifically for this - not a nice-to-have.
+
+**Data retention.** There is no retention policy anywhere in this codebase:
+a workspace, once created, keeps its assessments, evidence rows and (as of
+this phase) uploaded files indefinitely - there is no TTL, no archival job,
+no "delete my data" flow, and no anonymisation of `owner_email` after a
+period of inactivity. For a tool now holding KYC samples, this is a real gap
+independent of authentication: an abandoned anonymous workspace from a
+one-off free-tool visit could sit on someone's uploaded document forever.
+Before this phase, that risk was compounded by evidence blobs being
+`access: "public"` in Vercel Blob - a permanent, unexpiring, unauthenticated
+URL that would have outlived any retention policy or access control added
+later, since anyone who ever saw or logged that URL could fetch it forever
+regardless of what the app's own auth model did. That specific compounding
+factor is fixed as of this phase: blobs are now `access: "private"`, fetched
+only by `GET /api/evidence/[id]/file` after the same workspace-token check
+as everything else (see `lib/storage/blob.ts`, `getEvidenceFileStream`). That
+narrows blob exposure to "whoever holds the workspace token" - i.e. exactly
+the bearer-credential risk described above, not a separate, worse,
+unauthenticated one. It does not, on its own, give the app a retention
+policy; a deletion/export flow is still not built.
+
 This is not an oversight. It is the actual product shape: the free tools
 (TypologyIQ, PartnerControlMap, the KYC matrix, and the rest) work with zero
 friction for an anonymous visitor, and a workspace is minted lazily, the
@@ -90,6 +129,26 @@ Either way, `withWorkspace()` in `lib/workspace-auth.ts` needs a sibling
 session cookie and resolves it to a user, then to that user's permitted
 workspace(s).
 
+**The hosted-provider alternative, and why it is the main lever on the
+estimate below.** A provider like Clerk, Supabase Auth or Auth.js/NextAuth
+removes the signup/login/magic-link API surface and session middleware
+entirely - that is the "medium" and "small-medium" line items in the
+estimate below, replaced by SDK integration instead of hand-built plumbing.
+Rough pricing as of writing: Clerk's free tier covers roughly 10,000 monthly
+active users then moves to a per-MAU plan (low hundreds of USD/month at this
+product's likely early scale); Supabase Auth is bundled into Supabase's
+existing free/Pro tiers (Pro is $25/month base, MAU limits scale from
+there) and would mean also adopting Supabase for at least auth even though
+the app's actual data stays on the existing Hetzner Postgres; Auth.js/NextAuth
+is free and self-hosted (an npm package, not a hosted service) but gives back
+essentially none of the build-time savings the hosted options provide,
+since session storage, adapters and UI are still assembled by hand - it
+trades ongoing subscription cost for build time, roughly the inverse of the
+Clerk/Supabase trade. The realistic choice is Clerk or Supabase Auth for
+speed (cutting the "genuinely new plumbing" week or two down to days of
+integration) at a small recurring cost, or Auth.js for zero recurring cost
+at closer to the full homegrown build estimate below.
+
 **Roughly how much work.** Ballpark, assuming the httpOnly-cookie-plus-SES
 path and NOT counting UI polish: a `users` table and migration (small); a
 signup/login/magic-link API surface (medium - this is genuinely new
@@ -113,7 +172,12 @@ that is not a hypothesis specific to this app, it is close to universal for
 self-serve tools. Auth also does not, on its own, fix anything currently
 broken - the workspace-token model already gives real tenant isolation
 (every query is workspace-scoped; a foreign workspace's id is already
-rejected everywhere per this codebase's own defect-class discipline). What
+rejected everywhere, exercised concretely by the seven `scripts/smoke-*.mjs`
+suites - `smoke-settings.mjs`, `smoke-governance.mjs`, `smoke-reg-response.mjs`,
+`smoke-readiness.mjs`, `smoke-incident.mjs`, `smoke-control-test.mjs` and
+`smoke-control-change.mjs` each create a second workspace and assert its
+token is refused against the first workspace's records, not merely a claim
+about the codebase's general discipline). What
 auth would add is: knowing WHO within a workspace did something (today it's
 "the workspace," not "Sarah"), and the ability to restrict who can approve
 vs merely draft. Those are real gaps for a firm with more than one person

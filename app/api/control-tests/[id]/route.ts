@@ -112,22 +112,22 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 
     if (body?.sampleSize !== undefined) {
       const parsed = parseOptionalCount(body.sampleSize);
-      if (!parsed.ok) return badRequest("Invalid sampleSize: must be a non-negative integer or null");
+      if (!parsed.ok) return badRequest("Invalid sampleSize: must be a non-negative integer (max 100000) or null");
       patch.sampleSize = parsed.value;
     }
     if (body?.samplesPassed !== undefined) {
       const parsed = parseOptionalCount(body.samplesPassed);
-      if (!parsed.ok) return badRequest("Invalid samplesPassed: must be a non-negative integer or null");
+      if (!parsed.ok) return badRequest("Invalid samplesPassed: must be a non-negative integer (max 100000) or null");
       patch.samplesPassed = parsed.value;
     }
     if (body?.samplesFailed !== undefined) {
       const parsed = parseOptionalCount(body.samplesFailed);
-      if (!parsed.ok) return badRequest("Invalid samplesFailed: must be a non-negative integer or null");
+      if (!parsed.ok) return badRequest("Invalid samplesFailed: must be a non-negative integer (max 100000) or null");
       patch.samplesFailed = parsed.value;
     }
     if (body?.samplesPartial !== undefined) {
       const parsed = parseOptionalCount(body.samplesPartial);
-      if (!parsed.ok) return badRequest("Invalid samplesPartial: must be a non-negative integer or null");
+      if (!parsed.ok) return badRequest("Invalid samplesPartial: must be a non-negative integer (max 100000) or null");
       patch.samplesPartial = parsed.value;
     }
 

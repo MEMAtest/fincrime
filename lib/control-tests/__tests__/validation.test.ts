@@ -5,6 +5,7 @@ import {
   isIsoDate,
   isNonNegativeInt,
   isUuid,
+  MAX_SAMPLE_COUNT,
   parseOptionalCount,
   parseOptionalStep,
 } from "../validation";
@@ -83,6 +84,12 @@ describe("isNonNegativeInt", () => {
     expect(isNonNegativeInt(Number.NaN)).toBe(false);
     expect(isNonNegativeInt("5")).toBe(false);
     expect(isNonNegativeInt(null)).toBe(false);
+  });
+
+  it("rejects a value beyond MAX_SAMPLE_COUNT (would overflow the int4 sampleSize column)", () => {
+    expect(isNonNegativeInt(MAX_SAMPLE_COUNT)).toBe(true);
+    expect(isNonNegativeInt(MAX_SAMPLE_COUNT + 1)).toBe(false);
+    expect(isNonNegativeInt(2_147_483_648)).toBe(false); // one past int4 max
   });
 });
 

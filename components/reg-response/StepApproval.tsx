@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Circle, Download, Plus, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Circle, Download, Loader2, Plus, Trash2, UserPlus } from "lucide-react";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import PDFExportButton from "@/components/shared/PDFExportButton";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import { formatIsoDate } from "@/lib/format/date";
 import {
   REG_COMMITMENT_STATUS_LABEL,
@@ -116,7 +117,39 @@ export default function StepApproval({
   onClose,
   onReject,
 }: StepApprovalProps) {
+  const { wsFetch } = useWorkspace();
   const personById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // Evidence blobs are private (lib/storage/blob.ts) - a plain <a href> to
+  // the stored URL would 403, so this fetches the bytes through the
+  // authenticated GET /api/evidence/[id]/file route (same pattern as
+  // components/evidence/EvidenceStep.tsx) rather than linking directly.
+  const downloadEvidenceFile = async (evidenceId: string, fileName: string) => {
+    setDownloadingId(evidenceId);
+    setDownloadError(null);
+    try {
+      const res = await wsFetch(`/api/evidence/${evidenceId}/file`);
+      if (!res.ok) {
+        setDownloadError("Could not download that file.");
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName || "evidence";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setDownloadError("Could not download that file. Please try again.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const isFinal = request.status === "closed" || request.status === "cancelled";
   const unanswered = questions.filter((q) => q.status === "unanswered");
@@ -644,6 +677,10 @@ export default function StepApproval({
 
       <section className="glass-card rounded-xl p-5">
         <h4 className="text-sm font-semibold text-foreground mb-2">Evidence ({evidence.length})</h4>
+        <p className="text-xs text-text-muted mb-2">
+          This pack can display evidence and any file already attached to it, but has no control here to add new
+          evidence or attach a file to this regulatory response.
+        </p>
         {evidence.length === 0 ? (
           <p className="text-sm text-text-muted">No evidence recorded.</p>
         ) : (
@@ -654,12 +691,19 @@ export default function StepApproval({
                   {e.title} ({e.type.replace(/_/g, " ")})
                 </span>
                 {e.file_url && (
-                  <a href={e.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent hover:underline">
-                    <Download className="h-3 w-3" /> {e.file_name}
-                  </a>
+                  <button
+                    type="button"
+                    onClick={() => void downloadEvidenceFile(e.id, e.file_name || "evidence")}
+                    disabled={downloadingId === e.id}
+                    className="inline-flex items-center gap-1 text-accent hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    {downloadingId === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}{" "}
+                    {e.file_name}
+                  </button>
                 )}
               </p>
             ))}
+            {downloadError && <p className="text-xs text-red-500">{downloadError}</p>}
           </div>
         )}
       </section>

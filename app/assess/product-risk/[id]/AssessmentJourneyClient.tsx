@@ -563,6 +563,7 @@ export default function AssessmentJourneyClient({
                 people={people}
                 decisionData={decisionData}
                 appetiteThresholds={appetiteThresholds}
+                defaultHourlyCostGbp={defaultHourlyCostGbp}
               />
             )}
           </div>

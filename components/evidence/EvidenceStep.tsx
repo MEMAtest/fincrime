@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, Plus, Paperclip, Download, X, Loader2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -62,7 +62,33 @@ export default function EvidenceStep({
   const [error, setError] = useState<string | null>(null);
   const [fileBusyId, setFileBusyId] = useState<string | null>(null);
   const [fileErrorById, setFileErrorById] = useState<Record<string, string>>({});
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  // Optimistically true so the control never flashes disabled while this
+  // loads - the honest "storage not configured" state only takes effect
+  // once GET /api/workspace/me actually confirms it, which is fast and
+  // avoids the alternative of the user picking a file, waiting, and getting
+  // a 503 that this flag exists specifically to prevent.
+  const [fileUploadEnabled, setFileUploadEnabled] = useState(true);
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    wsFetch("/api/workspace/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && typeof data.fileUploadEnabled === "boolean") {
+          setFileUploadEnabled(data.fileUploadEnabled);
+        }
+      })
+      .catch(() => {
+        // Best-effort: an unknown state stays optimistically enabled, same
+        // as before this flag existed - the upload route itself still 503s
+        // safely if storage genuinely is not configured.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [wsFetch]);
 
   const submit = async () => {
     if (!draft.title.trim()) {
@@ -110,6 +136,36 @@ export default function EvidenceStep({
       setFileErrorById((prev) => ({ ...prev, [evidenceId]: "Could not upload that file. Please try again." }));
     } finally {
       setFileBusyId(null);
+    }
+  };
+
+  // Evidence blobs are private (see lib/storage/blob.ts) - a plain <a href>
+  // to the stored URL would 403 (no way to attach the workspace auth
+  // headers to a browser-navigated link), so this fetches the bytes through
+  // the authenticated GET /api/evidence/[id]/file route and triggers the
+  // download client-side via an object URL.
+  const downloadFile = async (evidenceId: string, fileName: string) => {
+    setDownloadingId(evidenceId);
+    setFileErrorById((prev) => ({ ...prev, [evidenceId]: "" }));
+    try {
+      const res = await wsFetch(`/api/evidence/${evidenceId}/file`);
+      if (!res.ok) {
+        setFileErrorById((prev) => ({ ...prev, [evidenceId]: "Could not download that file." }));
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName || "evidence";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setFileErrorById((prev) => ({ ...prev, [evidenceId]: "Could not download that file. Please try again." }));
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -231,17 +287,18 @@ export default function EvidenceStep({
                   <div className="flex items-center gap-2 px-2.5 pb-2.5 flex-wrap">
                     {e.file_url ? (
                       <>
-                        <a
-                          href={e.file_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                        <button
+                          type="button"
+                          onClick={() => void downloadFile(e.id, e.file_name || "evidence")}
+                          disabled={downloadingId === e.id}
+                          className="inline-flex items-center gap-1 text-xs text-accent hover:underline cursor-pointer disabled:opacity-50"
                         >
-                          <Download className="h-3 w-3" /> {e.file_name}
+                          {downloadingId === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}{" "}
+                          {e.file_name}
                           {e.file_size_bytes !== null && (
                             <span className="text-text-muted">({formatFileSize(e.file_size_bytes)})</span>
                           )}
-                        </a>
+                        </button>
                         {!readOnly && (
                           <button
                             type="button"
@@ -254,7 +311,8 @@ export default function EvidenceStep({
                         )}
                       </>
                     ) : (
-                      !readOnly && (
+                      !readOnly &&
+                      (fileUploadEnabled ? (
                         <>
                           <input
                             ref={(el) => {
@@ -277,7 +335,12 @@ export default function EvidenceStep({
                             {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />} Attach file
                           </button>
                         </>
-                      )
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-text-muted">
+                          <Paperclip className="h-3 w-3" /> File upload is not configured for this deployment. Link-only
+                          evidence is still fully supported.
+                        </span>
+                      ))
                     )}
                     {rowError && <span className="text-xs text-red-500">{rowError}</span>}
                   </div>

@@ -46,6 +46,8 @@ interface StepPackProps {
   people: PersonDTO[];
   decisionData: DecisionRecord;
   appetiteThresholds: AppetiteThresholds;
+  /** Workspace Settings > Operational defaults > hourly cost, threaded through so step 8 costs operational load the same way step 5 (StepGapsOpLoad) does. Falls back to opLoadInputFromControl's own DEFAULT_HOURLY_COST_GBP when not supplied. */
+  defaultHourlyCostGbp?: number;
 }
 
 function fmtDate(iso: string | null): string {
@@ -63,6 +65,7 @@ export default function StepPack({
   people,
   decisionData,
   appetiteThresholds,
+  defaultHourlyCostGbp,
 }: StepPackProps) {
   const { wsFetch } = useWorkspace();
   const [evidence, setEvidence] = useState<EvidenceDTO[]>([]);
@@ -96,7 +99,13 @@ export default function StepPack({
   // Explicit arrow rather than `controls.map(opLoadInputFromControl)`: Array.map
   // also passes the element's index as a second argument, which would land in
   // opLoadInputFromControl's (same-typed, number) defaultHourlyCostGbp param.
-  const opLoadSummary = useMemo(() => summariseOperationalLoad(controls.map((c) => opLoadInputFromControl(c))), [controls]);
+  // defaultHourlyCostGbp threaded through so this step costs operational load
+  // identically to StepGapsOpLoad (step 5) - the pack must never print the
+  // hard-coded DEFAULT_HOURLY_COST_GBP for a workspace that set its own rate.
+  const opLoadSummary = useMemo(
+    () => summariseOperationalLoad(controls.map((c) => opLoadInputFromControl(c, defaultHourlyCostGbp))),
+    [controls, defaultHourlyCostGbp]
+  );
 
   const exportPayload: PraExportPayload = useMemo(
     () => ({

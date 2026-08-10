@@ -8,6 +8,11 @@ function isPersonRole(value: unknown): value is PersonRole {
   return typeof value === "string" && (VALID_ROLES as string[]).includes(value);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}
+
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
@@ -15,6 +20,7 @@ interface RouteContext {
 export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return NextResponse.json({ error: "Person not found" }, { status: 404 });
     const body = await request.json();
 
     const patch: { name?: string; role?: PersonRole; email?: string | null } = {};
@@ -51,6 +57,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return NextResponse.json({ error: "Person not found" }, { status: 404 });
     const result = await deletePerson(workspace.id, id, "workspace");
     if (result === "not_found") {
       return NextResponse.json({ error: "Person not found" }, { status: 404 });
