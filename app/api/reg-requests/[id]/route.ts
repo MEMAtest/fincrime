@@ -102,7 +102,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       return conflict("Cannot update a reg request that is already closed or cancelled");
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     if (body?.status !== undefined) {
       return badRequest("status cannot be changed via PATCH; use approve, submit, close, or reject");

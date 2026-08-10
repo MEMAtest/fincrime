@@ -200,20 +200,36 @@ export async function updateReadinessAssessment(
 
 export type DeleteReadinessAssessmentResult = { ok: true } | { ok: false; reason: "not_found" | "already_final" };
 
+/**
+ * Deletes a readiness assessment. 'approved_global' is never deletable (a
+ * real historical sign-off). 'rejected'/'cancelled' are normally blocked
+ * too, EXCEPT when the assessment never accumulated any substantive work
+ * (zero obligations) - the create-then-reject shape of an empty draft
+ * opened by mistake, otherwise permanent undeletable junk since PATCH is
+ * unconditionally blocked on a final status. Mirrors deleteRegRequest in
+ * lib/repo/reg-requests.ts.
+ */
 export async function deleteReadinessAssessment(workspaceId: string, id: string, actor: string): Promise<DeleteReadinessAssessmentResult> {
   return withTransaction(async (client) => {
     const current = await getAssessmentWithClient(client, workspaceId, id);
     if (!current) return { ok: false, reason: "not_found" };
-    if (isFinalReadinessStatus(current.status)) return { ok: false, reason: "already_final" };
 
-    const rows = await queryWithClient<{ id: string }>(
-      client,
-      `DELETE FROM readiness_assessments
-       WHERE workspace_id = $1 AND id = $2
-         AND status NOT IN ('approved_global', 'rejected', 'cancelled')
-       RETURNING id`,
-      [workspaceId, id]
-    );
+    if (isFinalReadinessStatus(current.status)) {
+      if (current.status === "approved_global") return { ok: false, reason: "already_final" };
+
+      const obligationRows = await queryWithClient<{ count: string }>(
+        client,
+        `SELECT COUNT(*)::text as count FROM readiness_obligations WHERE workspace_id = $1 AND assessment_id = $2`,
+        [workspaceId, id]
+      );
+      const hasSubstance = parseInt(obligationRows[0]?.count ?? "0", 10) > 0;
+      if (hasSubstance) return { ok: false, reason: "already_final" };
+    }
+
+    const rows = await queryWithClient<{ id: string }>(client, `DELETE FROM readiness_assessments WHERE workspace_id = $1 AND id = $2 RETURNING id`, [
+      workspaceId,
+      id,
+    ]);
     if (rows.length === 0) return { ok: false, reason: "already_final" };
 
     await writeAudit(workspaceId, actor, "readiness_assessment.deleted", SUBJECT_TYPE, id, {}, client);

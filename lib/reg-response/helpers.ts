@@ -32,6 +32,7 @@ export {
   isTerminalCommitmentStatus,
   isUuid,
   isIsoDate,
+  isNotFutureIsoDate,
   parseOptionalStep,
   parsePosition,
   type StepParseResult,

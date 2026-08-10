@@ -21,7 +21,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const reqRow = await requireRegRequest(workspace.id, id);
     if (!reqRow) return notFound("Reg request not found");
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const orderedQuestionIds = Array.isArray(body?.orderedQuestionIds) ? body.orderedQuestionIds : null;
     if (!orderedQuestionIds || orderedQuestionIds.length === 0) {
       return badRequest("orderedQuestionIds must be a non-empty array");

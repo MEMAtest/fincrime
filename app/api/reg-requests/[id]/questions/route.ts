@@ -34,7 +34,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const reqRow = await requireRegRequest(workspace.id, id);
     if (!reqRow) return notFound("Reg request not found");
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     if (body?.position !== undefined) {
       return badRequest("position cannot be set directly; questions are appended, then reordered via /questions/reorder");

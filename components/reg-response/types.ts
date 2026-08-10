@@ -60,6 +60,16 @@ export interface RegRequestDTO {
   updated_at: string;
 }
 
+/**
+ * Client-side mirror of lib/repo/reg-requests.ts's RegRequestWithSummary -
+ * what GET /api/reg-requests actually returns (each row plus its roll-up
+ * under `progress`, kept distinct from the row's own free-text `summary`
+ * column), so the list page never has to fetch a detail GET per row for it.
+ */
+export interface RegRequestListItemDTO extends RegRequestDTO {
+  progress: RegResponseSummaryDTO;
+}
+
 /** Client-side mirror of lib/repo/reg-requests.ts's RegQuestionLinkRow. */
 export interface RegQuestionLinkDTO {
   id: string;

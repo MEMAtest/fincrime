@@ -8,6 +8,7 @@ import {
   isTerminalCommitmentStatus,
   isUuid,
   isIsoDate,
+  isNotFutureIsoDate,
   parseOptionalStep,
   parsePosition,
 } from "../validation";
@@ -109,6 +110,26 @@ describe("isIsoDate", () => {
   it("rejects a malformed date string", () => {
     expect(isIsoDate("09-08-2026")).toBe(false);
     expect(isIsoDate("not-a-date")).toBe(false);
+  });
+});
+
+describe("isNotFutureIsoDate", () => {
+  const asOf = new Date("2026-08-09T12:00:00.000Z");
+
+  it("accepts today and any earlier date", () => {
+    expect(isNotFutureIsoDate("2026-08-09", asOf)).toBe(true);
+    expect(isNotFutureIsoDate("2020-01-01", asOf)).toBe(true);
+  });
+
+  it("rejects a future date", () => {
+    expect(isNotFutureIsoDate("2026-08-10", asOf)).toBe(false);
+    expect(isNotFutureIsoDate("2099-01-01", asOf)).toBe(false);
+  });
+
+  it("rejects malformed or non-ISO-date values, same as isIsoDate", () => {
+    expect(isNotFutureIsoDate("not-a-date", asOf)).toBe(false);
+    expect(isNotFutureIsoDate(null, asOf)).toBe(false);
+    expect(isNotFutureIsoDate(undefined, asOf)).toBe(false);
   });
 });
 

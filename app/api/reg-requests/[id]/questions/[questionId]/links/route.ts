@@ -40,7 +40,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const question = await requireRegQuestion(workspace.id, id, questionId);
     if (!question) return notFound("Reg question not found");
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     if (!isRegQuestionLinkType(body?.linkType)) {
       return badRequest(

@@ -38,7 +38,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const existing = await requireRegRequest(workspace.id, id);
     if (!existing) return notFound("Reg request not found");
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     const type = typeof body?.type === "string" ? body.type.trim() : "";
     if (!type) return badRequest("Missing required field: type");

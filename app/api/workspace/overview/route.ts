@@ -6,6 +6,7 @@ import { listOverdueActions } from "@/lib/repo/actions";
 import { listOverdueConditions } from "@/lib/repo/decisions";
 import { listAuditLog } from "@/lib/repo/audit";
 import { listPeople } from "@/lib/repo/people";
+import { getRegCommitment, REG_COMMITMENT_SUBJECT_TYPE } from "@/lib/repo/reg-requests";
 
 const RECENT_ACTIVITY_LIMIT = 15;
 
@@ -59,12 +60,27 @@ export const GET = withWorkspace(async (_request, workspace) => {
       .filter((a) => a.status === "in_review")
       .map((a) => toOverviewAssessment(a, productNameById));
 
+    // A reg_commitment action's subject_id is the commitment's own id, not
+    // the reg_request it belongs to, so it cannot be turned into a link
+    // without looking up the request it lives under - resolved here so the
+    // workspace home can render it as a real link rather than bare text.
+    const commitmentRequestIdBySubjectId = new Map<string, string>();
+    await Promise.all(
+      overdueActions
+        .filter((a) => a.subject_type === REG_COMMITMENT_SUBJECT_TYPE)
+        .map(async (a) => {
+          const commitment = await getRegCommitment(workspace.id, a.subject_id);
+          if (commitment) commitmentRequestIdBySubjectId.set(a.subject_id, commitment.request_id);
+        })
+    );
+
     return NextResponse.json({
       assessments: openAssessments,
       decisionsRequired,
       overdueActions: overdueActions.map((a) => ({
         ...a,
         ownerName: a.owner_person_id ? (personNameById.get(a.owner_person_id) ?? null) : null,
+        requestId: a.subject_type === REG_COMMITMENT_SUBJECT_TYPE ? commitmentRequestIdBySubjectId.get(a.subject_id) ?? null : null,
       })),
       overdueConditions: overdueConditions.map((c) => ({
         ...c,

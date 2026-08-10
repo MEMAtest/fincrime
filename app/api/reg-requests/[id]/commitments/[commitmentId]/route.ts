@@ -6,6 +6,7 @@ import {
   badRequest,
   conflict,
   isIsoDate,
+  isNotFutureIsoDate,
   isRegCommitmentStatus,
   isUuid,
   notFound,
@@ -34,7 +35,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
     const commitment = await requireRegCommitment(workspace.id, id, commitmentId);
     if (!commitment) return notFound("Reg commitment not found");
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     const patch: UpdateRegCommitmentInput = {};
 
@@ -71,6 +72,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 
     if (body?.metAt !== undefined) {
       if (body.metAt !== null && !isIsoDate(body.metAt)) return badRequest("Invalid metAt: must be an ISO date (YYYY-MM-DD) or null");
+      if (body.metAt !== null && !isNotFutureIsoDate(body.metAt)) return badRequest("Invalid metAt: cannot be in the future");
       patch.metAt = body.metAt;
     }
 

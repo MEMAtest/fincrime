@@ -36,7 +36,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const reqRow = await requireRegRequest(workspace.id, id);
     if (!reqRow) return notFound("Reg request not found");
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     const description = typeof body?.description === "string" ? body.description.trim() : "";
     if (!description) return badRequest("Missing required field: description");

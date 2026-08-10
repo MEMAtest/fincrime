@@ -407,6 +407,7 @@ export default function RegResponseJourneyClient({ requestId, bridgedIncidentId 
       "already_final",
       "wrong_status",
       "unanswered_questions",
+      "no_questions",
       "not_approved",
       "not_submitted",
       "open_commitments",

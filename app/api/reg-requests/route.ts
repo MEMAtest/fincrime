@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
-import { createRegRequest, listRegRequests } from "@/lib/repo/reg-requests";
+import { createRegRequest, listRegRequestsWithSummary } from "@/lib/repo/reg-requests";
 import {
   ACTOR,
   badRequest,
@@ -14,7 +14,10 @@ import {
 
 /**
  * GET /api/reg-requests - list the workspace's regulator requests, most
- * recent first. Optional ?status= filter, validated against the enum.
+ * recent first, each with its roll-up summary attached (listRegRequestsWithSummary
+ * computes every row's summary in two bulk queries rather than the list
+ * page fetching a full detail GET per row for it). Optional ?status=
+ * filter, validated against the enum.
  */
 export const GET = withWorkspace(async (request, workspace) => {
   try {
@@ -24,7 +27,7 @@ export const GET = withWorkspace(async (request, workspace) => {
       return badRequest("Invalid status filter");
     }
 
-    const requests = await listRegRequests(workspace.id, { status: statusParam ?? undefined });
+    const requests = await listRegRequestsWithSummary(workspace.id, { status: statusParam ?? undefined });
     return NextResponse.json({ requests });
   } catch (error) {
     return serverError("Reg request list error", error);
@@ -37,7 +40,7 @@ export const GET = withWorkspace(async (request, workspace) => {
  */
 export const POST = withWorkspace(async (request, workspace) => {
   try {
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     if (!title) return badRequest("Missing required field: title");

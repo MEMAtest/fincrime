@@ -50,6 +50,8 @@ interface OverviewAction {
   due_date: string | null;
   priority: "high" | "medium" | "low";
   status: ActionStatus;
+  /** Only set for subject_type "reg_commitment": the reg_request the commitment belongs to (its subject_id is the commitment's own id, not a directly linkable page). */
+  requestId?: string | null;
 }
 
 interface OverviewCondition {
@@ -438,6 +440,8 @@ function ActionRow({
       ? `/assess/product-risk/${action.subject_id}`
       : action.subject_type === "incident"
       ? `/assure/incidents/${action.subject_id}`
+      : action.subject_type === "reg_commitment" && action.requestId
+      ? `/govern/regulatory-response/${action.requestId}`
       : null;
 
   const title = subjectHref ? (

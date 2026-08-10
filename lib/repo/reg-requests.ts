@@ -125,6 +125,65 @@ export async function listRegRequests(workspaceId: string, filter: ListRegReques
   return query<RegRequestRow>(`SELECT * FROM reg_requests WHERE workspace_id = $1 ORDER BY created_at DESC`, [workspaceId]);
 }
 
+export interface RegRequestWithSummary extends RegRequestRow {
+  /**
+   * The roll-up summary, named `progress` (not `summary`) because
+   * RegRequestRow already has a `summary` column - the request's own
+   * free-text summary field - and attaching the roll-up under that same key
+   * would silently clobber it.
+   */
+  progress: RegResponseSummary;
+}
+
+/**
+ * Same rows as listRegRequests, with each request's roll-up summary
+ * attached - for the list page's per-row progress/commitment counts, which
+ * previously fetched the full detail endpoint per listed request purely for
+ * this arithmetic (an N+1: one GET per row). Fetches every question and
+ * every commitment for the whole matching set of requests in TWO queries
+ * total (not one per request), then groups them in memory before calling
+ * the same regResponseSummary arithmetic the detail endpoint uses, so the
+ * two never drift.
+ */
+export async function listRegRequestsWithSummary(
+  workspaceId: string,
+  filter: ListRegRequestsFilter = {}
+): Promise<RegRequestWithSummary[]> {
+  const requests = await listRegRequests(workspaceId, filter);
+  if (requests.length === 0) return [];
+
+  const ids = requests.map((r) => r.id);
+  const [questions, commitments] = await Promise.all([
+    query<{ request_id: string; status: RegQuestionStatus }>(
+      `SELECT request_id, status FROM reg_questions WHERE workspace_id = $1 AND request_id = ANY($2::uuid[])`,
+      [workspaceId, ids]
+    ),
+    query<{ request_id: string; status: RegCommitmentStatus; due_date: string | Date | null }>(
+      `SELECT request_id, status, due_date FROM reg_commitments WHERE workspace_id = $1 AND request_id = ANY($2::uuid[])`,
+      [workspaceId, ids]
+    ),
+  ]);
+
+  const questionsByRequest = new Map<string, { status: RegQuestionStatus }[]>();
+  for (const q of questions) {
+    const bucket = questionsByRequest.get(q.request_id);
+    if (bucket) bucket.push({ status: q.status });
+    else questionsByRequest.set(q.request_id, [{ status: q.status }]);
+  }
+
+  const commitmentsByRequest = new Map<string, { status: RegCommitmentStatus; due_date: string | Date | null }[]>();
+  for (const c of commitments) {
+    const bucket = commitmentsByRequest.get(c.request_id);
+    if (bucket) bucket.push({ status: c.status, due_date: c.due_date });
+    else commitmentsByRequest.set(c.request_id, [{ status: c.status, due_date: c.due_date }]);
+  }
+
+  return requests.map((r) => ({
+    ...r,
+    progress: summarize(questionsByRequest.get(r.id) ?? [], commitmentsByRequest.get(r.id) ?? [], r.deadline),
+  }));
+}
+
 export async function getRegRequest(workspaceId: string, id: string): Promise<RegRequestRow | null> {
   const rows = await query<RegRequestRow>(`SELECT * FROM reg_requests WHERE workspace_id = $1 AND id = $2`, [workspaceId, id]);
   return rows[0] ?? null;
@@ -213,17 +272,38 @@ export async function updateRegRequest(
 
 export type DeleteRegRequestResult = { ok: true } | { ok: false; reason: "not_found" | "already_final" };
 
+/**
+ * Deletes a reg_request. 'closed' is never deletable (it went all the way
+ * through submission, a real historical record). 'cancelled' is normally
+ * blocked too, EXCEPT when the request never accumulated any substantive
+ * work (zero questions, zero commitments) - that is the create-then-reject
+ * shape of an empty draft opened by mistake, and without this exception it
+ * is permanent, undeletable junk (PATCH is already unconditionally blocked
+ * on a final status, so DELETE is the only way out).
+ */
 export async function deleteRegRequest(workspaceId: string, id: string, actor: string): Promise<DeleteRegRequestResult> {
   return withTransaction(async (client) => {
     const current = await getRequestWithClient(client, workspaceId, id);
     if (!current) return { ok: false, reason: "not_found" };
-    if (isFinalRegRequestStatus(current.status)) return { ok: false, reason: "already_final" };
 
-    const rows = await queryWithClient<{ id: string }>(
-      client,
-      `DELETE FROM reg_requests WHERE workspace_id = $1 AND id = $2 AND status NOT IN ('closed', 'cancelled') RETURNING id`,
-      [workspaceId, id]
-    );
+    if (isFinalRegRequestStatus(current.status)) {
+      if (current.status !== "cancelled") return { ok: false, reason: "already_final" };
+
+      const substanceRows = await queryWithClient<{ count: string }>(
+        client,
+        `SELECT
+           (SELECT COUNT(*) FROM reg_questions WHERE workspace_id = $1 AND request_id = $2) +
+           (SELECT COUNT(*) FROM reg_commitments WHERE workspace_id = $1 AND request_id = $2) AS count`,
+        [workspaceId, id]
+      );
+      const hasSubstance = parseInt(substanceRows[0]?.count ?? "0", 10) > 0;
+      if (hasSubstance) return { ok: false, reason: "already_final" };
+    }
+
+    const rows = await queryWithClient<{ id: string }>(client, `DELETE FROM reg_requests WHERE workspace_id = $1 AND id = $2 RETURNING id`, [
+      workspaceId,
+      id,
+    ]);
     if (rows.length === 0) return { ok: false, reason: "already_final" };
 
     await writeAudit(workspaceId, actor, "reg_request.deleted", SUBJECT_TYPE, id, {}, client);
@@ -330,8 +410,18 @@ export interface UpdateRegQuestionInput {
 
 export type UpdateRegQuestionResult =
   | { ok: true; question: RegQuestionRow }
-  | { ok: false; reason: "not_found" | "already_final" | "question_not_found" };
+  | { ok: false; reason: "not_found" | "already_final" | "question_not_found" | "answer_required" };
 
+/**
+ * Updates a question. Refuses (answer_required) a status of 'drafted' or
+ * 'reviewed' unless the MERGED post-patch row (this patch's response/
+ * exceptionNote, falling back to what is already stored) has non-empty text
+ * in response OR exception_note - checking the request body alone would let
+ * {status: "reviewed"} on an already-empty question through unchallenged. A
+ * question with a status flag but no answer text and no acknowledged
+ * exception is exactly what approveResponse's unanswered_questions guard
+ * exists to catch, and a status-only field defeats it.
+ */
 export async function updateRegQuestion(
   workspaceId: string,
   requestId: string,
@@ -346,12 +436,16 @@ export async function updateRegQuestion(
       [workspaceId, requestId, questionId]
     );
     const current = currentRows[0];
-    if (!current) return null;
+    if (!current) return { ok: false as const, reason: "question_not_found" as const };
 
     const question = input.question ?? current.question;
     const response = input.response !== undefined ? input.response : current.response;
     const exceptionNote = input.exceptionNote !== undefined ? input.exceptionNote : current.exception_note;
     const status = input.status ?? current.status;
+
+    if ((status === "drafted" || status === "reviewed") && !response?.trim() && !exceptionNote?.trim()) {
+      return { ok: false as const, reason: "answer_required" as const };
+    }
 
     const rows = await queryWithClient<RegQuestionRow>(
       client,
@@ -364,12 +458,12 @@ export async function updateRegQuestion(
     const updated = rows[0];
 
     await writeAudit(workspaceId, actor, "reg_question.updated", "reg_question", questionId, { requestId, fields: Object.keys(input) }, client);
-    return updated;
+    return { ok: true as const, question: updated };
   });
 
   if (!locked.ok) return locked;
-  if (!locked.result) return { ok: false, reason: "question_not_found" };
-  return { ok: true, question: locked.result };
+  if (!locked.result.ok) return { ok: false, reason: locked.result.reason };
+  return { ok: true, question: locked.result.question };
 }
 
 export type DeleteRegQuestionResult =
@@ -730,11 +824,31 @@ export type UpdateRegCommitmentResult =
   | { ok: false; reason: "not_found" | "already_final" | "commitment_not_found" };
 
 /**
- * Updates a commitment. A status transition INTO 'met' closes the linked
- * action (if one exists and is not already terminal) in the SAME
- * transaction, and stamps met_at (input.metAt or today). The reverse is not
- * implemented (moving a commitment off 'met' does not reopen its action) -
- * that direction was explicitly out of scope per the module spec.
+ * Updates a commitment, keeping its linked TRACKED action (if any) honest
+ * with the commitment record throughout - every transition below happens in
+ * the SAME transaction as the commitment row's own UPDATE:
+ *
+ *  - due_date arrives where none existed before (action_id IS NULL): a
+ *    tracked action is created now, exactly like createRegCommitment does
+ *    at insert time - "add a date later" must create the same live overdue
+ *    work as "add a date up front", not silently store a date nothing
+ *    tracks.
+ *  - action_id is already set and the commitment stays non-terminal
+ *    (open/in_progress): description/due_date/owner_person_id are
+ *    propagated onto the action, so pulling a date forward or renaming the
+ *    commitment does not leave the tracked action contradicting the record
+ *    it exists to track.
+ *  - status transitions INTO 'met': the action is closed 'done' and met_at
+ *    is stamped (input.metAt or today).
+ *  - status transitions INTO 'missed' or 'withdrawn' (terminal, not met):
+ *    the action is closed 'cancelled' - these are still promises that
+ *    stopped being live work, and leaving the action open would strand it:
+ *    once the commitment reaches a terminal status,
+ *    lib/workspace/subject-mutability.ts refuses to let the generic actions
+ *    route touch it either, so this is the only chance to close it.
+ *
+ * The reverse (moving a commitment OFF 'met'/'missed'/'withdrawn' back to
+ * open) does not reopen its action - out of scope per the module spec.
  */
 export async function updateRegCommitment(
   workspaceId: string,
@@ -758,6 +872,7 @@ export async function updateRegCommitment(
     const status = input.status ?? current.status;
     const note = input.note !== undefined ? input.note : current.note;
     const becomingMet = status === "met" && current.status !== "met";
+    const becomingClosedOut = (status === "missed" || status === "withdrawn") && current.status !== status;
     const metAt = becomingMet ? input.metAt ?? new Date().toISOString().slice(0, 10) : input.metAt !== undefined ? input.metAt : current.met_at;
 
     const rows = await queryWithClient<RegCommitmentRow>(
@@ -768,18 +883,77 @@ export async function updateRegCommitment(
        RETURNING *`,
       [workspaceId, requestId, commitmentId, description, dueDate, ownerPersonId, status, note, metAt]
     );
-    const updated = rows[0];
+    let updated = rows[0];
 
-    if (becomingMet && updated.action_id) {
-      const actionRows = await queryWithClient<{ id: string }>(
-        client,
-        `UPDATE actions SET status = 'done', updated_at = now()
-         WHERE workspace_id = $1 AND id = $2 AND status NOT IN ('done', 'cancelled')
-         RETURNING id`,
-        [workspaceId, updated.action_id]
+    // Fix: a due date newly supplied where none (and no action) existed
+    // before creates the tracked action now, mirroring createRegCommitment.
+    let actionJustCreated = false;
+    if (dueDate && !updated.action_id) {
+      const action: ActionRow = await createAction(
+        workspaceId,
+        {
+          subjectType: REG_COMMITMENT_SUBJECT_TYPE,
+          subjectId: updated.id,
+          title: description,
+          ownerPersonId,
+          dueDate,
+          priority: "medium",
+        },
+        actor,
+        client
       );
-      if (actionRows.length > 0) {
-        await writeAudit(workspaceId, actor, "action.updated", "action", updated.action_id, { via: "reg_commitment.met", commitmentId }, client);
+      const withAction = await queryWithClient<RegCommitmentRow>(
+        client,
+        `UPDATE reg_commitments SET action_id = $3, updated_at = now() WHERE workspace_id = $1 AND id = $2 RETURNING *`,
+        [workspaceId, updated.id, action.id]
+      );
+      updated = withAction[0];
+      actionJustCreated = true;
+      await writeAudit(
+        workspaceId,
+        actor,
+        "reg_commitment.action_created",
+        REG_COMMITMENT_SUBJECT_TYPE,
+        updated.id,
+        { requestId, actionId: action.id },
+        client
+      );
+    }
+
+    if (updated.action_id) {
+      if (becomingMet) {
+        const actionRows = await queryWithClient<{ id: string }>(
+          client,
+          `UPDATE actions SET status = 'done', updated_at = now()
+           WHERE workspace_id = $1 AND id = $2 AND status NOT IN ('done', 'cancelled')
+           RETURNING id`,
+          [workspaceId, updated.action_id]
+        );
+        if (actionRows.length > 0) {
+          await writeAudit(workspaceId, actor, "action.updated", "action", updated.action_id, { via: "reg_commitment.met", commitmentId }, client);
+        }
+      } else if (becomingClosedOut) {
+        const actionRows = await queryWithClient<{ id: string }>(
+          client,
+          `UPDATE actions SET status = 'cancelled', updated_at = now()
+           WHERE workspace_id = $1 AND id = $2 AND status NOT IN ('done', 'cancelled')
+           RETURNING id`,
+          [workspaceId, updated.action_id]
+        );
+        if (actionRows.length > 0) {
+          await writeAudit(workspaceId, actor, "action.updated", "action", updated.action_id, { via: `reg_commitment.${status}`, commitmentId }, client);
+        }
+      } else if (!actionJustCreated && !isTerminalCommitmentStatus(updated.status)) {
+        const actionRows = await queryWithClient<{ id: string }>(
+          client,
+          `UPDATE actions SET title = $3, due_date = $4, owner_person_id = $5, updated_at = now()
+           WHERE workspace_id = $1 AND id = $2 AND status NOT IN ('done', 'cancelled')
+           RETURNING id`,
+          [workspaceId, updated.action_id, description, dueDate, ownerPersonId]
+        );
+        if (actionRows.length > 0) {
+          await writeAudit(workspaceId, actor, "action.updated", "action", updated.action_id, { via: "reg_commitment.updated", commitmentId }, client);
+        }
       }
     }
 
@@ -830,15 +1004,19 @@ export async function getRegResponseSummary(workspaceId: string, requestId: stri
 
 export type ApproveRegRequestResult =
   | { ok: true; request: RegRequestRow; decision: DecisionRow; conditions: ConditionRow[] }
-  | { ok: false; reason: "not_found" | "already_final" | "wrong_status" | "unanswered_questions" };
+  | { ok: false; reason: "not_found" | "already_final" | "wrong_status" | "unanswered_questions" | "no_questions" };
 
 /**
  * Approves a reg_request: records a decision (approve or
  * approve_with_conditions, matching the readiness/PRA convention) and moves
- * status to 'approved'. Refuses (unanswered_questions) while ANY question is
- * still 'unanswered' - an unanswered question in a regulator response is
- * exactly what must block sign-off, the module's reason to exist. Requires
- * the request to be draft/in_progress/in_review (wrong_status otherwise -
+ * status to 'approved'. Refuses (no_questions) a request with zero
+ * questions recorded - an empty request has nothing for a reviewer to have
+ * actually checked, so it must not be indistinguishable from one that
+ * passed a real review (the same vacuous-guard shape readiness had to
+ * close). Refuses (unanswered_questions) while ANY question is still
+ * 'unanswered' - an unanswered question in a regulator response is exactly
+ * what must block sign-off, the module's reason to exist. Requires the
+ * request to be draft/in_progress/in_review (wrong_status otherwise -
  * covers re-approving an already-approved/submitted request). Runs in one
  * transaction with SELECT ... FOR UPDATE so a concurrent question edit that
  * would flip the unanswered check cannot race past this guard, and the
@@ -863,12 +1041,15 @@ export async function approveResponse(
       return { ok: false, reason: "wrong_status" };
     }
 
-    const unansweredRows = await queryWithClient<{ count: string }>(
+    const countRows = await queryWithClient<{ total: string; unanswered: string }>(
       client,
-      `SELECT COUNT(*)::text as count FROM reg_questions WHERE workspace_id = $1 AND request_id = $2 AND status = 'unanswered'`,
+      `SELECT COUNT(*)::text as total, COUNT(*) FILTER (WHERE status = 'unanswered')::text as unanswered
+       FROM reg_questions WHERE workspace_id = $1 AND request_id = $2`,
       [workspaceId, requestId]
     );
-    const unansweredCount = parseInt(unansweredRows[0]?.count ?? "0", 10);
+    const totalQuestions = parseInt(countRows[0]?.total ?? "0", 10);
+    if (totalQuestions === 0) return { ok: false, reason: "no_questions" };
+    const unansweredCount = parseInt(countRows[0]?.unanswered ?? "0", 10);
     if (unansweredCount > 0) return { ok: false, reason: "unanswered_questions" };
 
     const rows = await queryWithClient<RegRequestRow>(

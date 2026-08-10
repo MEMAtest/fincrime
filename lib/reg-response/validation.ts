@@ -71,6 +71,17 @@ export function isIsoDate(value: unknown): value is string {
   return d.toISOString().slice(0, 10) === value;
 }
 
+/**
+ * True for a valid ISO date (per isIsoDate) that is today or earlier -
+ * `asOf` defaults to now, injectable for tests. Used to reject a
+ * reg_commitment's metAt in the future (a commitment cannot be recorded as
+ * met before it happens).
+ */
+export function isNotFutureIsoDate(value: unknown, asOf: Date = new Date()): value is string {
+  if (!isIsoDate(value)) return false;
+  return value <= asOf.toISOString().slice(0, 10);
+}
+
 export type StepParseResult = { ok: true; value: number | undefined } | { ok: false };
 
 /** Parses an optional current_step field (1-6). */

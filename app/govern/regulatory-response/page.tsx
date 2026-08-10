@@ -10,7 +10,7 @@ import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import { formatIsoDate } from "@/lib/format/date";
 import {
   REG_REQUEST_STATUS_LABEL,
-  type RegRequestDTO,
+  type RegRequestListItemDTO,
   type RegRequestStatus,
   type RegResponseSummaryDTO,
 } from "@/components/reg-response/types";
@@ -25,7 +25,14 @@ const STATUS_VARIANT: Record<RegRequestStatus, "default" | "success" | "warning"
   cancelled: "danger",
 };
 
-const STATUSES: RegRequestStatus[] = ["draft", "in_progress", "in_review", "approved", "submitted", "closed", "cancelled"];
+// 'in_progress' and 'in_review' are excluded: no code path ever sets a
+// reg_request to either status (createRegRequest always starts 'draft', and
+// PATCH unconditionally rejects status changes - only approve/submit/close/
+// reject move status, none of which produce these two) - a filter chip for
+// them would always return zero rows. They remain valid in RegRequestStatus
+// / the DB CHECK for forward compatibility if that transition is wired up
+// later; see the module review notes.
+const STATUSES: RegRequestStatus[] = ["draft", "approved", "submitted", "closed", "cancelled"];
 
 function fmtDate(iso: string | null): string {
   return formatIsoDate(iso, { fallback: "No deadline", style: "long" });
@@ -33,8 +40,7 @@ function fmtDate(iso: string | null): string {
 
 export default function RegulatoryResponseListPage() {
   const { wsFetch, ready, workspaceId } = useWorkspace();
-  const [items, setItems] = useState<RegRequestDTO[] | null>(null);
-  const [summaries, setSummaries] = useState<Record<string, RegResponseSummaryDTO>>({});
+  const [items, setItems] = useState<RegRequestListItemDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<RegRequestStatus | null>(null);
 
@@ -56,34 +62,10 @@ export default function RegulatoryResponseListPage() {
         const data: unknown = await res.json();
         const list =
           data && typeof data === "object" && Array.isArray((data as { requests?: unknown }).requests)
-            ? (data as { requests: RegRequestDTO[] }).requests
+            ? (data as { requests: RegRequestListItemDTO[] }).requests
             : [];
         if (cancelled) return;
         setItems(list);
-
-        // The list endpoint returns raw rows (no roll-up), so the per-row
-        // progress/commitment counts shown here are fetched from each
-        // request's own detail endpoint, which already computes them
-        // server-side via regResponseSummary - this keeps the arithmetic in
-        // one place rather than re-deriving days-until-deadline logic here.
-        const pairs = await Promise.all(
-          list.map(async (r) => {
-            try {
-              const detailRes = await wsFetch(`/api/reg-requests/${r.id}`);
-              if (!detailRes.ok) return null;
-              const detail = await detailRes.json();
-              return detail?.summary ? ([r.id, detail.summary as RegResponseSummaryDTO] as const) : null;
-            } catch {
-              return null;
-            }
-          })
-        );
-        if (cancelled) return;
-        const map: Record<string, RegResponseSummaryDTO> = {};
-        for (const pair of pairs) {
-          if (pair) map[pair[0]] = pair[1];
-        }
-        setSummaries(map);
       } catch {
         if (!cancelled) setError("Could not load your regulator requests. Try reloading the page.");
       }
@@ -156,7 +138,7 @@ export default function RegulatoryResponseListPage() {
           {items !== null && items.length > 0 && (
             <div className="grid gap-3">
               {items.map((r) => {
-                const summary = summaries[r.id];
+                const summary: RegResponseSummaryDTO | undefined = r.progress;
                 const daysUntil = summary?.daysUntilDeadline ?? null;
                 const overdue = r.deadline !== null && daysUntil !== null && daysUntil < 0 && r.status !== "closed" && r.status !== "cancelled";
                 const openCommitments = summary ? summary.totalCommitments - summary.commitmentsByStatus.met - summary.commitmentsByStatus.missed - summary.commitmentsByStatus.withdrawn : 0;

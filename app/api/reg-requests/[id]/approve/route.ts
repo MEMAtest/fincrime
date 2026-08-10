@@ -7,17 +7,18 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-function approveConflict(message: string, reason: "already_final" | "wrong_status" | "unanswered_questions"): NextResponse {
+function approveConflict(message: string, reason: "already_final" | "wrong_status" | "unanswered_questions" | "no_questions"): NextResponse {
   return NextResponse.json({ error: message, reason }, { status: 409 });
 }
 
 /**
  * POST /api/reg-requests/[id]/approve - body {decidedByPersonId, rationale?,
  * conditions?[]}. Records an approval decision and moves the request to
- * 'approved'. Refuses (unanswered_questions) while any question is still
- * 'unanswered' - see approveResponse in lib/repo/reg-requests.ts for why
- * that guard exists. Requires the request to be draft/in_progress/in_review
- * (wrong_status otherwise).
+ * 'approved'. Refuses (no_questions) a request with zero questions and
+ * (unanswered_questions) while any question is still 'unanswered' - see
+ * approveResponse in lib/repo/reg-requests.ts for why those guards exist.
+ * Requires the request to be draft/in_progress/in_review (wrong_status
+ * otherwise).
  */
 export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
@@ -33,6 +34,9 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const result = await approveResponse(workspace.id, id, parsed.decidedByPersonId, parsed.rationale, parsed.conditions, ACTOR);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
+      if (result.reason === "no_questions") {
+        return approveConflict("Cannot approve a request with no questions recorded", "no_questions");
+      }
       if (result.reason === "unanswered_questions") {
         return approveConflict("Cannot approve while any question is unanswered", "unanswered_questions");
       }

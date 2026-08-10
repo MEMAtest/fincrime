@@ -147,9 +147,8 @@ export default function StepRequest({ request, people, readOnly, onSave, onCreat
           disabled={readOnly}
           onBlur={(e) => {
             const v = e.target.value || null;
-            if (v !== toDateInput(request.received_at) || (v === "" && request.received_at)) {
-              void commit({ receivedAt: v });
-            }
+            const current = toDateInput(request.received_at) || null;
+            if (v !== current) void commit({ receivedAt: v });
           }}
         />
         <Input
@@ -160,9 +159,8 @@ export default function StepRequest({ request, people, readOnly, onSave, onCreat
           disabled={readOnly}
           onBlur={(e) => {
             const v = e.target.value || null;
-            if (v !== toDateInput(request.deadline) || (v === "" && request.deadline)) {
-              void commit({ deadline: v });
-            }
+            const current = toDateInput(request.deadline) || null;
+            if (v !== current) void commit({ deadline: v });
           }}
         />
       </div>

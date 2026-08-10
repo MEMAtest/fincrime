@@ -21,7 +21,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
     const question = await requireRegQuestion(workspace.id, id, questionId);
     if (!question) return notFound("Reg question not found");
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
 
     if (body?.position !== undefined) {
       return badRequest("position cannot be set via PATCH; use /questions/reorder");
@@ -52,6 +52,9 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "question_not_found") return notFound("Reg question not found");
+      if (result.reason === "answer_required") {
+        return badRequest("Cannot mark a question drafted or reviewed with no response and no exception note");
+      }
       return conflict("Cannot update a question on a reg request that is already closed or cancelled");
     }
 

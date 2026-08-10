@@ -29,7 +29,7 @@ interface NewRegResponseClientProps {
  */
 export default function NewRegResponseClient({ preselectedIncidentId }: NewRegResponseClientProps) {
   const router = useRouter();
-  const { wsFetch, ready } = useWorkspace();
+  const { wsFetch, ready, workspaceId } = useWorkspace();
 
   const [title, setTitle] = useState("");
   const [regulator, setRegulator] = useState("FCA");
@@ -53,7 +53,7 @@ export default function NewRegResponseClient({ preselectedIncidentId }: NewRegRe
   // an empty picker (and can still quick-add), rather than this page
   // bootstrapping one just by being visited.
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !workspaceId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -68,7 +68,7 @@ export default function NewRegResponseClient({ preselectedIncidentId }: NewRegRe
     return () => {
       cancelled = true;
     };
-  }, [ready, wsFetch]);
+  }, [ready, workspaceId, wsFetch]);
 
   async function submitQuickAdd() {
     const name = quickAddName.trim();

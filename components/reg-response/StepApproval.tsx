@@ -28,6 +28,7 @@ export type ApprovalReason =
   | "already_final"
   | "wrong_status"
   | "unanswered_questions"
+  | "no_questions"
   | "not_approved"
   | "not_submitted"
   | "open_commitments"
@@ -57,6 +58,7 @@ const PERSON_ROLES: PersonRole[] = ["approver", "reviewer", "owner"];
 
 /** Maps a 409 `reason` from approve/submit/close/reject to a specific, actionable message - read the machine-readable reason, never substring-match the prose. */
 function reasonMessage(action: "approve" | "submit" | "close" | "reject", reason: ApprovalReason): string {
+  if (reason === "no_questions") return "Add at least one question in step 2 before approving - an empty request has nothing to sign off.";
   if (reason === "unanswered_questions") return "Answer every question in step 3 before approving - none may be left \"unanswered\".";
   if (reason === "not_approved") return "This request must be approved before it can be marked submitted.";
   if (reason === "not_submitted") return "This request must be marked submitted before it can be closed.";
@@ -275,8 +277,14 @@ export default function StepApproval({
           <p className="text-sm font-semibold text-foreground">Readiness checklist</p>
           <div className="space-y-2 text-sm">
             <ChecklistRow
-              ok={unanswered.length === 0}
-              label={unanswered.length === 0 ? "Every question has a response status" : `${unanswered.length} question${unanswered.length === 1 ? "" : "s"} still unanswered`}
+              ok={questions.length > 0 && unanswered.length === 0}
+              label={
+                questions.length === 0
+                  ? "No questions recorded yet (blocks approval)"
+                  : unanswered.length === 0
+                    ? "Every question has a response status"
+                    : `${unanswered.length} question${unanswered.length === 1 ? "" : "s"} still unanswered`
+              }
             />
             <ChecklistRow ok={isApproved} label={isApproved ? "Approved" : "Not yet approved"} />
             <ChecklistRow
@@ -319,7 +327,13 @@ export default function StepApproval({
 
           {pendingAction && (
             <div className="space-y-4">
-              {pendingAction === "approve" && unanswered.length > 0 && (
+              {pendingAction === "approve" && questions.length === 0 && (
+                <div className="flex items-start gap-2 text-sm text-red-500">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  {reasonMessage("approve", "no_questions")}
+                </div>
+              )}
+              {pendingAction === "approve" && questions.length > 0 && unanswered.length > 0 && (
                 <div className="flex items-start gap-2 text-sm text-red-500">
                   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
                   {reasonMessage("approve", "unanswered_questions")}
@@ -448,7 +462,11 @@ export default function StepApproval({
               {decisionError && <p className="text-sm text-red-500">{decisionError}</p>}
 
               <Button
-                disabled={!decidedByPersonId || decisionBusy || (pendingAction === "approve" && unanswered.length > 0)}
+                disabled={
+                  !decidedByPersonId ||
+                  decisionBusy ||
+                  (pendingAction === "approve" && (questions.length === 0 || unanswered.length > 0))
+                }
                 onClick={doDecide}
               >
                 {decisionBusy ? "Recording..." : pendingAction === "reject" ? "Record rejection" : "Record approval"}
@@ -490,7 +508,7 @@ export default function StepApproval({
         </div>
       )}
 
-      {!isFinal && isSubmitted && (
+      {!isFinal && isApproved && (
         <div className="glass-card rounded-2xl p-5">
           <h3 className="text-sm font-semibold text-foreground mb-2">Reject / cancel</h3>
           <div className="flex gap-2">

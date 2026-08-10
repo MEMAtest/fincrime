@@ -162,9 +162,62 @@ export default function StepCommitments({ commitments, people, actions, readOnly
         <div className="space-y-3">
           {commitments.map((c) => {
             const action = c.action_id ? actionById.get(c.action_id) : undefined;
+            const commitField = (patch: CommitmentPatch) => void commit(c.id, patch);
             return (
               <div key={c.id} className="glass-card rounded-xl p-4 space-y-3">
-                <p className="text-sm font-medium text-foreground">{c.description}</p>
+                <Input
+                  key={`${c.id}-description`}
+                  label="Description"
+                  defaultValue={c.description}
+                  disabled={readOnly}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v && v !== c.description) commitField({ description: v });
+                  }}
+                />
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <Input
+                    key={`${c.id}-dueDate`}
+                    type="date"
+                    label="Due date (creates a tracked action)"
+                    defaultValue={c.due_date ? c.due_date.slice(0, 10) : ""}
+                    disabled={readOnly}
+                    onBlur={(e) => {
+                      const v = e.target.value || null;
+                      const current = c.due_date ? c.due_date.slice(0, 10) : null;
+                      if (v !== current) commitField({ dueDate: v });
+                    }}
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-ink-soft">Owner</label>
+                    <select
+                      key={`${c.id}-owner-${c.owner_person_id ?? "none"}`}
+                      defaultValue={c.owner_person_id ?? ""}
+                      disabled={readOnly}
+                      onChange={(e) => commitField({ ownerPersonId: e.target.value || null })}
+                      className="px-3 py-2 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent disabled:opacity-60"
+                    >
+                      <option value="">Unassigned</option>
+                      {people.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <Input
+                  key={`${c.id}-note`}
+                  label="Note (optional)"
+                  defaultValue={c.note ?? ""}
+                  disabled={readOnly}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim() || null;
+                    if (v !== c.note) commitField({ note: v });
+                  }}
+                />
 
                 <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
                   <span>Due: {fmtDate(c.due_date)}</span>
@@ -209,7 +262,6 @@ export default function StepCommitments({ commitments, people, actions, readOnly
                   ) : null}
                 </div>
 
-                {c.note && <p className="text-xs text-text-muted italic">{c.note}</p>}
                 {savingId === c.id && <p className="text-xs text-text-muted">Saving...</p>}
                 {errorById[c.id] && <p className="text-xs text-red-500">{errorById[c.id]}</p>}
               </div>
