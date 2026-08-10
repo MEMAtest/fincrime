@@ -1,23 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Info } from "lucide-react";
-import Button from "@/components/ui/Button";
+import { AlertTriangle, Info } from "lucide-react";
 import Input from "@/components/ui/Input";
 import { RatingBadge } from "@/components/controls/ControlBits";
 import { scoreTestEffectiveness } from "@/data/scoring/test-effectiveness";
 import { CONTROL_TEST_RESULT_LABEL, type ControlTestDTO, type ControlTestFindingDTO } from "./types";
 
+type SampleFields = {
+  sampleSize?: number | null;
+  samplesPassed?: number | null;
+  samplesFailed?: number | null;
+  samplesPartial?: number | null;
+};
+
 interface StepSamplesProps {
   test: ControlTestDTO;
   findings: ControlTestFindingDTO[];
   readOnly: boolean;
-  onSave: (fields: {
-    sampleSize: number | null;
-    samplesPassed: number | null;
-    samplesFailed: number | null;
-    samplesPartial: number | null;
-  }) => Promise<void>;
+  /** Saves the changed field(s) only, and reports back whether the server accepted them - e.g. it 400s when the resulting row's counts would exceed sampleSize. */
+  onSave: (fields: SampleFields) => Promise<{ ok: true } | { ok: false; message: string }>;
 }
 
 /** Non-negative integer, or "" while the field is empty. Clamped at the input boundary so the stored, displayed and scored values never disagree. */
@@ -32,29 +34,44 @@ function toCountOrNull(v: number | ""): number | null {
   return v === "" ? null : v;
 }
 
-/** Step 2: sample size and pass/fail/partial counts, with a live derived preview of the result and rating data/scoring/test-effectiveness.ts would apply. */
+type CountField = "sampleSize" | "samplesPassed" | "samplesFailed" | "samplesPartial";
+
+const FIELD_TO_ROW_KEY: Record<CountField, keyof ControlTestDTO> = {
+  sampleSize: "sample_size",
+  samplesPassed: "samples_passed",
+  samplesFailed: "samples_failed",
+  samplesPartial: "samples_partial",
+};
+
+/**
+ * Step 2: sample size and pass/fail/partial counts, with a live derived
+ * preview of the result and rating data/scoring/test-effectiveness.ts would
+ * apply. Each field saves on blur (the house pattern - see
+ * components/change-lab/StepControl.tsx) rather than behind a separate "Save"
+ * button, and the preview is computed from the server-returned `test` prop
+ * rather than local input state, so what you see previewed here and what
+ * gets written on Complete can never disagree because unsaved edits were
+ * left on the screen.
+ */
 export default function StepSamples({ test, findings, readOnly, onSave }: StepSamplesProps) {
-  const [sampleSize, setSampleSize] = useState<number | "">(test.sample_size ?? "");
-  const [samplesPassed, setSamplesPassed] = useState<number | "">(test.samples_passed ?? "");
-  const [samplesFailed, setSamplesFailed] = useState<number | "">(test.samples_failed ?? "");
-  const [samplesPartial, setSamplesPartial] = useState<number | "">(test.samples_partial ?? "");
-  const [saving, setSaving] = useState(false);
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [savingField, setSavingField] = useState<CountField | null>(null);
 
   const preview = useMemo(
     () =>
       scoreTestEffectiveness({
-        sampleSize: toCountOrNull(sampleSize),
-        samplesPassed: toCountOrNull(samplesPassed),
-        samplesFailed: toCountOrNull(samplesFailed),
-        samplesPartial: toCountOrNull(samplesPartial),
+        sampleSize: test.sample_size,
+        samplesPassed: test.samples_passed,
+        samplesFailed: test.samples_failed,
+        samplesPartial: test.samples_partial,
         findings: findings.map((f) => ({ severity: f.severity })),
       }),
-    [sampleSize, samplesPassed, samplesFailed, samplesPartial, findings]
+    [test.sample_size, test.samples_passed, test.samples_failed, test.samples_partial, findings]
   );
 
   const hasHighFinding = findings.some((f) => f.severity === "high");
   const hasMediumOrHighFinding = findings.some((f) => f.severity === "medium" || f.severity === "high");
-  const scoredSamples = (toCountOrNull(samplesPassed) ?? 0) + (toCountOrNull(samplesFailed) ?? 0) + (toCountOrNull(samplesPartial) ?? 0);
+  const scoredSamples = (test.samples_passed ?? 0) + (test.samples_failed ?? 0) + (test.samples_partial ?? 0);
 
   const explanation = useMemo(() => {
     if (scoredSamples === 0) {
@@ -72,19 +89,22 @@ export default function StepSamples({ test, findings, readOnly, onSave }: StepSa
     return `The pass rate (${Math.round(preview.passRate * 100)}%) is between 70% and 90%, or there are medium/high findings, so this passes with findings and rates adequate.`;
   }, [scoredSamples, hasHighFinding, hasMediumOrHighFinding, preview.passRate]);
 
-  const save = async () => {
-    setSaving(true);
+  async function commitField(field: CountField, raw: string) {
+    if (readOnly) return;
+    const clamped = clampToNonNegativeInt(raw);
+    const value = toCountOrNull(clamped);
+    const current = test[FIELD_TO_ROW_KEY[field]] as number | null;
+    if (value === current) return;
+
+    setSavingField(field);
+    setFieldError(null);
     try {
-      await onSave({
-        sampleSize: toCountOrNull(sampleSize),
-        samplesPassed: toCountOrNull(samplesPassed),
-        samplesFailed: toCountOrNull(samplesFailed),
-        samplesPartial: toCountOrNull(samplesPartial),
-      });
+      const result = await onSave({ [field]: value } as SampleFields);
+      if (!result.ok) setFieldError(result.message);
     } finally {
-      setSaving(false);
+      setSavingField(null);
     }
-  };
+  }
 
   return (
     <div className="space-y-8">
@@ -92,49 +112,54 @@ export default function StepSamples({ test, findings, readOnly, onSave }: StepSa
         <h2 className="text-2xl font-bold text-foreground mb-1">Samples</h2>
         <p className="text-sm text-text-muted">
           Record the sample size tested and how many samples passed, failed or partially passed. A partial counts as
-          half a pass.
+          half a pass. Each field saves automatically when you move to the next one.
         </p>
       </div>
 
       <section className="glass-card rounded-xl p-5 space-y-4">
         <Input
+          key={`${test.id}-sampleSize`}
           type="number"
           label="Sample size"
           min={0}
-          value={sampleSize}
-          onChange={(e) => setSampleSize(clampToNonNegativeInt(e.target.value))}
+          defaultValue={test.sample_size ?? ""}
+          onBlur={(e) => void commitField("sampleSize", e.target.value)}
           disabled={readOnly}
         />
         <div className="grid sm:grid-cols-3 gap-4">
           <Input
+            key={`${test.id}-samplesPassed`}
             type="number"
             label="Passed"
             min={0}
-            value={samplesPassed}
-            onChange={(e) => setSamplesPassed(clampToNonNegativeInt(e.target.value))}
+            defaultValue={test.samples_passed ?? ""}
+            onBlur={(e) => void commitField("samplesPassed", e.target.value)}
             disabled={readOnly}
           />
           <Input
+            key={`${test.id}-samplesFailed`}
             type="number"
             label="Failed"
             min={0}
-            value={samplesFailed}
-            onChange={(e) => setSamplesFailed(clampToNonNegativeInt(e.target.value))}
+            defaultValue={test.samples_failed ?? ""}
+            onBlur={(e) => void commitField("samplesFailed", e.target.value)}
             disabled={readOnly}
           />
           <Input
+            key={`${test.id}-samplesPartial`}
             type="number"
             label="Partial"
             min={0}
-            value={samplesPartial}
-            onChange={(e) => setSamplesPartial(clampToNonNegativeInt(e.target.value))}
+            defaultValue={test.samples_partial ?? ""}
+            onBlur={(e) => void commitField("samplesPartial", e.target.value)}
             disabled={readOnly}
           />
         </div>
-        {!readOnly && (
-          <Button onClick={save} disabled={saving}>
-            {saving ? "Saving..." : "Save sample counts"}
-          </Button>
+        {savingField && <p className="text-xs text-text-muted">Saving...</p>}
+        {fieldError && (
+          <div className="flex items-start gap-2 text-sm text-red-500">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> {fieldError}
+          </div>
         )}
       </section>
 
@@ -159,8 +184,8 @@ export default function StepSamples({ test, findings, readOnly, onSave }: StepSa
         </div>
         <p className="text-xs text-text-muted pt-2 border-t border-white/10">{explanation}</p>
         <p className="text-xs text-text-muted">
-          This preview is computed live from the counts above plus any findings already recorded; it is not stored
-          until you complete the test on the Conclusion step.
+          This preview reflects the saved counts above plus any findings already recorded; it is not written onto the
+          control until you complete the test on the Conclusion step.
         </p>
       </section>
     </div>

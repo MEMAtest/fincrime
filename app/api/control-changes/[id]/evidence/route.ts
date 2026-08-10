@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createEvidence, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { requirePerson } from "@/lib/pra/helpers";
-import { ACTOR, SUBJECT_TYPE, badRequest, notFound, requireControlChange, serverError } from "@/lib/control-changes/helpers";
+import { ACTOR, SUBJECT_TYPE, badRequest, isUuid, notFound, requireControlChange, serverError } from "@/lib/control-changes/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -12,6 +12,7 @@ interface RouteContext {
 export const GET = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control change not found");
     const change = await requireControlChange(workspace.id, id);
     if (!change) return notFound("Control change not found");
 
@@ -30,6 +31,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
 export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control change not found");
     const change = await requireControlChange(workspace.id, id);
     if (!change) return notFound("Control change not found");
 

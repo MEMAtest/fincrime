@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { deleteControlTestFinding, getControlTestFinding, updateControlTestFinding, type UpdateControlTestFindingInput } from "@/lib/repo/control-tests";
-import { badRequest, conflict, isFindingSeverity, isFinalTestStatus, notFound, requireControlTest, serverError, ACTOR } from "@/lib/control-tests/helpers";
+import { badRequest, conflict, isFindingSeverity, isFinalTestStatus, isUuid, notFound, requireControlTest, serverError, ACTOR } from "@/lib/control-tests/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string; findingId: string }>;
@@ -22,6 +22,7 @@ async function requireTestFinding(workspaceId: string, testId: string, findingId
 export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id, findingId } = await context.params;
+    if (!isUuid(id) || !isUuid(findingId)) return notFound("Control test or finding not found");
     const test = await requireControlTest(workspace.id, id);
     if (!test) return notFound("Control test not found");
     if (isFinalTestStatus(test.status)) return conflict("Cannot update a finding on a test that is already complete or cancelled");
@@ -60,6 +61,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id, findingId } = await context.params;
+    if (!isUuid(id) || !isUuid(findingId)) return notFound("Control test or finding not found");
     const test = await requireControlTest(workspace.id, id);
     if (!test) return notFound("Control test not found");
     if (isFinalTestStatus(test.status)) return conflict("Cannot delete a finding on a test that is already complete or cancelled");

@@ -220,24 +220,32 @@ export async function getControlTestFinding(workspaceId: string, id: string): Pr
   return rows[0] ?? null;
 }
 
+/** Pass a transaction client when the finding must not be visible unless a sibling write (e.g. the action it spawned) also succeeds. */
 export async function createControlTestFinding(
   workspaceId: string,
   testId: string,
   input: CreateControlTestFindingInput,
-  actor: string
+  actor: string,
+  client?: DbTransactionClient
 ): Promise<ControlTestFindingRow> {
-  const rows = await query<ControlTestFindingRow>(
-    `INSERT INTO control_test_findings (workspace_id, test_id, description, severity, sample_ref, action_id)
+  const sql = `INSERT INTO control_test_findings (workspace_id, test_id, description, severity, sample_ref, action_id)
      VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING *`,
-    [workspaceId, testId, input.description, input.severity, input.sampleRef ?? null, input.actionId ?? null]
-  );
+     RETURNING *`;
+  const params = [workspaceId, testId, input.description, input.severity, input.sampleRef ?? null, input.actionId ?? null];
+  const rows = client
+    ? await queryWithClient<ControlTestFindingRow>(client, sql, params)
+    : await query<ControlTestFindingRow>(sql, params);
   const finding = rows[0];
 
-  await writeAudit(workspaceId, actor, "control_test_finding.created", FINDING_SUBJECT_TYPE, finding.id, {
-    testId,
-    severity: input.severity,
-  });
+  await writeAudit(
+    workspaceId,
+    actor,
+    "control_test_finding.created",
+    FINDING_SUBJECT_TYPE,
+    finding.id,
+    { testId, severity: input.severity },
+    client
+  );
 
   return finding;
 }
@@ -310,7 +318,7 @@ async function getControlTestWithClient(
 
 export type CompleteControlTestResult =
   | { ok: true; test: ControlTestRow; control: WorkspaceControlRow }
-  | { ok: false; reason: "not_found" | "already_final" };
+  | { ok: false; reason: "not_found" | "already_final" | "no_samples" | "counts_mismatch" };
 
 /**
  * Completes a test cycle: recomputes result + rating from the STORED counts
@@ -323,7 +331,13 @@ export type CompleteControlTestResult =
  * tested_at, next_test_due. Runs in a single transaction; SELECT ... FOR
  * UPDATE on the test row guards against a concurrent second complete()
  * double-applying. 409-equivalent ("already_final") if the test is already
- * complete or cancelled.
+ * complete or cancelled; ("no_samples") if no samples were ever recorded -
+ * completing then would silently wipe the control's rating to not_assessed,
+ * which must never happen without the tester explicitly seeing why; ("counts_mismatch")
+ * if a sample size was stated but the recorded pass/fail/partial counts
+ * don't add up to it, so a materially incomplete count can never be scored
+ * and written onto a live control as if it were final. Neither guard writes
+ * anything to the control - they refuse before any write happens.
  */
 export async function completeControlTest(
   workspaceId: string,
@@ -350,6 +364,15 @@ export async function completeControlTest(
       samplesPartial: test.samples_partial,
       findings: findingRows.map((f) => ({ severity: f.severity })),
     });
+
+    if (scored.result === null) {
+      return { ok: false, reason: "no_samples" };
+    }
+
+    const recordedTotal = (test.samples_passed ?? 0) + (test.samples_failed ?? 0) + (test.samples_partial ?? 0);
+    if (test.sample_size !== null && test.sample_size !== recordedTotal) {
+      return { ok: false, reason: "counts_mismatch" };
+    }
 
     const testedAt = new Date();
 

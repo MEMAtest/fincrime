@@ -45,7 +45,7 @@ interface TestJourneyClientProps {
 }
 
 export default function TestJourneyClient({ testId }: TestJourneyClientProps) {
-  const { wsFetch, ready } = useWorkspace();
+  const { wsFetch, ready, workspaceId } = useWorkspace();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -60,8 +60,16 @@ export default function TestJourneyClient({ testId }: TestJourneyClientProps) {
   const [navigating, setNavigating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Only fetch once a workspace already exists - never bootstrap one just
+  // for visiting this page. Mirrors app/assure/control-testing/page.tsx's
+  // gate; without workspaceId here, an anonymous visitor landing directly on
+  // a (nonexistent) test URL would silently mint a workspace row via
+  // wsFetch's ensureWorkspace(). Derived rather than set from inside the
+  // effect below, so there is no synchronous setState-in-effect.
+  const noWorkspaceYet = ready && !workspaceId;
+
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !workspaceId) return;
     let cancelled = false;
 
     (async () => {
@@ -101,25 +109,42 @@ export default function TestJourneyClient({ testId }: TestJourneyClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [ready, wsFetch, testId]);
+  }, [ready, workspaceId, wsFetch, testId]);
 
   const readOnly = test?.status === "complete" || test?.status === "cancelled";
 
-  /** Shared PATCH-and-refresh helper: every test-level save (step change, scope, samples, conclusion) goes through here. Returns null (and leaves state untouched) on a 409 - the test became a historical record mid-edit. */
-  async function patchTest(patch: Record<string, unknown>): Promise<ControlTestDTO | null> {
+  /**
+   * Shared PATCH-and-refresh helper: every test-level save (step change,
+   * scope, samples, conclusion) goes through here, returning the server's
+   * error message rather than just a boolean so callers that need to
+   * surface WHY a save failed (e.g. StepSamples' cross-field sampleSize
+   * validation) can do so inline instead of a generic toast.
+   */
+  async function patchTestDetailed(
+    patch: Record<string, unknown>
+  ): Promise<{ ok: true; test: ControlTestDTO } | { ok: false; message: string }> {
     try {
       const res = await wsFetch(`/api/control-tests/${testId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        return { ok: false, message: body?.error ?? "Could not save. Please try again." };
+      }
       const data = await res.json();
       setTest(data.test);
-      return data.test;
+      return { ok: true, test: data.test };
     } catch {
-      return null;
+      return { ok: false, message: "Could not save. Please try again." };
     }
+  }
+
+  /** Returns null (and leaves state untouched) on a failed save - the test became a historical record mid-edit, or the patch was rejected. */
+  async function patchTest(patch: Record<string, unknown>): Promise<ControlTestDTO | null> {
+    const result = await patchTestDetailed(patch);
+    return result.ok ? result.test : null;
   }
 
   async function goToStep(target: number) {
@@ -155,14 +180,14 @@ export default function TestJourneyClient({ testId }: TestJourneyClientProps) {
   }
 
   async function saveSamples(fields: {
-    sampleSize: number | null;
-    samplesPassed: number | null;
-    samplesFailed: number | null;
-    samplesPartial: number | null;
-  }) {
-    setActionError(null);
-    const updated = await patchTest(fields);
-    if (!updated) setActionError("Could not save the sample counts. Please try again.");
+    sampleSize?: number | null;
+    samplesPassed?: number | null;
+    samplesFailed?: number | null;
+    samplesPartial?: number | null;
+  }): Promise<{ ok: true } | { ok: false; message: string }> {
+    const result = await patchTestDetailed(fields);
+    if (!result.ok) return { ok: false, message: result.message };
+    return { ok: true };
   }
 
   async function saveConclusion(text: string) {
@@ -287,7 +312,7 @@ export default function TestJourneyClient({ testId }: TestJourneyClientProps) {
     }
   }
 
-  if (loading) {
+  if (loading && !noWorkspaceYet) {
     return (
       <ToolFrame>
         <main className="flex-1">
@@ -299,14 +324,14 @@ export default function TestJourneyClient({ testId }: TestJourneyClientProps) {
     );
   }
 
-  if (loadError || !test || !control) {
+  if (noWorkspaceYet || loadError || !test || !control) {
     return (
       <ToolFrame>
         <main className="flex-1">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 py-20 text-center">
             <div className="glass-card rounded-2xl p-8">
               <h2 className="text-xl font-semibold text-foreground mb-2">
-                {loadError ?? "Could not load this control test."}
+                {noWorkspaceYet ? "This control test could not be found in your workspace." : loadError ?? "Could not load this control test."}
               </h2>
               <Link
                 href="/assure/control-testing"

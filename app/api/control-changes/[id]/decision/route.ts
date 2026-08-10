@@ -16,6 +16,7 @@ import {
   badRequest,
   conflict,
   isDecisionOutcome,
+  isUuid,
   notFound,
   requireControlChange,
   serverError,
@@ -64,6 +65,7 @@ interface ActionInput {
 export const GET = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control change not found");
     const change = await requireControlChange(workspace.id, id);
     if (!change) return notFound("Control change not found");
 
@@ -90,6 +92,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
 export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control change not found");
     const change = await requireControlChange(workspace.id, id);
     if (!change) return notFound("Control change not found");
     if (change.status === "implemented" || change.status === "rolled_back") {

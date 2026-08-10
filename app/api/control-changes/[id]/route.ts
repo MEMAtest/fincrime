@@ -10,6 +10,7 @@ import {
   badRequest,
   conflict,
   isControlChangeType,
+  isUuid,
   notFound,
   parseOptionalStep,
   requireChangeControl,
@@ -30,6 +31,7 @@ interface RouteContext {
 export const GET = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control change not found");
     const change = await requireControlChange(workspace.id, id);
     if (!change) return notFound("Control change not found");
 
@@ -70,6 +72,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
 export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control change not found");
     const existing = await requireControlChange(workspace.id, id);
     if (!existing) return notFound("Control change not found");
 
@@ -158,6 +161,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control change not found");
     const existing = await requireControlChange(workspace.id, id);
     if (!existing) return notFound("Control change not found");
 

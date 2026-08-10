@@ -1,4 +1,4 @@
-import { query } from "@/lib/db";
+import { query, queryWithClient, type DbTransactionClient } from "@/lib/db";
 import { writeAudit } from "./audit";
 
 export type ActionStatus = "open" | "in_progress" | "done" | "cancelled";
@@ -69,29 +69,38 @@ export async function getAction(workspaceId: string, id: string): Promise<Action
   return rows[0] ?? null;
 }
 
-export async function createAction(workspaceId: string, input: CreateActionInput, actor: string): Promise<ActionRow> {
-  const rows = await query<ActionRow>(
-    `INSERT INTO actions (workspace_id, subject_type, subject_id, title, owner_person_id, due_date, priority, status)
+/** Pass a transaction client when this action's creation must not be visible unless a sibling write (e.g. the finding it is attached to) also succeeds. */
+export async function createAction(
+  workspaceId: string,
+  input: CreateActionInput,
+  actor: string,
+  client?: DbTransactionClient
+): Promise<ActionRow> {
+  const sql = `INSERT INTO actions (workspace_id, subject_type, subject_id, title, owner_person_id, due_date, priority, status)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING *`,
-    [
-      workspaceId,
-      input.subjectType,
-      input.subjectId,
-      input.title,
-      input.ownerPersonId || null,
-      input.dueDate || null,
-      input.priority ?? "medium",
-      input.status ?? "open",
-    ]
-  );
+     RETURNING *`;
+  const params = [
+    workspaceId,
+    input.subjectType,
+    input.subjectId,
+    input.title,
+    input.ownerPersonId || null,
+    input.dueDate || null,
+    input.priority ?? "medium",
+    input.status ?? "open",
+  ];
+  const rows = client ? await queryWithClient<ActionRow>(client, sql, params) : await query<ActionRow>(sql, params);
   const action = rows[0];
 
-  await writeAudit(workspaceId, actor, "action.created", SUBJECT_TYPE, action.id, {
-    subjectType: input.subjectType,
-    subjectId: input.subjectId,
-    title: input.title,
-  });
+  await writeAudit(
+    workspaceId,
+    actor,
+    "action.created",
+    SUBJECT_TYPE,
+    action.id,
+    { subjectType: input.subjectType, subjectId: input.subjectId, title: input.title },
+    client
+  );
 
   return action;
 }

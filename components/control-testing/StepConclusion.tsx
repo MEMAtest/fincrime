@@ -76,6 +76,15 @@ export default function StepConclusion({
     [control.control_slug]
   );
 
+  // Once complete, next_test_due is the server-computed, stored value - use
+  // that. Before completion there is nothing stored yet, so this is a
+  // best-effort projection computed from the current wall-clock time; it
+  // will not exactly match what completing the test actually writes if the
+  // user waits before clicking Complete (e.g. crossing a day boundary), but
+  // it is only ever shown as an illustrative "this is roughly when the next
+  // test would be due" note pre-completion, never persisted or scored, so
+  // that imprecision is acceptable and deliberately not treated as a
+  // dependency to memoize around.
   const projectedNextDue = useMemo(() => {
     if (isComplete) return test.next_test_due;
     return nextTestDueFrom(new Date(), libraryControl?.reviewCadence).toISOString().slice(0, 10);
@@ -90,10 +99,19 @@ export default function StepConclusion({
     }
   };
 
+  /**
+   * Flushes the conclusion textarea before completing. Without this, a
+   * conclusion typed but not explicitly saved would be discarded silently:
+   * onComplete() finalises the test (writing conclusion: null, since it was
+   * never PATCHed), the textarea still shows the typed text (merely
+   * disabled once read-only), and every subsequent PATCH 409s because the
+   * test is now historical - the text becomes unrecoverable.
+   */
   const doComplete = async () => {
     setCompleting(true);
     setCompleteError(null);
     try {
+      await onSaveConclusion(conclusion);
       const result = await onComplete();
       if (!result.ok) setCompleteError(result.message);
     } finally {
@@ -115,7 +133,7 @@ export default function StepConclusion({
       samplesPassed: test.samples_passed,
       samplesFailed: test.samples_failed,
       samplesPartial: test.samples_partial,
-      passRatePct: preview.result === null && !isComplete ? null : Math.round(preview.passRate * 100),
+      passRatePct: preview.result === null ? null : Math.round(preview.passRate * 100),
       derivedResult: preview.result,
       appliedRating: test.applied_rating,
       appliedVersion: test.applied_version,

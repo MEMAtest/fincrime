@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { applyControlChange } from "@/lib/repo/control-changes";
-import { ACTOR, conflict, notFound, requireControlChange, serverError } from "@/lib/control-changes/helpers";
+import { ACTOR, conflict, isUuid, notFound, requireControlChange, serverError } from "@/lib/control-changes/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -17,6 +17,7 @@ interface RouteContext {
 export const POST = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control change not found");
     const change = await requireControlChange(workspace.id, id);
     if (!change) return notFound("Control change not found");
 

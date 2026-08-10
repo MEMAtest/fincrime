@@ -3,6 +3,7 @@ import { withWorkspace } from "@/lib/workspace-auth";
 import { createControlTestFinding, listControlTestFindings } from "@/lib/repo/control-tests";
 import { createAction } from "@/lib/repo/actions";
 import { requirePerson } from "@/lib/pra/helpers";
+import { withTransaction } from "@/lib/db";
 import {
   ACTOR,
   SUBJECT_TYPE,
@@ -25,6 +26,7 @@ interface RouteContext {
 export const GET = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control test not found");
     const test = await requireControlTest(workspace.id, id);
     if (!test) return notFound("Control test not found");
 
@@ -40,12 +42,16 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * sampleRef?, createAction?:boolean, ownerPersonId?, dueDate?}. When
  * createAction is true, also creates an action (subjectType 'control_test',
  * subjectId = test id) via the actions repo and stores its id on the
- * finding. A test that is already complete or cancelled is a historical
- * record and 409s.
+ * finding, both inside one transaction - a failed finding insert must not
+ * leave an orphaned action behind. ownerPersonId/dueDate only make sense
+ * alongside createAction: true, so they 400 rather than being silently
+ * dropped when createAction is false or absent. A test that is already
+ * complete or cancelled is a historical record and 409s.
  */
 export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control test not found");
     const test = await requireControlTest(workspace.id, id);
     if (!test) return notFound("Control test not found");
     if (isFinalTestStatus(test.status)) return conflict("Cannot add findings to a test that is already complete or cancelled");
@@ -67,8 +73,12 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       return badRequest("Invalid createAction: must be a boolean");
     }
 
+    if (!createActionFlag && (body?.ownerPersonId !== undefined || body?.dueDate !== undefined)) {
+      return badRequest("ownerPersonId and dueDate only apply when createAction is true");
+    }
+
     let ownerPersonId: string | null = null;
-    if (body?.ownerPersonId !== undefined && body.ownerPersonId !== null) {
+    if (createActionFlag && body?.ownerPersonId !== undefined && body.ownerPersonId !== null) {
       if (!isUuid(body.ownerPersonId)) return badRequest("ownerPersonId must be a valid UUID");
       const person = await requirePerson(workspace.id, body.ownerPersonId);
       if (!person) return badRequest("Unknown ownerPersonId for this workspace");
@@ -76,29 +86,39 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     }
 
     let dueDate: string | null = null;
-    if (body?.dueDate !== undefined && body.dueDate !== null) {
+    if (createActionFlag && body?.dueDate !== undefined && body.dueDate !== null) {
       if (!isIsoDate(body.dueDate)) return badRequest("Invalid dueDate: must be an ISO date (YYYY-MM-DD)");
       dueDate = body.dueDate;
     }
 
-    let actionId: string | null = null;
-    if (createActionFlag) {
-      const action = await createAction(
-        workspace.id,
-        {
-          subjectType: SUBJECT_TYPE,
-          subjectId: id,
-          title: `Remediate finding: ${description}`,
-          ownerPersonId,
-          dueDate,
-          priority: severity === "high" ? "high" : severity === "medium" ? "medium" : "low",
-        },
-        ACTOR
-      );
-      actionId = action.id;
-    }
+    const { finding } = await withTransaction(async (client) => {
+      let actionId: string | null = null;
+      if (createActionFlag) {
+        const action = await createAction(
+          workspace.id,
+          {
+            subjectType: SUBJECT_TYPE,
+            subjectId: id,
+            title: `Remediate finding: ${description}`,
+            ownerPersonId,
+            dueDate,
+            priority: severity === "high" ? "high" : severity === "medium" ? "medium" : "low",
+          },
+          ACTOR,
+          client
+        );
+        actionId = action.id;
+      }
 
-    const finding = await createControlTestFinding(workspace.id, id, { description, severity, sampleRef, actionId }, ACTOR);
+      const finding = await createControlTestFinding(
+        workspace.id,
+        id,
+        { description, severity, sampleRef, actionId },
+        ACTOR,
+        client
+      );
+      return { finding };
+    });
 
     return NextResponse.json({ finding }, { status: 201 });
   } catch (error) {

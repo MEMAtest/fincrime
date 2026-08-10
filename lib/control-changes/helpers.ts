@@ -105,6 +105,10 @@ const CONTROL_EFFECTIVENESS_RATINGS: ControlEffectivenessRating[] = ["strong", "
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+export function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID_RE.test(value);
+}
+
 const STRING_OR_NULL_FIELDS = ["objective", "threshold", "operatingFrequency"] as const;
 const STRING_ARRAY_FIELDS = ["systems", "dataInputs", "productApplicability", "typologySlugs"] as const;
 const PERSON_REF_FIELDS = ["ownerPersonId", "approverPersonId"] as const;

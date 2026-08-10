@@ -20,7 +20,7 @@ interface NewChangeClientProps {
 /** Creation form: pick a live workspace control, title, optional rationale/change type, then hand off to the 7-step journey. */
 export default function NewChangeClient({ preselectedControlId }: NewChangeClientProps) {
   const router = useRouter();
-  const { wsFetch, ready } = useWorkspace();
+  const { wsFetch, ready, workspaceId } = useWorkspace();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -33,8 +33,15 @@ export default function NewChangeClient({ preselectedControlId }: NewChangeClien
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Only fetch once a workspace already exists - never bootstrap one just
+  // for visiting this creation form. Mirrors
+  // app/assure/control-testing/new/NewTestClient.tsx's gate. Derived rather
+  // than set from inside the effect below, so there is no synchronous
+  // setState-in-effect.
+  const noWorkspaceYet = ready && !workspaceId;
+
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !workspaceId) return;
     let cancelled = false;
 
     (async () => {
@@ -53,7 +60,7 @@ export default function NewChangeClient({ preselectedControlId }: NewChangeClien
     return () => {
       cancelled = true;
     };
-  }, [ready, wsFetch]);
+  }, [ready, workspaceId, wsFetch]);
 
   const selectedControl = useMemo(
     () => controls.find((c) => c.id === workspaceControlId) ?? null,
@@ -102,7 +109,7 @@ export default function NewChangeClient({ preselectedControlId }: NewChangeClien
     { label: "New" },
   ];
 
-  if (loading) {
+  if (loading && !noWorkspaceYet) {
     return (
       <ToolFrame breadcrumb={crumb}>
         <main className="flex-1">

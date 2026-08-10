@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { JOURNEY_STEP_LABELS, LAST_UNLOCKED_STEP } from "./types";
+import { JOURNEY_STEP_LABELS } from "./types";
 
 interface TestStepperProps {
   /** 1-based current step. */

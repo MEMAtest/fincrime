@@ -2,7 +2,18 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createEvidence, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { requirePerson } from "@/lib/pra/helpers";
-import { ACTOR, SUBJECT_TYPE, badRequest, notFound, requireControlTest, serverError } from "@/lib/control-tests/helpers";
+import {
+  ACTOR,
+  SUBJECT_TYPE,
+  badRequest,
+  conflict,
+  isFinalTestStatus,
+  isIsoDate,
+  isUuid,
+  notFound,
+  requireControlTest,
+  serverError,
+} from "@/lib/control-tests/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -12,6 +23,7 @@ interface RouteContext {
 export const GET = withWorkspace<RouteContext>(async (_request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control test not found");
     const test = await requireControlTest(workspace.id, id);
     if (!test) return notFound("Control test not found");
 
@@ -25,13 +37,16 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
 /**
  * POST /api/control-tests/[id]/evidence - body {type, title, description?,
  * linkUrl?, evidenceDate?, addedByPersonId?}. Creates an evidence row against
- * this test (subject_type 'control_test').
+ * this test (subject_type 'control_test'). A test that is already complete
+ * or cancelled is a historical record and 409s, matching the findings routes.
  */
 export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id } = await context.params;
+    if (!isUuid(id)) return notFound("Control test not found");
     const test = await requireControlTest(workspace.id, id);
     if (!test) return notFound("Control test not found");
+    if (isFinalTestStatus(test.status)) return conflict("Cannot add evidence to a test that is already complete or cancelled");
 
     const body = await request.json();
 
@@ -43,11 +58,16 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
 
     const description = typeof body?.description === "string" && body.description.trim() ? body.description.trim() : null;
     const linkUrl = typeof body?.linkUrl === "string" && body.linkUrl.trim() ? body.linkUrl.trim() : null;
-    const evidenceDate = typeof body?.evidenceDate === "string" && body.evidenceDate ? body.evidenceDate : null;
+
+    let evidenceDate: string | null = null;
+    if (body?.evidenceDate !== undefined && body.evidenceDate !== null) {
+      if (!isIsoDate(body.evidenceDate)) return badRequest("Invalid evidenceDate: must be an ISO date (YYYY-MM-DD)");
+      evidenceDate = body.evidenceDate;
+    }
 
     let addedByPersonId: string | null = null;
     if (body?.addedByPersonId !== undefined && body.addedByPersonId !== null) {
-      if (typeof body.addedByPersonId !== "string") return badRequest("Invalid addedByPersonId");
+      if (!isUuid(body.addedByPersonId)) return badRequest("Invalid addedByPersonId: must be a valid UUID");
       const person = await requirePerson(workspace.id, body.addedByPersonId);
       if (!person) return badRequest("Unknown addedByPersonId for this workspace");
       addedByPersonId = person.id;

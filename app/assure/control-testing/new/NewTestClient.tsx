@@ -27,7 +27,7 @@ interface NewTestClientProps {
 /** Creation form: pick a live workspace control, title, method, period, tester, then hand off to the 5-step journey. */
 export default function NewTestClient({ preselectedControlId }: NewTestClientProps) {
   const router = useRouter();
-  const { wsFetch, ready } = useWorkspace();
+  const { wsFetch, ready, workspaceId } = useWorkspace();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -48,8 +48,16 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
   const [quickAddRole, setQuickAddRole] = useState<PersonRole>("owner");
   const [quickAddBusy, setQuickAddBusy] = useState(false);
 
+  // Only fetch once a workspace already exists - never bootstrap one just
+  // for visiting this creation form (wsFetch's ensureWorkspace() would
+  // otherwise mint a workspace row for an anonymous visitor who merely
+  // landed here). Mirrors app/assure/control-testing/page.tsx's gate.
+  // Derived rather than set from inside the effect below, so there is no
+  // synchronous setState-in-effect.
+  const noWorkspaceYet = ready && !workspaceId;
+
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !workspaceId) return;
     let cancelled = false;
 
     (async () => {
@@ -76,7 +84,7 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
     return () => {
       cancelled = true;
     };
-  }, [ready, wsFetch]);
+  }, [ready, workspaceId, wsFetch]);
 
   const selectedControl = useMemo(
     () => controls.find((c) => c.id === workspaceControlId) ?? null,
@@ -150,7 +158,7 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
     { label: "New" },
   ];
 
-  if (loading) {
+  if (loading && !noWorkspaceYet) {
     return (
       <ToolFrame breadcrumb={crumb}>
         <main className="flex-1">
