@@ -3,7 +3,8 @@ import { withWorkspace } from "@/lib/workspace-auth";
 import { deleteAction, getAction, updateAction } from "@/lib/repo/actions";
 import { requirePerson } from "@/lib/pra/helpers";
 import { validateUpdateActionInput } from "@/lib/workspace/action-input";
-import { ACTOR, badRequest, notFound, serverError } from "@/lib/workspace/http";
+import { assertSubjectMutable } from "@/lib/workspace/subject-mutability";
+import { ACTOR, badRequest, conflict, notFound, serverError } from "@/lib/workspace/http";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -21,6 +22,11 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
     const { id } = await context.params;
     const existing = await getAction(workspace.id, id);
     if (!existing) return notFound("Action not found");
+
+    const mutability = await assertSubjectMutable(workspace.id, existing.subject_type, existing.subject_id);
+    if (!mutability.ok) {
+      return conflict("Cannot modify an action whose subject is closed, complete, or implemented");
+    }
 
     const body = await request.json().catch(() => null);
     const result = validateUpdateActionInput(body);
@@ -47,6 +53,11 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
     const { id } = await context.params;
     const existing = await getAction(workspace.id, id);
     if (!existing) return notFound("Action not found");
+
+    const mutability = await assertSubjectMutable(workspace.id, existing.subject_type, existing.subject_id);
+    if (!mutability.ok) {
+      return conflict("Cannot modify an action whose subject is closed, complete, or implemented");
+    }
 
     await deleteAction(workspace.id, id, ACTOR);
     return NextResponse.json({ ok: true });

@@ -333,7 +333,7 @@ export default function StepRootCause({
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-ink-soft">Search by firm name</label>
                   <input
-                    value={enforcementSlug ? firmQuery : firmQuery}
+                    value={firmQuery}
                     onChange={(e) => {
                       setFirmQuery(e.target.value);
                       setEnforcementSlug("");

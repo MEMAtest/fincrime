@@ -175,86 +175,121 @@ export interface UpdateIncidentInput {
   status?: IncidentStatus;
 }
 
+export type UpdateIncidentResult =
+  | { ok: true; incident: IncidentRow }
+  | { ok: false; reason: "not_found" | "already_final" };
+
+/**
+ * Updates an incident. Runs inside a transaction with SELECT ... FOR UPDATE
+ * on the incident row (the same locking helper closeIncident/reopenIncident
+ * use), so a concurrent PATCH racing a close()/delete() cannot both "win":
+ * the second transaction blocks on the row lock until the first commits,
+ * then sees the now-final status and refuses ("already_final") rather than
+ * writing over it. The UPDATE's WHERE clause also carries
+ * `AND status NOT IN ('closed', 'cancelled')` as belt-and-braces - if
+ * anything upstream of this function ever changes the guard order, the
+ * write itself still cannot land on a final row, and 0 rows affected is
+ * reported as the same "already_final" result rather than being read as
+ * "not found".
+ */
 export async function updateIncident(
   workspaceId: string,
   id: string,
   input: UpdateIncidentInput,
   actor: string
-): Promise<IncidentRow | null> {
-  const current = await getIncident(workspaceId, id);
-  if (!current) return null;
+): Promise<UpdateIncidentResult> {
+  return withTransaction(async (client) => {
+    const current = await getIncidentWithClient(client, workspaceId, id);
+    if (!current) return { ok: false, reason: "not_found" };
+    if (isFinalIncidentStatus(current.status)) return { ok: false, reason: "already_final" };
 
-  const reference = input.reference !== undefined ? input.reference : current.reference;
-  const title = input.title ?? current.title;
-  const source = input.source !== undefined ? input.source : current.source;
-  const severity = input.severity ?? current.severity;
-  const occurredAt = input.occurredAt !== undefined ? input.occurredAt : current.occurred_at;
-  const detectedAt = input.detectedAt !== undefined ? input.detectedAt : current.detected_at;
-  const containedAt = input.containedAt !== undefined ? input.containedAt : current.contained_at;
-  const summary = input.summary !== undefined ? input.summary : current.summary;
-  const containment = input.containment !== undefined ? input.containment : current.containment;
-  const affectedPopulation = input.affectedPopulation !== undefined ? input.affectedPopulation : current.affected_population;
-  const rootCause = input.rootCause !== undefined ? input.rootCause : current.root_cause;
-  const rootCauseCategory = input.rootCauseCategory !== undefined ? input.rootCauseCategory : current.root_cause_category;
-  const reportable = input.reportable !== undefined ? input.reportable : current.reportable;
-  const reportedAt = input.reportedAt !== undefined ? input.reportedAt : current.reported_at;
-  const regulatorReference = input.regulatorReference !== undefined ? input.regulatorReference : current.regulator_reference;
-  const ownerPersonId = input.ownerPersonId !== undefined ? input.ownerPersonId : current.owner_person_id;
-  const closureSummary = input.closureSummary !== undefined ? input.closureSummary : current.closure_summary;
-  const currentStep = input.currentStep ?? current.current_step;
-  const status = input.status ?? current.status;
+    const reference = input.reference !== undefined ? input.reference : current.reference;
+    const title = input.title ?? current.title;
+    const source = input.source !== undefined ? input.source : current.source;
+    const severity = input.severity ?? current.severity;
+    const occurredAt = input.occurredAt !== undefined ? input.occurredAt : current.occurred_at;
+    const detectedAt = input.detectedAt !== undefined ? input.detectedAt : current.detected_at;
+    const containedAt = input.containedAt !== undefined ? input.containedAt : current.contained_at;
+    const summary = input.summary !== undefined ? input.summary : current.summary;
+    const containment = input.containment !== undefined ? input.containment : current.containment;
+    const affectedPopulation = input.affectedPopulation !== undefined ? input.affectedPopulation : current.affected_population;
+    const rootCause = input.rootCause !== undefined ? input.rootCause : current.root_cause;
+    const rootCauseCategory = input.rootCauseCategory !== undefined ? input.rootCauseCategory : current.root_cause_category;
+    const reportable = input.reportable !== undefined ? input.reportable : current.reportable;
+    const reportedAt = input.reportedAt !== undefined ? input.reportedAt : current.reported_at;
+    const regulatorReference = input.regulatorReference !== undefined ? input.regulatorReference : current.regulator_reference;
+    const ownerPersonId = input.ownerPersonId !== undefined ? input.ownerPersonId : current.owner_person_id;
+    const closureSummary = input.closureSummary !== undefined ? input.closureSummary : current.closure_summary;
+    const currentStep = input.currentStep ?? current.current_step;
+    const status = input.status ?? current.status;
 
-  const rows = await query<IncidentRow>(
-    `UPDATE incidents
-     SET reference = $3, title = $4, source = $5, severity = $6, occurred_at = $7, detected_at = $8,
-         contained_at = $9, summary = $10, containment = $11, affected_population = $12, root_cause = $13,
-         root_cause_category = $14, reportable = $15, reported_at = $16, regulator_reference = $17,
-         owner_person_id = $18, closure_summary = $19, current_step = $20, status = $21, updated_at = now()
-     WHERE workspace_id = $1 AND id = $2
-     RETURNING *`,
-    [
-      workspaceId,
-      id,
-      reference,
-      title,
-      source,
-      severity,
-      occurredAt,
-      detectedAt,
-      containedAt,
-      summary,
-      containment,
-      JSON.stringify(affectedPopulation),
-      rootCause,
-      rootCauseCategory,
-      reportable,
-      reportedAt,
-      regulatorReference,
-      ownerPersonId,
-      closureSummary,
-      currentStep,
-      status,
-    ]
-  );
+    const rows = await queryWithClient<IncidentRow>(
+      client,
+      `UPDATE incidents
+       SET reference = $3, title = $4, source = $5, severity = $6, occurred_at = $7, detected_at = $8,
+           contained_at = $9, summary = $10, containment = $11, affected_population = $12, root_cause = $13,
+           root_cause_category = $14, reportable = $15, reported_at = $16, regulator_reference = $17,
+           owner_person_id = $18, closure_summary = $19, current_step = $20, status = $21, updated_at = now()
+       WHERE workspace_id = $1 AND id = $2 AND status NOT IN ('closed', 'cancelled')
+       RETURNING *`,
+      [
+        workspaceId,
+        id,
+        reference,
+        title,
+        source,
+        severity,
+        occurredAt,
+        detectedAt,
+        containedAt,
+        summary,
+        containment,
+        JSON.stringify(affectedPopulation),
+        rootCause,
+        rootCauseCategory,
+        reportable,
+        reportedAt,
+        regulatorReference,
+        ownerPersonId,
+        closureSummary,
+        currentStep,
+        status,
+      ]
+    );
 
-  const updated = rows[0] ?? null;
-  if (updated) {
-    await writeAudit(workspaceId, actor, "incident.updated", SUBJECT_TYPE, id, { fields: Object.keys(input) });
-  }
-  return updated;
+    const updated = rows[0];
+    if (!updated) return { ok: false, reason: "already_final" };
+
+    await writeAudit(workspaceId, actor, "incident.updated", SUBJECT_TYPE, id, { fields: Object.keys(input) }, client);
+    return { ok: true, incident: updated };
+  });
 }
 
-export async function deleteIncident(workspaceId: string, id: string, actor: string): Promise<boolean> {
-  const rows = await query<{ id: string }>(`DELETE FROM incidents WHERE workspace_id = $1 AND id = $2 RETURNING id`, [
-    workspaceId,
-    id,
-  ]);
-  const deleted = rows.length > 0;
+export type DeleteIncidentResult = { ok: true } | { ok: false; reason: "not_found" | "already_final" };
 
-  if (deleted) {
-    await writeAudit(workspaceId, actor, "incident.deleted", SUBJECT_TYPE, id, {});
-  }
-  return deleted;
+/**
+ * Deletes an incident. Same transaction + row-lock + status-predicate
+ * treatment as updateIncident, for the same reason: a plain SELECT-then-
+ * DELETE with no lock and no status predicate on the DELETE let a
+ * concurrent PATCH and close() race past the route's isFinalIncidentStatus
+ * check (TOCTOU).
+ */
+export async function deleteIncident(workspaceId: string, id: string, actor: string): Promise<DeleteIncidentResult> {
+  return withTransaction(async (client) => {
+    const current = await getIncidentWithClient(client, workspaceId, id);
+    if (!current) return { ok: false, reason: "not_found" };
+    if (isFinalIncidentStatus(current.status)) return { ok: false, reason: "already_final" };
+
+    const rows = await queryWithClient<{ id: string }>(
+      client,
+      `DELETE FROM incidents WHERE workspace_id = $1 AND id = $2 AND status NOT IN ('closed', 'cancelled') RETURNING id`,
+      [workspaceId, id]
+    );
+    if (rows.length === 0) return { ok: false, reason: "already_final" };
+
+    await writeAudit(workspaceId, actor, "incident.deleted", SUBJECT_TYPE, id, {}, client);
+    return { ok: true };
+  });
 }
 
 // ---------------------------------------------------------------------------

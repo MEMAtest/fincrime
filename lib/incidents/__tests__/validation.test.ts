@@ -10,6 +10,7 @@ import {
   isUuid,
   isIsoDate,
   isIsoTimestamp,
+  toEpochMillis,
   parseOptionalStep,
   parseAffectedPopulation,
 } from "../validation";
@@ -49,6 +50,10 @@ describe("isIsoTimestamp", () => {
     expect(isIsoTimestamp("2026-08-09T10:30:00.000Z")).toBe(true);
   });
 
+  it("accepts a full ISO timestamp with an explicit offset instead of Z", () => {
+    expect(isIsoTimestamp("2026-08-09T10:30:00+01:00")).toBe(true);
+  });
+
   it("accepts a bare ISO date", () => {
     expect(isIsoTimestamp("2026-08-09")).toBe(true);
   });
@@ -59,6 +64,55 @@ describe("isIsoTimestamp", () => {
     expect(isIsoTimestamp(null)).toBe(false);
     expect(isIsoTimestamp(undefined)).toBe(false);
   });
+
+  it("rejects a bare year, which new Date() alone accepts as Jan 1st", () => {
+    expect(isIsoTimestamp("2026")).toBe(false);
+  });
+
+  it("rejects bare numeric strings, which new Date() alone accepts as an offset from epoch", () => {
+    expect(isIsoTimestamp("0")).toBe(false);
+    expect(isIsoTimestamp("5")).toBe(false);
+  });
+
+  it("rejects a calendar-invalid date, which new Date() alone rolls over to the next month", () => {
+    expect(isIsoTimestamp("2026-02-30")).toBe(false);
+    expect(isIsoTimestamp("2026-02-30T00:00:00.000Z")).toBe(false);
+  });
+});
+
+describe("toEpochMillis", () => {
+  it("returns null for null, undefined, and empty string", () => {
+    expect(toEpochMillis(null)).toBeNull();
+    expect(toEpochMillis(undefined)).toBeNull();
+    expect(toEpochMillis("")).toBeNull();
+  });
+
+  it("returns null for an unparseable string", () => {
+    expect(toEpochMillis("not-a-date")).toBeNull();
+  });
+
+  it("normalises a Date object and an equivalent ISO string to the same value", () => {
+    const iso = "2026-05-01T00:00:00.000Z";
+    const date = new Date(iso);
+    expect(toEpochMillis(date)).toBe(toEpochMillis(iso));
+  });
+
+  it(
+    "orders a Date (stored/existing side) against a string (incoming/request side) correctly regardless of which side is which - " +
+      "this is the exact shape of the occurredAt/detectedAt comparison bug: pg returns timestamptz columns as Date objects while " +
+      "the request body is always a string, and a raw `a > b` comparison between those two representations is always false",
+    () => {
+      const earlierDate = new Date("2026-02-01T00:00:00.000Z");
+      const laterString = "2026-05-01T00:00:00.000Z";
+
+      // stored side is a Date, incoming side is a string
+      expect((toEpochMillis(laterString) ?? 0) > (toEpochMillis(earlierDate) ?? 0)).toBe(true);
+      // stored side is a string, incoming side is a Date
+      const laterDate = new Date("2026-05-01T00:00:00.000Z");
+      const earlierString = "2026-02-01T00:00:00.000Z";
+      expect((toEpochMillis(laterDate) ?? 0) > (toEpochMillis(earlierString) ?? 0)).toBe(true);
+    }
+  );
 });
 
 describe("isIncidentSource", () => {
@@ -213,5 +267,23 @@ describe("parseAffectedPopulation", () => {
 
   it("rejects a non-string text field", () => {
     expect(parseAffectedPopulation({ notes: 42 }).ok).toBe(false);
+  });
+
+  it("rejects a fractional customersAffected/transactionsAffected (counts must be whole numbers)", () => {
+    expect(parseAffectedPopulation({ customersAffected: 1.5 }).ok).toBe(false);
+    expect(parseAffectedPopulation({ transactionsAffected: 2.5 }).ok).toBe(false);
+  });
+
+  it("accepts a fractional valueGbp (money, not a count)", () => {
+    expect(parseAffectedPopulation({ valueGbp: 1250.5 })).toEqual({ ok: true, value: { valueGbp: 1250.5 } });
+  });
+
+  it("rejects Number.MAX_VALUE, which Number.isFinite alone lets through", () => {
+    expect(parseAffectedPopulation({ valueGbp: Number.MAX_VALUE }).ok).toBe(false);
+    expect(parseAffectedPopulation({ customersAffected: Number.MAX_VALUE }).ok).toBe(false);
+  });
+
+  it("accepts Number.MAX_SAFE_INTEGER as the boundary", () => {
+    expect(parseAffectedPopulation({ valueGbp: Number.MAX_SAFE_INTEGER }).ok).toBe(true);
   });
 });

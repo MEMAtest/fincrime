@@ -162,6 +162,35 @@ async function main() {
   });
   expect("duplicate link -> 409", dupLinkRes.status, 409);
 
+  // --- same targetId, differing targetRef: targetRef is meaningless for a
+  // workspace-owned linkType (keyed by targetId), and the unique index keys
+  // on COALESCE(target_ref, ''), so a caller supplying an arbitrary,
+  // unvalidated targetRef alongside the same targetId used to slip past the
+  // duplicate check entirely (three POSTs, three distinct index keys, three
+  // 201s). Both a first-time and a repeat POST with a stray targetRef must
+  // be rejected outright now, rather than being allowed to create - or
+  // recreate - a link the duplicate index can't see as a duplicate.
+  const wrongAxisLinkRes = await fetch(`${BASE_URL}/api/incidents/${incidentId}/links`, {
+    method: "POST",
+    headers: H,
+    body: JSON.stringify({ linkType: "failed_control", targetId: controlId, targetRef: "anything" }),
+  });
+  expect("failed_control link with targetId AND a stray targetRef -> 400", wrongAxisLinkRes.status, 400);
+
+  const wrongAxisLinkRes2 = await fetch(`${BASE_URL}/api/incidents/${incidentId}/links`, {
+    method: "POST",
+    headers: H,
+    body: JSON.stringify({ linkType: "failed_control", targetId: controlId, targetRef: "anything2" }),
+  });
+  expect("failed_control link with the same targetId and a DIFFERING stray targetRef -> 400", wrongAxisLinkRes2.status, 400);
+
+  const enforcementWrongAxisRes = await fetch(`${BASE_URL}/api/incidents/${incidentId}/links`, {
+    method: "POST",
+    headers: H,
+    body: JSON.stringify({ linkType: "enforcement_case", targetRef: "national-westminster-bank-plc-2021", targetId: controlId }),
+  });
+  expect("enforcement_case link with a stray targetId -> 400 (mirror case)", enforcementWrongAxisRes.status, 400);
+
   const foreignTargetLinkRes = await fetch(`${BASE_URL}/api/incidents/${incidentId}/links`, {
     method: "POST",
     headers: H,
@@ -230,6 +259,27 @@ async function main() {
   });
   expect("add link after close -> 409", linkAfterClose.status, 409);
 
+  // --- generic actions route must also refuse to touch a closed incident's
+  // remediation action: the incident-scoped routes above all guard on
+  // isFinalIncidentStatus, but /api/workspace/actions/[id] resolves an
+  // action by id+workspace only and previously had no visibility into the
+  // parent incident's status, letting a "done" action on a closed incident
+  // be reopened or deleted straight through - falsifying the closed
+  // incident's own audit trail (which says it was closed because this
+  // action was complete).
+  const reopenActionAfterClose = await fetch(`${BASE_URL}/api/workspace/actions/${actionId}`, {
+    method: "PATCH",
+    headers: H,
+    body: JSON.stringify({ status: "open" }),
+  });
+  expect("PATCH a closed incident's action back to open -> 409", reopenActionAfterClose.status, 409);
+
+  const deleteActionAfterClose = await fetch(`${BASE_URL}/api/workspace/actions/${actionId}`, {
+    method: "DELETE",
+    headers: H,
+  });
+  expect("DELETE a closed incident's action -> 409", deleteActionAfterClose.status, 409);
+
   // --- reopen ---
   const reopenRes = await fetch(`${BASE_URL}/api/incidents/${incidentId}/reopen`, { method: "POST", headers: H });
   expect("reopen -> 200", reopenRes.status, 200);
@@ -292,6 +342,58 @@ async function main() {
     body: JSON.stringify({ title: "x", ownerPersonId: foreignPersonId }),
   });
   expect("foreign ownerPersonId -> 400", foreignOwner.status, 400);
+
+  // --- occurredAt/detectedAt cross-field check: must 400, and must NOT
+  // wedge the incident for later, unrelated PATCHes (the original bug: the
+  // string-vs-Date comparison was always false, so a bad row saved with 200,
+  // and then - once both stored sides were Dates - the same broken
+  // comparison flipped to "always true" and 400'd every later PATCH,
+  // including currentStep, freezing the journey stepper).
+  const occurredAfterDetected = await patch({
+    occurredAt: "2026-05-01T00:00:00.000Z",
+    detectedAt: "2026-02-01T00:00:00.000Z",
+  });
+  expect("occurredAt after detectedAt -> 400", occurredAfterDetected.status, 400);
+  const unrelatedPatchAfterRejectedDates = await patch({ currentStep: 3 });
+  expect("unrelated PATCH after the rejected date PATCH still 200", unrelatedPatchAfterRejectedDates.status, 200);
+
+  // --- hostile timestamp/date inputs that new Date() alone accepts but a
+  // real calendar/clock does not; these must 400, not 500 from Postgres. ---
+  for (const containedAt of ["2026", "0", "5", "2026-02-30"]) {
+    const res = await patch({ containedAt });
+    expect(`containedAt "${containedAt}" -> 400`, res.status, 400);
+  }
+
+  const evidenceDateRes = await fetch(`${BASE_URL}/api/incidents/${incidentId}/evidence`, {
+    method: "POST",
+    headers: H,
+    body: JSON.stringify({ type: "note", title: "x", evidenceDate: "2026" }),
+  });
+  expect('evidenceDate "2026" -> 400', evidenceDateRes.status, 400);
+
+  // --- reportable/reportedAt/regulatorReference coherence: a report cannot
+  // be dated or referenced for something recorded as not reportable. ---
+  const incoherentReportable = await patch({
+    reportable: false,
+    reportedAt: "2026-02-02",
+    regulatorReference: "FCA-1",
+  });
+  expect("reportable:false with reportedAt/regulatorReference set -> 400", incoherentReportable.status, 400);
+
+  const reportableTrue = await patch({ reportable: true, reportedAt: "2026-02-02", regulatorReference: "FCA-1" });
+  expect("reportable:true with reportedAt/regulatorReference -> 200", reportableTrue.status, 200);
+  const clearedOnTransition = await patch({ reportable: false });
+  expect("reportable transitions to false -> 200", clearedOnTransition.status, 200);
+  expect(
+    "reportedAt nulled server-side on the transition",
+    clearedOnTransition.body.incident?.reported_at,
+    null
+  );
+  expect(
+    "regulatorReference nulled server-side on the transition",
+    clearedOnTransition.body.incident?.regulator_reference,
+    null
+  );
 
   console.log(`\n${passed}/${passed + failed} assertions passed`);
   if (failed > 0) process.exit(1);

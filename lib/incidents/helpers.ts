@@ -32,6 +32,7 @@ export {
   isUuid,
   isIsoDate,
   isIsoTimestamp,
+  toEpochMillis,
   parseOptionalStep,
   parseAffectedPopulation,
   type StepParseResult,

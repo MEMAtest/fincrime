@@ -433,14 +433,20 @@ function ActionRow({
   error: string | null;
   onStatusChange: (status: ActionStatus) => void;
 }) {
-  const title =
-    action.subject_type === "pra_assessment" ? (
-      <Link href={`/assess/product-risk/${action.subject_id}`} className="text-sm font-medium text-foreground truncate hover:underline">
-        {action.title}
-      </Link>
-    ) : (
-      <p className="text-sm font-medium text-foreground truncate">{action.title}</p>
-    );
+  const subjectHref =
+    action.subject_type === "pra_assessment"
+      ? `/assess/product-risk/${action.subject_id}`
+      : action.subject_type === "incident"
+      ? `/assure/incidents/${action.subject_id}`
+      : null;
+
+  const title = subjectHref ? (
+    <Link href={subjectHref} className="text-sm font-medium text-foreground truncate hover:underline">
+      {action.title}
+    </Link>
+  ) : (
+    <p className="text-sm font-medium text-foreground truncate">{action.title}</p>
+  );
 
   return (
     <div className="rounded-lg border border-surface-border px-3 py-2.5">

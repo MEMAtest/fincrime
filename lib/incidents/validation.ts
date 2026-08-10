@@ -98,11 +98,49 @@ export function isIsoDate(value: unknown): value is string {
   return d.toISOString().slice(0, 10) === value;
 }
 
-/** Validates an ISO 8601 timestamp (date or date-time, anything Date.parse and JS Date round-trip agree on). */
+/**
+ * Full ISO 8601 timestamp: YYYY-MM-DDTHH:mm:ss[.sss](Z|+HH:mm|-HH:mm). Only
+ * the fractional-seconds and offset parts are optional - unlike
+ * `new Date(value)`, this does not accept a bare year ("2026"), a bare
+ * number ("5"), or any other partial form Date.parse happens to tolerate.
+ */
+const ISO_TIMESTAMP_RE =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/;
+
+/**
+ * Validates a YYYY-MM-DD date or a full ISO 8601 timestamp, and round-trip
+ * verifies it parses to a real calendar date/time (rejects e.g. "2026",
+ * "0", "5", and "2026-02-30", all of which `new Date(value)` alone accepts
+ * by rolling them over or defaulting missing fields).
+ */
 export function isIsoTimestamp(value: unknown): value is string {
   if (typeof value !== "string" || !value.trim()) return false;
+  if (ISO_DATE_RE.test(value)) return isIsoDate(value);
+  if (!ISO_TIMESTAMP_RE.test(value)) return false;
   const d = new Date(value);
-  return !Number.isNaN(d.getTime());
+  if (Number.isNaN(d.getTime())) return false;
+  // Round-trip the date portion to reject calendar-invalid values like
+  // 2026-02-30T00:00:00.000Z, which Date happily rolls over to March 2nd.
+  const datePart = value.slice(0, 10);
+  return d.toISOString().slice(0, 10) === datePart;
+}
+
+/**
+ * Normalises a timestamp-ish value to epoch milliseconds for comparison.
+ * Postgres timestamptz columns come back from `pg` as JS Date objects (no
+ * type parsers are registered - see lib/db.ts), not strings, while request
+ * bodies are always strings. Comparing those two representations directly
+ * (e.g. `a > b`) coerces both to numbers via JS's default ToPrimitive
+ * behaviour - `Number("2026-05-01")` is NaN - so the comparison is silently
+ * always false. Converting both sides through this function first makes the
+ * comparison actually work, regardless of which representation either side
+ * is in. Returns null for anything absent or unparseable, so callers can
+ * treat "unknown" the same as "not supplied" rather than as epoch 0.
+ */
+export function toEpochMillis(value: string | Date | null | undefined): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const ms = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  return Number.isNaN(ms) ? null : ms;
 }
 
 export type StepParseResult = { ok: true; value: number | undefined } | { ok: false };
@@ -119,8 +157,20 @@ export function parseOptionalStep(value: unknown): StepParseResult {
 export type AffectedPopulationParseResult = { ok: true; value: AffectedPopulation } | { ok: false; error: string };
 
 /**
+ * Upper bound for any affectedPopulation numeric field. Number.isFinite
+ * alone lets through values like Number.MAX_VALUE (~1.8e308), which is
+ * meaningless as a customer/transaction count or a GBP amount and would
+ * round-trip through the numeric(...) or jsonb column with precision loss.
+ * Number.MAX_SAFE_INTEGER is a generous ceiling (over 9 quadrillion) that
+ * still guarantees exact integer arithmetic.
+ */
+const MAX_AFFECTED_POPULATION_VALUE = Number.MAX_SAFE_INTEGER;
+
+/**
  * Validates the affectedPopulation shape: {customersAffected?, transactionsAffected?,
- * valueGbp?} must each be a non-negative finite number when present;
+ * valueGbp?} must each be a non-negative, finite number within
+ * MAX_AFFECTED_POPULATION_VALUE when present; the two count fields must
+ * additionally be integers (half a customer is not a valid count);
  * identificationMethod?/notes? must be strings when present. Unknown keys are
  * rejected rather than silently dropped.
  */
@@ -138,11 +188,15 @@ export function parseAffectedPopulation(value: unknown): AffectedPopulationParse
   }
 
   const result: AffectedPopulation = {};
+  const integerKeys: readonly string[] = ["customersAffected", "transactionsAffected"];
   for (const key of ["customersAffected", "transactionsAffected", "valueGbp"] as const) {
     if (source[key] === undefined || source[key] === null) continue;
     const v = source[key];
-    if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+    if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > MAX_AFFECTED_POPULATION_VALUE) {
       return { ok: false, error: `affectedPopulation.${key} must be a non-negative number` };
+    }
+    if (integerKeys.includes(key) && !Number.isInteger(v)) {
+      return { ok: false, error: `affectedPopulation.${key} must be a whole number` };
     }
     result[key] = v;
   }

@@ -14,6 +14,7 @@ import {
   isIsoTimestamp,
   isUuid,
   serverError,
+  toEpochMillis,
 } from "@/lib/incidents/helpers";
 
 /**
@@ -102,7 +103,14 @@ export const POST = withWorkspace(async (request, workspace) => {
       if (!isIsoTimestamp(body.detectedAt)) return badRequest("Invalid detectedAt: must be an ISO date/timestamp");
       detectedAt = body.detectedAt;
     }
-    if (occurredAt && detectedAt && occurredAt > detectedAt) {
+    // Both sides are request-body strings here (not the pg Date objects
+    // lib/repo/incidents.ts's updateIncident has to worry about), but they
+    // can still be a mismatched date-only vs full-timestamp pair for the
+    // same day, where plain string comparison does not agree with
+    // chronological order. toEpochMillis compares actual instants instead.
+    const occurredMs = toEpochMillis(occurredAt);
+    const detectedMs = toEpochMillis(detectedAt);
+    if (occurredMs !== null && detectedMs !== null && occurredMs > detectedMs) {
       return badRequest("occurredAt must not be after detectedAt");
     }
 

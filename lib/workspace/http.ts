@@ -21,6 +21,10 @@ export function badRequest(message: string): NextResponse {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
+export function conflict(message: string): NextResponse {
+  return NextResponse.json({ error: message }, { status: 409 });
+}
+
 export function serverError(context: string, error: unknown): NextResponse {
   console.error(`${context}:`, error);
   return NextResponse.json({ error: "Internal server error" }, { status: 500 });

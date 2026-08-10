@@ -8,6 +8,7 @@ import {
   conflict,
   isIncidentLinkType,
   isUuid,
+  isWorkspaceOwnedLinkType,
   notFound,
   requireIncident,
   serverError,
@@ -72,6 +73,23 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
 
     if (!targetId && !targetRef) {
       return badRequest("Either targetId or targetRef is required");
+    }
+
+    // A field supplied on the wrong axis must be rejected outright rather
+    // than silently stored: the unique index on incident_links keys on
+    // COALESCE(target_ref, ''), so a workspace-owned link (keyed by
+    // targetId) with a differing, unvalidated targetRef would produce a
+    // distinct index key for what is really the same duplicate link -
+    // letting the same failed_control (or control_change/control_test/
+    // pra_assessment) be linked to an incident more than once, and the PDF
+    // print the same row repeatedly. The mirror case applies to
+    // enforcement_case, which is keyed by targetRef and never checks
+    // targetId at all.
+    if (isWorkspaceOwnedLinkType(linkType) && targetRef !== null) {
+      return badRequest(`${linkType} links are keyed by targetId; targetRef must not be supplied`);
+    }
+    if (linkType === "enforcement_case" && targetId !== null) {
+      return badRequest("enforcement_case links are keyed by targetRef; targetId must not be supplied");
     }
 
     const check = await checkLinkTarget(workspace.id, linkType, targetId, targetRef);

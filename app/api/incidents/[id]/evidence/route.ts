@@ -8,7 +8,7 @@ import {
   SUBJECT_TYPE,
   badRequest,
   conflict,
-  isIsoTimestamp,
+  isIsoDate,
   isUuid,
   notFound,
   requireIncident,
@@ -62,7 +62,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
 
     let evidenceDate: string | null = null;
     if (body?.evidenceDate !== undefined && body.evidenceDate !== null) {
-      if (!isIsoTimestamp(body.evidenceDate)) return badRequest("Invalid evidenceDate: must be an ISO date/timestamp");
+      if (!isIsoDate(body.evidenceDate)) return badRequest("Invalid evidenceDate: must be an ISO date (YYYY-MM-DD)");
       evidenceDate = body.evidenceDate;
     }
 

@@ -11,7 +11,7 @@ import type { ActionPriority, ActionStatus } from "@/lib/repo/actions";
 import type { ConditionStatus } from "@/lib/repo/decisions";
 
 /** Subject types a generic action can be attached to. */
-export const ACTION_SUBJECT_TYPES = ["pra_assessment", "control_change", "workspace_control", "monitoring"] as const;
+export const ACTION_SUBJECT_TYPES = ["pra_assessment", "control_change", "workspace_control", "monitoring", "incident"] as const;
 export type ActionSubjectType = (typeof ACTION_SUBJECT_TYPES)[number];
 
 export function isActionSubjectType(value: unknown): value is ActionSubjectType {

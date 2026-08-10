@@ -302,11 +302,13 @@ export default function IncidentJourneyClient({ incidentId }: IncidentJourneyCli
       if (res.status === 409) {
         const body = await res.json().catch(() => null);
         const msg: string = body?.error ?? "Cannot close this incident.";
-        const reason: "open_actions" | "no_root_cause" | "already_final" = msg.includes("open remediation")
-          ? "open_actions"
-          : msg.includes("no root cause")
-          ? "no_root_cause"
-          : "already_final";
+        // Read the server's machine-readable `reason` rather than
+        // substring-matching its human-readable `error` prose, which is
+        // free to change wording without notice.
+        const reason: "open_actions" | "no_root_cause" | "already_final" =
+          body?.reason === "open_actions" || body?.reason === "no_root_cause" || body?.reason === "already_final"
+            ? body.reason
+            : "already_final";
         return { ok: false, reason, message: msg };
       }
       if (!res.ok) return { ok: false, reason: "other", message: "Could not close this incident. Please try again." };

@@ -11,7 +11,7 @@ interface StepPopulationProps {
   onSave: (affectedPopulation: AffectedPopulation) => Promise<{ ok: true } | { ok: false; message: string }>;
 }
 
-/** Non-negative integer/float, or undefined while the field is empty. Clamped at the input boundary so the stored, displayed and any derived totals never disagree. */
+/** Non-negative float, or undefined while the field is empty. Clamped at the input boundary so the stored, displayed and any derived totals never disagree. */
 function clampToNonNegative(raw: string): number | undefined {
   if (raw.trim() === "") return undefined;
   const n = Number(raw);
@@ -19,7 +19,15 @@ function clampToNonNegative(raw: string): number | undefined {
   return n;
 }
 
+/** Non-negative integer, or undefined while the field is empty. customersAffected/transactionsAffected are counts, so a fractional value (e.g. "1.5") is rounded rather than stored as-is. */
+function clampToNonNegativeInt(raw: string): number | undefined {
+  const n = clampToNonNegative(raw);
+  return n === undefined ? undefined : Math.round(n);
+}
+
 type NumericField = "customersAffected" | "transactionsAffected" | "valueGbp";
+
+const INTEGER_FIELDS: readonly NumericField[] = ["customersAffected", "transactionsAffected"];
 
 /** Step 3: the affected population - how many customers/transactions, the value involved, how it was identified, and any notes. */
 export default function StepPopulation({ incident, readOnly, onSave }: StepPopulationProps) {
@@ -47,7 +55,7 @@ export default function StepPopulation({ incident, readOnly, onSave }: StepPopul
   }
 
   function commitNumeric(field: NumericField, raw: string) {
-    const value = clampToNonNegative(raw);
+    const value = INTEGER_FIELDS.includes(field) ? clampToNonNegativeInt(raw) : clampToNonNegative(raw);
     if (value === pop[field]) return;
     void commit({ [field]: value } as Partial<AffectedPopulation>);
   }
@@ -69,26 +77,33 @@ export default function StepPopulation({ incident, readOnly, onSave }: StepPopul
 
       <section className="glass-card rounded-xl p-5 space-y-4">
         <div className="grid sm:grid-cols-3 gap-4">
+          {/* Each key includes the committed value, not just the field name: these are
+              uncontrolled inputs (defaultValue only sets the initial render), so if a
+              clamped/rounded value differs from what the user typed (e.g. "-5" -> 0), the
+              input needs to remount to pick up the new defaultValue - otherwise it keeps
+              showing "-5" while 0 is what actually got saved. */}
           <Input
-            key={`${incident.id}-customersAffected`}
+            key={`${incident.id}-customersAffected-${pop.customersAffected ?? "empty"}`}
             type="number"
             label="Customers affected"
             min={0}
+            step={1}
             defaultValue={pop.customersAffected ?? ""}
             disabled={readOnly}
             onBlur={(e) => commitNumeric("customersAffected", e.target.value)}
           />
           <Input
-            key={`${incident.id}-transactionsAffected`}
+            key={`${incident.id}-transactionsAffected-${pop.transactionsAffected ?? "empty"}`}
             type="number"
             label="Transactions affected"
             min={0}
+            step={1}
             defaultValue={pop.transactionsAffected ?? ""}
             disabled={readOnly}
             onBlur={(e) => commitNumeric("transactionsAffected", e.target.value)}
           />
           <Input
-            key={`${incident.id}-valueGbp`}
+            key={`${incident.id}-valueGbp-${pop.valueGbp ?? "empty"}`}
             type="number"
             label="Value (GBP)"
             min={0}
