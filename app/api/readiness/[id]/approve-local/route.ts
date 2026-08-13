@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { approveLocal } from "@/lib/repo/readiness";
-import { ACTOR, badRequest, isUuid, notFound, parseApprovalBody, requireReadinessAssessment, serverError } from "@/lib/readiness/helpers";
+import { badRequest, isUuid, notFound, parseApprovalBody, requireReadinessAssessment, serverError } from "@/lib/readiness/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -19,7 +19,7 @@ function approveConflict(message: string, reason: "already_final" | "wrong_statu
  * lib/repo/readiness.ts for why that guard exists. Requires the assessment
  * to be in_review (wrong_status otherwise).
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Readiness assessment not found");
@@ -34,7 +34,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       workspace.id,
       id,
       { decidedByPersonId: parsed.decidedByPersonId, rationale: parsed.rationale, conditions: parsed.conditions },
-      ACTOR
+      actor
     );
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Readiness assessment not found");

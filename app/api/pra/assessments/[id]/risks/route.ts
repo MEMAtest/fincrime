@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createAssessmentRisk, listAssessmentRisks, type CreateAssessmentRiskInput } from "@/lib/repo/assessments";
-import { ACTOR, badRequest, notFound, parseOptionalScore, requireAssessment, serverError } from "@/lib/pra/helpers";
+import { badRequest, notFound, parseOptionalScore, requireAssessment, serverError } from "@/lib/pra/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -25,7 +25,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * POST /api/pra/assessments/[id]/risks - adds a risk, either seeded from a
  * scored typology match (typologySlug set) or fully manual (typologySlug null).
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     const assessment = await requireAssessment(workspace.id, id);
@@ -45,7 +45,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       inherentRationale: typeof body?.inherentRationale === "string" ? body.inherentRationale : null,
     };
 
-    const risk = await createAssessmentRisk(workspace.id, id, input, ACTOR);
+    const risk = await createAssessmentRisk(workspace.id, id, input, actor);
     return NextResponse.json({ risk }, { status: 201 });
   } catch (error) {
     return serverError("PRA risk create error", error);

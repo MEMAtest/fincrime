@@ -13,7 +13,7 @@ import { generateReadinessPDF } from "@/lib/pdf/readiness-pdf";
 import { generateRegResponsePDF } from "@/lib/pdf/reg-response-pdf";
 import { generateGovernancePDF, type GovernancePackPayload } from "@/lib/pdf/governance-pdf";
 import { generateKycDocx } from "@/lib/docx/kyc-docx";
-import { getAuthenticatedWorkspace } from "@/lib/workspace-auth";
+import { resolveWorkspaceAuth } from "@/lib/workspace-auth";
 import { updateWorkspace } from "@/lib/repo/workspace";
 import { isNumOrNull, isStrOrNull, isValidExportEvidence } from "@/lib/pdf/evidence-validation";
 import { resolveWorkspaceSettings } from "@/lib/workspace/settings";
@@ -620,12 +620,24 @@ export async function POST(request: NextRequest) {
     const cleanEmail = typeof email === "string" ? email.trim() : undefined;
 
     // The workspace's organisationName/dateFormat settings, resolved once and
-    // threaded into every generate*PDF call below via `orgInfo`. Tolerant of
-    // an anonymous/unauthenticated request (getAuthenticatedWorkspace
-    // returns null) - the free tools export PDFs without ever requiring a
-    // workspace, so this must never turn a missing header into a failure;
-    // it just falls back to the generic MEMA branding untouched.
-    const requestingWorkspace = await getAuthenticatedWorkspace(request);
+    // threaded into every generate*PDF call below via `orgInfo`. Resolved via
+    // resolveWorkspaceAuth, not the header-only getAuthenticatedWorkspace:
+    // that function ONLY ever checks the x-workspace-id/x-workspace-token
+    // headers, so a signed-in user exporting via the session cookie (no
+    // token header at all) would 401 here even though every other workspace
+    // route already accepts their session - and, worse, if their browser
+    // still held a leftover anonymous workspace credential in localStorage
+    // from before they signed in, THAT unrelated workspace's token would
+    // verify and this route would silently build the wrong tenant's pack.
+    // resolveWorkspaceAuth tries the header path first (byte-for-byte
+    // identical behaviour for the anonymous free-tool flow) and falls back
+    // to session+membership, exactly like every other workspace route.
+    // Tolerant of a genuinely anonymous/unauthenticated request (resolves to
+    // null) - the free tools export PDFs without ever requiring a
+    // workspace, so this must never turn a missing credential into a
+    // failure; it just falls back to the generic MEMA branding untouched.
+    const requestingAuth = await resolveWorkspaceAuth(request);
+    const requestingWorkspace = requestingAuth?.workspace ?? null;
     const requestingWorkspaceSettings = resolveWorkspaceSettings(requestingWorkspace?.settings ?? null);
     const orgInfo = {
       organisationName: requestingWorkspaceSettings.organisationName,

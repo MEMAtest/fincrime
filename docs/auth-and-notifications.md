@@ -1,251 +1,216 @@
-# Real authentication and notifications: what they would take
+# Auth and notifications: what is actually shipped
 
-Written at the end of Phase 7. Settings and file-backed evidence shipped this
-phase. Auth and notifications did not, deliberately - this document is why,
-and what each would actually cost if the owner decides to go ahead. It is a
-decision document, not a pitch for either direction.
+Rewritten after the security-review remediation pass that shipped optional
+accounts, member management, password reset, email verification, digest
+rotation, and actor-attributed auditing. The previous version of this
+document opened with "there is no login, no user table, no session" and
+argued against building the thing that now exists - that was accurate when
+written (end of Phase 7) and is not accurate any more. This file is now a
+description of what is actually running, not a proposal. See
+[auth-and-notifications-backlog.md](./auth-and-notifications-backlog.md) for
+what is deliberately still not built.
 
-## Where the product stands today
+## The model: anonymous workspaces, with optional accounts layered on top
 
-The whole app is built on one idea: a workspace is anonymous. There is no
-login, no user table, no session. A `workspaces` row is a random UUID plus a
-sha256-hashed 32-byte token; the browser holds `{id, token}` in
-localStorage and sends it as `x-workspace-id` / `x-workspace-token` headers
-on every API call (`lib/workspace-auth.ts`, `components/workspace/
-WorkspaceProvider.tsx`). "Reviewers" and "approvers" are just named rows in
-`workspace_people` (name, role, optional email) with no credentials attached
-to them at all - a decision records `decided_by_person_id`, but nothing ever
-authenticates that the person clicking "Approve" in the browser is the named
-approver rather than anyone else who happens to hold the workspace token.
+The workspace is still the tenant boundary, and the anonymous path is
+UNCHANGED and still the default: a `workspaces` row is a random UUID plus a
+sha256-hashed 32-byte token; the browser holds `{id, token}` in localStorage
+and sends `x-workspace-id` / `x-workspace-token` headers on every API call
+(`lib/workspace-client.ts`, `lib/workspace-auth.ts`'s `getAuthenticatedWorkspace`).
+Every free tool (TypologyIQ, PartnerControlMap, ScreeningDesigner, the KYC
+matrix, and the rest) still works with zero friction and no account - a
+workspace is still minted lazily, the first time someone saves something,
+and nothing in this phase changed that funnel.
 
-**The localStorage token is a bearer credential, full stop.** `lib/workspace-auth.ts`'s
-`withWorkspace()` treats "knows `{id, token}`" as "is this workspace" - there
-is no expiry, no rotation, and no revocation path. Anyone who reads the
-`fincrime-workspace` key out of a browser's localStorage (a stolen laptop, a
-XSS on a page that somehow runs script in this origin, a support screenshare
-where DevTools is open, a synced-and-later-compromised browser profile) has
-permanent, undetectable access to that workspace for as long as the row
-exists - there is no "log out everywhere," no session list, nothing to
-revoke. This phase (Phase 7) raised the stakes of that specific gap: file
-storage now lives behind the same token (`app/api/evidence/[id]/file/route.ts`),
-so a copied token is no longer just "read some risk scores" but "download
-every KYC sample and working paper this workspace has uploaded." This is the
-single strongest argument for real authentication in this document - stronger
-than the funnel/conversion argument below, because it is a live exposure
-today, not a missing feature. **What "real auth" (see below) actually buys
-here**: a session cookie with a real expiry and a server-side revocation
-list, so a compromised session can be killed without the workspace itself
-becoming unusable, is a fix specifically for this - not a nice-to-have.
+What is new is a **parallel identity layer**: a `users` table (email +
+scrypt password hash), a `sessions` table (httpOnly cookie, sha256-hashed
+bearer token, sliding 30-day expiry), and `workspace_members(workspace_id,
+user_id, role)` joining the two (migration `010_accounts.sql`). A signed-in
+user reaches a workspace they are a member of via the session cookie plus
+`x-workspace-id` (no token header) - `lib/workspace-auth.ts`'s
+`resolveWorkspaceAuth()` tries the header-token path first (byte-for-byte
+identical to the pre-accounts behaviour) and falls back to session +
+membership. `withWorkspace()` wraps every route handler in this and passes
+the resolved actor (a real email, or the literal string `"workspace"` for
+the anonymous path) through as a fourth handler argument.
 
-**Data retention.** There is no retention policy anywhere in this codebase:
-a workspace, once created, keeps its assessments, evidence rows and (as of
-this phase) uploaded files indefinitely - there is no TTL, no archival job,
-no "delete my data" flow, and no anonymisation of `owner_email` after a
-period of inactivity. For a tool now holding KYC samples, this is a real gap
-independent of authentication: an abandoned anonymous workspace from a
-one-off free-tool visit could sit on someone's uploaded document forever.
-Before this phase, that risk was compounded by evidence blobs being
-`access: "public"` in Vercel Blob - a permanent, unexpiring, unauthenticated
-URL that would have outlived any retention policy or access control added
-later, since anyone who ever saw or logged that URL could fetch it forever
-regardless of what the app's own auth model did. That specific compounding
-factor is fixed as of this phase: blobs are now `access: "private"`, fetched
-only by `GET /api/evidence/[id]/file` after the same workspace-token check
-as everything else (see `lib/storage/blob.ts`, `getEvidenceFileStream`). That
-narrows blob exposure to "whoever holds the workspace token" - i.e. exactly
-the bearer-credential risk described above, not a separate, worse,
-unauthenticated one. It does not, on its own, give the app a retention
-policy; a deletion/export flow is still not built.
+`workspace_people` (named individuals used for approvals) is untouched and
+NOT linked to `users` - that remains a real gap (see the backlog).
 
-This is not an oversight. It is the actual product shape: the free tools
-(TypologyIQ, PartnerControlMap, the KYC matrix, and the rest) work with zero
-friction for an anonymous visitor, and a workspace is minted lazily, the
-first time someone saves something. That zero-friction path is the entire
-top of the lead-generation funnel - `LeadCaptureModal`, the PDF-export email
-gate, the opportunistic `owner_email` backfill in `app/api/export/pdf/
-route.ts` all exist because the product's growth model depends on nobody
-having to sign up before they get value.
+## Claiming a workspace, and the email-confirmation gate
 
-## What real authentication would require
+A user can "claim" an anonymous workspace they hold the token for
+(`POST /api/auth/claim-workspace`, and automatically at signup if the
+browser's current anonymous workspace's headers verify -
+`lib/auth/claim-flow.ts`'s `attemptClaimWorkspace`, shared by both call
+sites so neither can bypass the other's protection). Three outcomes:
 
-**A parallel identity layer, not a replacement of the workspace model.**
-The workspace stays the tenant boundary (it already is one, and every
-`lib/repo/*` query is scoped by `workspace_id` - that does not change). What
-would be added is a `users` table (email, password hash or OAuth identity,
-created_at) and a join between users and workspaces, most naturally
-`workspace_members(workspace_id, user_id, role)`. `workspace_people` would
-not disappear: it is not the same concept. A "person" today can be someone
-with no email at all, entered purely so their name appears as an owner or
-approver in a report - that is a legitimate use that has nothing to do with
-who can log in. The realistic shape is `workspace_people.user_id` (nullable,
-`ON DELETE SET NULL`) linking a person record to a real user WHEN one
-exists, so a decision's `decided_by_person_id` can eventually be checked
-against "is this person's linked user the one making this request" instead
-of trusting whatever name the browser happened to send. That check does not
-exist today, and every mutation currently just takes an actor string
-(`ACTOR = "workspace"` throughout `lib/*/helpers.ts`) - it is a placeholder
-for "someone with this workspace's token acted," not "this named person
-acted." Wiring that check through every route that currently accepts an
-arbitrary `personId` from the request body is a large share of the actual
-work.
+1. **The workspace already has an owner** (this user or a different one) -
+   delegates to `claimWorkspace` (`lib/repo/users.ts`), which is idempotent
+   for the same user and refuses (409) for a different one. Claiming is
+   one-shot per workspace; this refusal is unconditional regardless of
+   `owner_email`.
+2. **No owner yet, `owner_email` not set** - claims immediately (first
+   claimant becomes owner). There is nobody to confirm with, so this stays
+   the original zero-friction behaviour.
+3. **No owner yet, `owner_email` IS set** (e.g. backfilled by a PDF export's
+   lead capture) - claiming is DEFERRED behind a single-use, 24-hour
+   confirmation link emailed to `owner_email`
+   (`GET /api/auth/claim-workspace/confirm?token=...`). The requesting
+   route returns 202 `{pending: true}` rather than granting access. This is
+   the direct fix for "a leaked/stolen token becomes permanent third-party
+   access": possessing the raw token is no longer sufficient on its own to
+   claim a workspace someone has already associated with a real inbox -
+   the attacker would also need access to that inbox.
 
-**Migration path for existing workspaces.** Every workspace already in the
-database was created with the anonymous flow: it has no owner, and its
-`owner_email` is either null or an opportunistically-backfilled address from
-a PDF export (best-effort, never verified). The realistic path is: the
-localStorage token remains valid indefinitely as a fallback identity (so
-nothing already using the product breaks), and a workspace additionally gets
-a "claim" flow - the holder of the token verifies an email (magic link,
-matching the pattern SES already sends elsewhere) and that email becomes the
-workspace's owner-user. Anyone else with the raw token could otherwise claim
-someone else's workspace, so claiming has to be one-shot and probably
-require the token holder to already have `owner_email` set and click a link
-sent to that address, not an open self-service form.
+Confirmation tokens (and password-reset and email-verification tokens) live
+in one shared table, `auth_tokens` (migration `012_auth_tokens.sql`):
+32 random bytes, only the sha256 hash stored, single-use (consumed
+atomically by the same `UPDATE ... WHERE used_at IS NULL AND expires_at >
+now() RETURNING ...` that checks validity - no separate select-then-update
+race), and never distinguish "unknown token" from "used" from "expired" in
+any response.
 
-**The free tools and the funnel.** This is the strongest argument for
-keeping auth strictly optional rather than required. TypologyIQ,
-PartnerControlMap, ScreeningDesigner, ControlsMaturity, the KYC matrix - none
-of them need a workspace at all today, and none of them should start
-needing an account. If auth is added, it must be layered onto the
-already-existing workspace/PDF-export flow (add a login option at the point
-someone chooses to save formal work), never inserted in front of the free
-tools. Get this wrong and the funnel that currently exists (try a tool free,
-get value, THEN optionally save it, THEN optionally give an email for the
-PDF) collapses into "sign up to try the tool," which is a materially
-different, worse-converting product. Any auth implementation has to be
-reviewed against that funnel explicitly, tool by tool, not assumed safe.
+## Un-claiming: member list and removal
 
-**Session handling.** Next.js gives two realistic options: a signed httpOnly
-session cookie issued after login (simplest, works with the existing
-App Router API routes with minimal new infrastructure), or a third-party
-auth provider (NextAuth/Auth.js, Clerk, Supabase Auth) that also gives OAuth
-"sign in with Google" for free. Given SES is already configured and working
-for magic-link-style flows would be the cheapest email-verification path,
-a homegrown cookie session plus SES magic links is probably the smallest
-total build, at the cost of building password reset / session invalidation
-/ "log out everywhere" by hand rather than getting them from a library.
-Either way, `withWorkspace()` in `lib/workspace-auth.ts` needs a sibling
-(not a replacement - the anonymous path stays) that also accepts a
-session cookie and resolves it to a user, then to that user's permitted
-workspace(s).
+`GET /api/workspace/members` and owner-only `DELETE
+/api/workspace/members/[userId]` (surfaced on `/account` under a workspace's
+"Members" panel) let an owner see and remove anyone with session access to
+a workspace. Removal deletes the `workspace_members` row; the very next
+request that user makes against that workspace fails the ordinary
+`getMembership` lookup and 401s, exactly like an unknown header token would
+- there is no separate revocation list to maintain. The endpoint refuses to
+remove a workspace's only owner (would orphan it with nobody able to
+administer it - there is no invite flow yet to add a replacement).
 
-**The hosted-provider alternative, and why it is the main lever on the
-estimate below.** A provider like Clerk, Supabase Auth or Auth.js/NextAuth
-removes the signup/login/magic-link API surface and session middleware
-entirely - that is the "medium" and "small-medium" line items in the
-estimate below, replaced by SDK integration instead of hand-built plumbing.
-Rough pricing as of writing: Clerk's free tier covers roughly 10,000 monthly
-active users then moves to a per-MAU plan (low hundreds of USD/month at this
-product's likely early scale); Supabase Auth is bundled into Supabase's
-existing free/Pro tiers (Pro is $25/month base, MAU limits scale from
-there) and would mean also adopting Supabase for at least auth even though
-the app's actual data stays on the existing Hetzner Postgres; Auth.js/NextAuth
-is free and self-hosted (an npm package, not a hosted service) but gives back
-essentially none of the build-time savings the hosted options provide,
-since session storage, adapters and UI are still assembled by hand - it
-trades ongoing subscription cost for build time, roughly the inverse of the
-Clerk/Supabase trade. The realistic choice is Clerk or Supabase Auth for
-speed (cutting the "genuinely new plumbing" week or two down to days of
-integration) at a small recurring cost, or Auth.js for zero recurring cost
-at closer to the full homegrown build estimate below.
+Every `workspace.claimed` audit row is now visible where it matters: the
+workspace's Recent Activity list (`app/workspace/page.tsx`) renders the
+`actor` on every row (previously it did not render actor at all), with a
+`workspace.claimed` event specifically called out, so a claim by someone
+other than the expected owner is visible to anyone who looks, not only
+discoverable by querying `audit_log` directly.
 
-**Roughly how much work.** Ballpark, assuming the httpOnly-cookie-plus-SES
-path and NOT counting UI polish: a `users` table and migration (small); a
-signup/login/magic-link API surface (medium - this is genuinely new
-plumbing, not a wrapper around something already in the codebase); session
-middleware alongside `withWorkspace` (small-medium); the workspace-claim flow
-described above (small-medium, mostly about getting the one-shot security
-property right); linking `workspace_people` to `users` and deciding, route
-by route, whether "who can approve" now checks identity rather than trusting
-the request body (medium-large - this touches every module: PRA decisions,
-control-test completion, incident closure, readiness approval, reg-response
-approval, each of which currently lets the client assert `decidedByPersonId`
-freely). Call it multiple weeks of focused work for a defensible v1, not
-counting anything on top like SSO, MFA, or granular per-route RBAC beyond
-"is this person a member of this workspace."
+## Password reset and email verification
 
-**The argument against building it now.** The product's differentiator
-today is that a compliance analyst can go from "curious" to "have a real
-committee pack" in minutes, with nothing to sign up for. Every additional
-account-creation step measurably loses people at that stage of a funnel;
-that is not a hypothesis specific to this app, it is close to universal for
-self-serve tools. Auth also does not, on its own, fix anything currently
-broken - the workspace-token model already gives real tenant isolation
-(every query is workspace-scoped; a foreign workspace's id is already
-rejected everywhere, exercised concretely by the seven `scripts/smoke-*.mjs`
-suites - `smoke-settings.mjs`, `smoke-governance.mjs`, `smoke-reg-response.mjs`,
-`smoke-readiness.mjs`, `smoke-incident.mjs`, `smoke-control-test.mjs` and
-`smoke-control-change.mjs` each create a second workspace and assert its
-token is refused against the first workspace's records, not merely a claim
-about the codebase's general discipline). What
-auth would add is: knowing WHO within a workspace did something (today it's
-"the workspace," not "Sarah"), and the ability to restrict who can approve
-vs merely draft. Those are real gaps for a firm with more than one person
-using the tool seriously, but they are a should-have for a specific,
-identifiable customer need (multi-person firms with segregation-of-duties
-requirements), not a should-have for the product as a whole. The honest
-recommendation is: build it when a specific customer's procurement or audit
-requirement demands named-user accountability, not speculatively ahead of
-that.
+`POST /api/auth/password-reset/request` (body `{email}`) always returns the
+same response regardless of whether the email has an account - a
+password-reset request is not the caller asserting an email is theirs the
+way a signup submission is, so this one holds the enumeration-resistance
+line signup's own 409 deliberately does not (see the signup route's doc
+comment for that trade-off, argued honestly rather than justified by the
+now-corrected claim that login already reveals existence - it does not; the
+review measured flat timing). `POST /api/auth/password-reset/confirm` (body
+`{token, password}`) consumes the token, sets the new password, and revokes
+**every** existing session for the account - a password reset is the
+scenario most likely to mean an old session should not survive it.
 
-## What notifications would require, once identity exists
+Signup also fires a best-effort, non-blocking email-verification link
+(`GET /api/auth/verify-email?token=...` writes `users.email_verified_at`).
+It gates nothing today - the account is fully usable immediately, session
+minted on signup regardless. It exists so `email_verified_at` is not a
+column nothing ever writes.
 
-Notifications are meaningless without a real identity to notify - "email
-the workspace" already sort of exists (the opportunistic `owner_email`,
-the PDF-export delivery email) but that is delivery of an artefact the
-person explicitly asked for, not a notification about something that
-happened. A genuine notification system needs to know WHO to tell, which is
-exactly the gap auth fills.
+## Actor attribution: threaded through every mutating route
 
-**Digest vs immediate.** Given SES is already wired and working
-(`lib/email.ts`, used today for PDF delivery and the daily-briefing-style
-patterns used on the MEMA platform sibling project), the mechanically easy
-part is sending mail. The hard part is deciding what is worth interrupting
-someone for. A reasonable split: immediate (a small allowlist - a decision
-assigned to you, a condition you own breaching its due date, an incident
-assigned to you) vs a daily digest (everything else that changed: new
-evidence added, a test completed, a control change moved status). The
-governance dashboard's own aggregation (`lib/governance/portfolio.ts`, the
-due-soon window this phase made workspace-configurable) is already the right
-shape of query to drive a digest - it is a "what needs attention" roll-up
-today computed on page load; a scheduled job computing the same roll-up
-per-user and mailing it is a small extension of existing code, not new
-architecture.
+Every route family that used to hardcode `ACTOR = "workspace"` for every
+mutation (`pra`, `control-changes`, `control-tests`, `incidents`,
+`readiness`, `reg-requests`, `workspace`, `evidence`) now accepts the actor
+`withWorkspace` resolves and threads it into every `audit_log` write. A
+session-authenticated approval, decision, or control-test completion is now
+audited under the real signed-in user's email; the anonymous header-token
+path is unchanged and still audited as `"workspace"`. Each family's
+`ACTOR` constant remains exported (still the correct value for the
+anonymous path in any code that has not been threaded), but no route
+handler reads it directly any more - each destructures the `actor` argument
+`withWorkspace` supplies.
 
-**Which events actually warrant one.** Candidates, roughly in order of how
-defensible an interruption they are: an overdue action or condition where
-you are the owner; a decision awaiting your approval; an incident assigned
-to you; a control test due within the reminder window (now configurable via
-Settings, `reviewReminderDays`) with you as the tester. Weaker candidates
-that should probably stay digest-only or be opt-in: every evidence upload,
-every comment, every status change on something you merely have visibility
-into rather than ownership of. The house style seen elsewhere in this
-codebase (deterministic, no silent behaviour) argues for an explicit,
-documented notification-event registry (event type to channel to audience),
-not an ad hoc `sendEmail()` call sprinkled into whichever route feels like
-it deserves one at the time - that is how a codebase ends up with the
-"stale, noisy, uninstallable" reputation most B2B tools get for their
-notification systems.
+## Session security details worth stating plainly
 
-**The noise risk.** This is the real threat to the feature being useful at
-all. A firm using this tool seriously will have dozens of open actions,
-several in-flight assessments, and a control-testing cycle running
-continuously - if every one of those generates an email, the notification
-system trains its own users to ignore it within a week, at which point it
-is actively worse than not having it (a genuinely urgent overdue condition
-gets lost in the same inbox as forty routine ones). The concrete mitigation
-is what the digest/immediate split above is for, plus a per-user
-"notify me about" preference (workspace_people already has a
-`role` - it is a short step to add notification preferences alongside it
-once `user_id` exists), plus, from day one, a "why am I getting this"
-footer on every email linking back to the preference. None of this is hard
-engineering; it is discipline about what NOT to send, decided up front
-rather than retrofitted after users start muting the sender.
+- **Cookie `Secure`**: `lib/auth/session-cookie.ts`'s `isHttps()` checks
+  `NODE_ENV === "production"` FIRST (authoritative when true) before
+  falling back to the request's own protocol / `x-forwarded-proto` header.
+  A client-supplied `x-forwarded-proto: http` can no longer strip `Secure`
+  in production - the previous version trusted that header outright.
+- **Sliding session expiry**: every successful `verifySession` call now
+  extends `expires_at` another 30 days from "now" AND stamps
+  `last_seen_at` - previously `last_seen_at` was written but never read
+  back by anything, which made it dead data; now it is load-bearing.
+- **Login revokes the browser's prior session**: `POST /api/auth/login`
+  reads whatever session cookie the request already carried and revokes it
+  server-side before minting the new one - a shared machine where B signs
+  in after A (without A explicitly signing out) no longer leaves A's
+  session live for the rest of its 30-day window.
+- **Two independent rate-limit buckets on login**: per-IP (`LOGIN_LIMIT`,
+  the classic credential-stuffing target) and per normalised email
+  (`LOGIN_EMAIL_LIMIT`, catching distributed credential stuffing against
+  one known/breached email spread across many source IPs to duck the IP
+  bucket). Signup keeps its own separate per-IP bucket.
+- **`POST /api/notifications/test`** is now rate-limited keyed on the
+  calling user's id (not IP) - it runs a full portfolio aggregation plus an
+  SES send per call, so it was a shared-SES-quota abuse vector with no
+  limit at all before this.
+- **`GET /api/notifications/captured`** (the local smoke-test capture seam)
+  now also refuses whenever `VERCEL_ENV === "production"`, independent of
+  the `NOTIFICATIONS_CAPTURE` env var check - `NODE_ENV` was deliberately
+  NOT used for this second gate, because `next start` forces
+  `NODE_ENV=production` for an ordinary local smoke run too, which would
+  have 404'd this route during the documented local testing setup; only an
+  actual Vercel production deployment sets `VERCEL_ENV=production`.
 
-**Sequencing.** Build order, once auth exists: (1) the event registry and a
-single "digest" email listing everything relevant to a user, sent daily,
-because it is the lowest-risk version (worst case, someone ignores one
-email a day); (2) promote the small immediate-notification allowlist above
-to real-time sends only once the digest has proven the event data is
-accurate and not noisy; (3) per-user preferences last, once there is real
-usage data on which events people actually act on versus mute.
+## Governance pack export: session-mode fixed
+
+`app/api/export/pdf/route.ts` (every module, not just the governance pack)
+now resolves the requesting workspace via `resolveWorkspaceAuth`, not the
+header-only `getAuthenticatedWorkspace` it used exclusively before. Two
+distinct bugs this fixes together: a signed-in user exporting via session
+(no anonymous token header at all) previously got a bare 401; and if that
+same browser also still held a stale, unclaimed anonymous workspace
+credential in localStorage from before signing in, the export would
+silently return THAT unrelated workspace's governance pack instead of the
+session's own, with no error - `orgInfo` (organisation name, date format)
+was equally mis-sourced for every other module for the same reason.
+`components/shared/LeadCaptureModal.tsx` now sends only `x-workspace-id`
+(relying on the session cookie) when in session mode, and only falls back
+to the anonymous localStorage credential otherwise - it never sends both.
+
+## Notification digests
+
+Unchanged in shape from the prior design (digest vs immediate, the
+noise-risk mitigations, the event set) except for one correctness fix: the
+cron endpoint (`POST /api/notifications/run`, `.github/workflows/notifications.yml`)
+caps how many workspaces one invocation processes
+(`NOTIFICATIONS_MAX_WORKSPACES_PER_RUN`, default 500). The workspace query
+(`lib/repo/notifications.ts`'s `listWorkspaceMembersWithEmail`) used to
+order by `workspace_id ASC` - a fixed, deterministic order under which
+whichever workspace sorted last alphabetically by UUID would NEVER be
+reached by ANY run, permanently. It now orders by each workspace's own last
+SUCCESSFUL send timestamp, oldest/never-sent first (`NULLS FIRST`): once a
+workspace's digest succeeds, its timestamp advances to "now", pushing it to
+the back of the next run's queue - the cap now rotates which workspaces are
+deferred instead of permanently starving one tail. The route also declares
+an explicit `maxDuration` so a long run fails loudly (a logged timeout)
+rather than being silently cut off mid-loop by a platform default.
+
+## Verified end to end
+
+Exercised concretely by nine `scripts/smoke-*.mjs` suites (`smoke-auth.mjs`,
+`smoke-notifications.mjs`, `smoke-settings.mjs`, `smoke-governance.mjs`,
+`smoke-reg-response.mjs`, `smoke-readiness.mjs`, `smoke-incident.mjs`,
+`smoke-control-test.mjs`, `smoke-control-change.mjs`), not merely a claim
+about the codebase's general discipline: `smoke-auth.mjs` alone proves
+signup/login/logout, session revocation (server-side, not just the
+cookie), expired-session rejection, no-enumeration on both login and
+password reset, three independent rate-limit buckets, the full claim flow
+including cross-account isolation, member listing/removal, password reset
+end to end (including session revocation), the shared-machine
+prior-session-revocation behaviour, and actor threading into `audit_log`
+across two different route families. `smoke-notifications.mjs` proves the
+digest noise-risk mitigations, category/frequency preferences, unsubscribe,
+`/api/notifications/test`'s rate limit, and (as an opt-in extra run with
+`NOTIFICATIONS_MAX_WORKSPACES_PER_RUN=1`) the run-cap rotation. Each of the
+seven module suites creates a second workspace and asserts its token is
+refused against the first workspace's records. `smoke-governance.mjs`
+specifically proves session-mode governance-pack export.
+
+See [auth-and-notifications-backlog.md](./auth-and-notifications-backlog.md)
+for what remains.

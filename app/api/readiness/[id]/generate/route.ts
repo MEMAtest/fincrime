@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { generateObligations } from "@/lib/repo/readiness";
-import { ACTOR, conflict, isUuid, notFound, requireReadinessAssessment, serverError } from "@/lib/readiness/helpers";
+import { conflict, isUuid, notFound, requireReadinessAssessment, serverError } from "@/lib/readiness/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -15,14 +15,14 @@ interface RouteContext {
  * notes on an obligation that already exists (see generateObligations in
  * lib/repo/readiness.ts). Returns {created, existing} counts.
  */
-export const POST = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Readiness assessment not found");
     const assessment = await requireReadinessAssessment(workspace.id, id);
     if (!assessment) return notFound("Readiness assessment not found");
 
-    const result = await generateObligations(workspace.id, id, ACTOR);
+    const result = await generateObligations(workspace.id, id, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Readiness assessment not found");
       if (result.reason === "unknown_profile") {

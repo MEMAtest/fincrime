@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { submitForReview } from "@/lib/repo/readiness";
-import { ACTOR, isUuid, notFound, requireReadinessAssessment, serverError } from "@/lib/readiness/helpers";
+import { isUuid, notFound, requireReadinessAssessment, serverError } from "@/lib/readiness/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -17,14 +17,14 @@ function submitConflict(message: string, reason: "already_final" | "wrong_status
  * 409 with a specific machine-readable `reason`: already final, not
  * currently draft (wrong_status), or no obligations have been generated yet.
  */
-export const POST = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Readiness assessment not found");
     const assessment = await requireReadinessAssessment(workspace.id, id);
     if (!assessment) return notFound("Readiness assessment not found");
 
-    const result = await submitForReview(workspace.id, id, ACTOR);
+    const result = await submitForReview(workspace.id, id, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Readiness assessment not found");
       if (result.reason === "no_obligations") {

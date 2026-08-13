@@ -63,7 +63,7 @@ export default function SignUpPage() {
   return (
     <ToolFrame breadcrumb={[{ label: "Home", href: "/" }, { label: "Account", href: "/account" }, { label: "Sign up" }]}>
       <div className="max-w-md mx-auto w-full px-4 sm:px-6 py-12">
-        <ToolPageHeader eyebrow="ACCOUNT" title="Create your" titleAccent="account" subtitle="Optional. The free tools work with no account at all - sign up only when you want your work to survive losing this browser, or to share it with a colleague." />
+        <ToolPageHeader eyebrow="ACCOUNT" title="Create your" titleAccent="account" subtitle="Optional. The free tools work with no account at all - sign up only when you want your work to survive losing this browser." />
         <form onSubmit={handleSubmit} className="glass-card rounded-2xl p-6 space-y-4">
           {error && <p className="text-sm text-red-500 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>}
           <Input

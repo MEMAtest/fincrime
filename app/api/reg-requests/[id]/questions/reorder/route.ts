@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { reorderRegQuestions } from "@/lib/repo/reg-requests";
-import { ACTOR, badRequest, conflict, isUuid, notFound, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
+import { badRequest, conflict, isUuid, notFound, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -14,7 +14,7 @@ interface RouteContext {
  * negative-then-final two-pass update so the UNIQUE (request_id, position)
  * constraint is never tripped mid-reorder (see reorderRegQuestions).
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Reg request not found");
@@ -33,7 +33,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       return badRequest("orderedQuestionIds must not contain duplicates");
     }
 
-    const result = await reorderRegQuestions(workspace.id, id, orderedQuestionIds, ACTOR);
+    const result = await reorderRegQuestions(workspace.id, id, orderedQuestionIds, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "invalid_question_set") {

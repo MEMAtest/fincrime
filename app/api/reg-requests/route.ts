@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createRegRequest, listRegRequestsWithSummary } from "@/lib/repo/reg-requests";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   isIsoDate,
   isRegRequestChannel,
   isRegRequestStatus,
@@ -38,7 +36,7 @@ export const GET = withWorkspace(async (request, workspace) => {
  * POST /api/reg-requests - body {title, reference?, regulator?, channel?,
  * receivedAt?, deadline?, ownerPersonId?, summary?}.
  */
-export const POST = withWorkspace(async (request, workspace) => {
+export const POST = withWorkspace(async (request, workspace, _context, actor) => {
   try {
     const body = await request.json().catch(() => null);
 
@@ -82,7 +80,7 @@ export const POST = withWorkspace(async (request, workspace) => {
 
     const summary = typeof body?.summary === "string" && body.summary.trim() ? body.summary.trim() : null;
 
-    const created = await createRegRequest(workspace.id, { title, reference, regulator, channel, receivedAt, deadline, ownerPersonId, summary }, ACTOR);
+    const created = await createRegRequest(workspace.id, { title, reference, regulator, channel, receivedAt, deadline, ownerPersonId, summary }, actor);
 
     return NextResponse.json({ request: created }, { status: 201 });
   } catch (error) {

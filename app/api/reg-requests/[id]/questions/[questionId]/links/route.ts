@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createRegQuestionLink, listRegQuestionLinks } from "@/lib/repo/reg-requests";
-import { ACTOR, badRequest, conflict, isRegQuestionLinkType, isUuid, notFound, requireRegQuestion, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
+import { badRequest, conflict, isRegQuestionLinkType, isUuid, notFound, requireRegQuestion, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string; questionId: string }>;
@@ -31,7 +31,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * createRegQuestionLink) - a control_test id passed as 'incident' 400s, as
  * does a foreign workspace's id of the right kind.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id, questionId } = await context.params;
     if (!isUuid(id) || !isUuid(questionId)) return notFound("Reg question not found");
@@ -50,7 +50,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     if (!isUuid(body?.targetId)) return badRequest("targetId must be a valid UUID");
     const note = typeof body?.note === "string" && body.note.trim() ? body.note.trim() : null;
 
-    const result = await createRegQuestionLink(workspace.id, id, questionId, { linkType: body.linkType, targetId: body.targetId, note }, ACTOR);
+    const result = await createRegQuestionLink(workspace.id, id, questionId, { linkType: body.linkType, targetId: body.targetId, note }, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "question_not_found") return notFound("Reg question not found");

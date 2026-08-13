@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { deleteRegCommitment, updateRegCommitment, type UpdateRegCommitmentInput } from "@/lib/repo/reg-requests";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   conflict,
   isIsoDate,
   isNotFutureIsoDate,
@@ -26,7 +24,7 @@ interface RouteContext {
  * status transition into 'met' closes the linked action in the same
  * transaction (see updateRegCommitment).
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id, commitmentId } = await context.params;
     if (!isUuid(id) || !isUuid(commitmentId)) return notFound("Reg commitment not found");
@@ -76,7 +74,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       patch.metAt = body.metAt;
     }
 
-    const result = await updateRegCommitment(workspace.id, id, commitmentId, patch, ACTOR);
+    const result = await updateRegCommitment(workspace.id, id, commitmentId, patch, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "commitment_not_found") return notFound("Reg commitment not found");
@@ -90,7 +88,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 });
 
 /** DELETE /api/reg-requests/[id]/commitments/[commitmentId] */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id, commitmentId } = await context.params;
     if (!isUuid(id) || !isUuid(commitmentId)) return notFound("Reg commitment not found");
@@ -99,7 +97,7 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
     const commitment = await requireRegCommitment(workspace.id, id, commitmentId);
     if (!commitment) return notFound("Reg commitment not found");
 
-    const result = await deleteRegCommitment(workspace.id, id, commitmentId, ACTOR);
+    const result = await deleteRegCommitment(workspace.id, id, commitmentId, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "commitment_not_found") return notFound("Reg commitment not found");

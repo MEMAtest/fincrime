@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { deleteControlTestFinding, getControlTestFinding, updateControlTestFinding, type UpdateControlTestFindingInput } from "@/lib/repo/control-tests";
-import { badRequest, conflict, isFindingSeverity, isFinalTestStatus, isUuid, notFound, requireControlTest, serverError, ACTOR } from "@/lib/control-tests/helpers";
+import { badRequest, conflict, isFindingSeverity, isFinalTestStatus, isUuid, notFound, requireControlTest, serverError } from "@/lib/control-tests/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string; findingId: string }>;
@@ -19,7 +19,7 @@ async function requireTestFinding(workspaceId: string, testId: string, findingId
  * {description?, severity?, sampleRef?}. 409 if the parent test is already
  * complete or cancelled (a finding is part of the historical record then).
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id, findingId } = await context.params;
     if (!isUuid(id) || !isUuid(findingId)) return notFound("Control test or finding not found");
@@ -48,7 +48,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       patch.sampleRef = typeof body.sampleRef === "string" && body.sampleRef.trim() ? body.sampleRef.trim() : null;
     }
 
-    const updated = await updateControlTestFinding(workspace.id, findingId, patch, ACTOR);
+    const updated = await updateControlTestFinding(workspace.id, findingId, patch, actor);
     if (!updated) return notFound("Finding not found");
 
     return NextResponse.json({ finding: updated });
@@ -58,7 +58,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 });
 
 /** DELETE /api/control-tests/[id]/findings/[findingId] */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id, findingId } = await context.params;
     if (!isUuid(id) || !isUuid(findingId)) return notFound("Control test or finding not found");
@@ -69,7 +69,7 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
     const finding = await requireTestFinding(workspace.id, id, findingId);
     if (!finding) return notFound("Finding not found");
 
-    await deleteControlTestFinding(workspace.id, findingId, ACTOR);
+    await deleteControlTestFinding(workspace.id, findingId, actor);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return serverError("Control test finding delete error", error);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createRegQuestion, listRegQuestions } from "@/lib/repo/reg-requests";
-import { ACTOR, badRequest, conflict, isUuid, notFound, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
+import { badRequest, conflict, isUuid, notFound, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -27,7 +27,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * exceptionNote?}. Always appended at the next position - position is only
  * ever changed via the dedicated reorder endpoint.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Reg request not found");
@@ -46,7 +46,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const response = typeof body?.response === "string" && body.response.trim() ? body.response.trim() : null;
     const exceptionNote = typeof body?.exceptionNote === "string" && body.exceptionNote.trim() ? body.exceptionNote.trim() : null;
 
-    const result = await createRegQuestion(workspace.id, id, { question, response, exceptionNote }, ACTOR);
+    const result = await createRegQuestion(workspace.id, id, { question, response, exceptionNote }, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       return conflict("Cannot add questions to a reg request that is already closed or cancelled");

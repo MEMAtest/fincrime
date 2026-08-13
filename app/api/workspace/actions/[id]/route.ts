@@ -5,7 +5,7 @@ import { requirePerson } from "@/lib/pra/helpers";
 import { getRegCommitment, updateRegCommitment, REG_COMMITMENT_SUBJECT_TYPE, isTerminalCommitmentStatus } from "@/lib/repo/reg-requests";
 import { isUuid, validateUpdateActionInput } from "@/lib/workspace/action-input";
 import { assertSubjectMutable } from "@/lib/workspace/subject-mutability";
-import { ACTOR, badRequest, conflict, notFound, serverError } from "@/lib/workspace/http";
+import { badRequest, conflict, notFound, serverError } from "@/lib/workspace/http";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -18,7 +18,7 @@ interface RouteContext {
  * reassigned, re-dated, re-prioritised, or moved through
  * open -> in_progress -> done/cancelled.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Action not found");
@@ -40,7 +40,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       if (!owner) return badRequest("Unknown ownerPersonId for this workspace");
     }
 
-    const updated = await updateAction(workspace.id, id, patch, ACTOR);
+    const updated = await updateAction(workspace.id, id, patch, actor);
     if (!updated) return notFound("Action not found");
 
     // Mirror: closing a commitment's tracked action from this generic side
@@ -51,7 +51,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
     if (updated.status === "done" && existing.subject_type === REG_COMMITMENT_SUBJECT_TYPE) {
       const commitment = await getRegCommitment(workspace.id, existing.subject_id);
       if (commitment && !isTerminalCommitmentStatus(commitment.status)) {
-        await updateRegCommitment(workspace.id, commitment.request_id, commitment.id, { status: "met" }, ACTOR);
+        await updateRegCommitment(workspace.id, commitment.request_id, commitment.id, { status: "met" }, actor);
       }
     }
 
@@ -70,7 +70,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
  * anywhere. Withdraw or mark the commitment missed/withdrawn instead, which
  * closes the action itself (see updateRegCommitment).
  */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Action not found");
@@ -89,7 +89,7 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
       }
     }
 
-    await deleteAction(workspace.id, id, ACTOR);
+    await deleteAction(workspace.id, id, actor);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return serverError("Workspace action delete error", error);

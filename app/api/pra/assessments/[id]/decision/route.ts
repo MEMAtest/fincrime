@@ -9,7 +9,7 @@ import {
   type DecisionOutcome,
 } from "@/lib/repo/decisions";
 import { createAction, listActionsBySubject, type ActionPriority } from "@/lib/repo/actions";
-import { ACTOR, badRequest, isDecisionOutcome, notFound, requireAssessment, requirePerson, serverError } from "@/lib/pra/helpers";
+import { badRequest, isDecisionOutcome, notFound, requireAssessment, requirePerson, serverError } from "@/lib/pra/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -77,7 +77,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * the assessment to the matching status (approved / conditions_applied /
  * rejected).
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     const assessment = await requireAssessment(workspace.id, id);
@@ -137,20 +137,20 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const decision = await createDecision(
       workspace.id,
       { subjectType: SUBJECT_TYPE, subjectId: id, outcome, rationale, decidedByPersonId: decider.id },
-      ACTOR
+      actor
     );
 
     const conditions = [];
     for (const input of conditionInputs) {
-      conditions.push(await createCondition(workspace.id, decision.id, input, ACTOR));
+      conditions.push(await createCondition(workspace.id, decision.id, input, actor));
     }
 
     const actions = [];
     for (const input of actionInputs) {
-      actions.push(await createAction(workspace.id, { subjectType: SUBJECT_TYPE, subjectId: id, ...input }, ACTOR));
+      actions.push(await createAction(workspace.id, { subjectType: SUBJECT_TYPE, subjectId: id, ...input }, actor));
     }
 
-    const updatedAssessment = await updateAssessment(workspace.id, id, { status: OUTCOME_STATUS[outcome] }, ACTOR);
+    const updatedAssessment = await updateAssessment(workspace.id, id, { status: OUTCOME_STATUS[outcome] }, actor);
 
     return NextResponse.json(
       { decision, conditions, actions, assessment: updatedAssessment ?? assessment },

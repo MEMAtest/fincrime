@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createProduct, deleteProduct, listProductsByIds } from "@/lib/repo/products";
 import { createAssessment, listAssessments } from "@/lib/repo/assessments";
-import { ACTOR, serverError } from "@/lib/pra/helpers";
+import { serverError } from "@/lib/pra/helpers";
 
 function asStringArray(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
@@ -41,7 +41,7 @@ export const GET = withWorkspace(async (_request, workspace) => {
  * POST /api/pra/assessments - creates the product being assessed and the
  * assessment journey against it (status draft, current_step 1).
  */
-export const POST = withWorkspace(async (request, workspace) => {
+export const POST = withWorkspace(async (request, workspace, _context, actor) => {
   try {
     const body = await request.json();
     const productName = typeof body?.productName === "string" ? body.productName.trim() : "";
@@ -62,16 +62,16 @@ export const POST = withWorkspace(async (request, workspace) => {
         jurisdictions: asStringArray(body?.jurisdictions) ?? [],
         channels: asStringArray(body?.channels) ?? [],
       },
-      ACTOR
+      actor
     );
 
     let assessment;
     try {
-      assessment = await createAssessment(workspace.id, product.id, ACTOR);
+      assessment = await createAssessment(workspace.id, product.id, actor);
     } catch (error) {
       // Compensating cleanup: without it a failed assessment insert strands
       // an orphan product row that no journey ever references.
-      await deleteProduct(workspace.id, product.id, ACTOR).catch(() => undefined);
+      await deleteProduct(workspace.id, product.id, actor).catch(() => undefined);
       throw error;
     }
 

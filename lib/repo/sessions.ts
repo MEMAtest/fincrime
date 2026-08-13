@@ -78,9 +78,18 @@ export async function verifySession(token: string): Promise<SessionRow | null> {
 
   if (new Date(session.expires_at).getTime() <= Date.now()) return null;
 
-  await query(`UPDATE sessions SET last_seen_at = now() WHERE id = $1`, [session.id]);
+  // Genuine sliding expiry: every verified use both stamps last_seen_at AND
+  // pushes expires_at another full SESSION_TTL_MS out from now. Writing
+  // last_seen_at without ever consulting it anywhere would be dead data (a
+  // column nothing reads back) - this is what makes it real: an
+  // actively-used session never hits its 30-day wall as long as it keeps
+  // being used, while a genuinely abandoned session (stolen-but-unused
+  // token, or a browser that is simply never opened again) still expires on
+  // schedule instead of living forever.
+  const newExpiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+  await query(`UPDATE sessions SET last_seen_at = now(), expires_at = $2 WHERE id = $1`, [session.id, newExpiresAt]);
 
-  return session;
+  return { ...session, expires_at: newExpiresAt };
 }
 
 /**

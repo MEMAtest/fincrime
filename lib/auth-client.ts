@@ -115,21 +115,32 @@ export async function signOutRequest(): Promise<void> {
   await fetch("/api/auth/logout", { method: "POST" });
 }
 
-export async function claimWorkspaceRequest(
-  workspaceId: string,
-  workspaceToken: string
-): Promise<{ ok: true } | AuthFailure> {
+export type ClaimWorkspaceOutcome = { ok: true } | { pending: true; message: string } | AuthFailure;
+
+/**
+ * A 202 here means the claim was DEFERRED behind an emailed confirmation
+ * link (see app/api/auth/claim-workspace/route.ts and
+ * lib/auth/claim-flow.ts) - `response.ok` is true for 202 same as 201, so
+ * the caller must inspect the body to tell "claimed immediately" apart from
+ * "check the workspace owner's inbox", rather than treating any 2xx as an
+ * immediate grant of access.
+ */
+export async function claimWorkspaceRequest(workspaceId: string, workspaceToken: string): Promise<ClaimWorkspaceOutcome> {
   const response = await fetch("/api/auth/claim-workspace", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ workspaceId, workspaceToken }),
   });
+  const body = await parseJson(response);
+  const b = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+
   if (!response.ok) {
-    const body = await parseJson(response);
-    const error = body && typeof body === "object" && typeof (body as Record<string, unknown>).error === "string"
-      ? (body as Record<string, unknown>).error as string
-      : "Could not save this workspace to your account";
+    const error = typeof b.error === "string" ? b.error : "Could not save this workspace to your account";
     return { error };
+  }
+  if (response.status === 202 && b.pending) {
+    const message = typeof b.message === "string" ? b.message : "Check the workspace owner's inbox to confirm access.";
+    return { pending: true, message };
   }
   return { ok: true };
 }

@@ -15,9 +15,7 @@ import {
 import { listActionsBySubject, listActionsBySubjectIds } from "@/lib/repo/actions";
 import { listCommentsBySubject, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { listConditionsByDecision, listDecisionsBySubject } from "@/lib/repo/decisions";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   conflict,
   isIsoDate,
   isRegRequestChannel,
@@ -92,7 +90,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * currentStep}. NOT status (approve/submit/close/reject have their own
  * routes) - rejected with an unconditional 400.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Reg request not found");
@@ -170,7 +168,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       if (typeof parsed.value === "number") patch.currentStep = parsed.value;
     }
 
-    const result = await updateRegRequest(workspace.id, id, patch, ACTOR);
+    const result = await updateRegRequest(workspace.id, id, patch, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       return conflict("Cannot update a reg request that is already closed or cancelled");
@@ -183,12 +181,12 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 });
 
 /** DELETE /api/reg-requests/[id] - refuses on a final request (closed, cancelled). */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Reg request not found");
 
-    const result = await deleteRegRequest(workspace.id, id, ACTOR);
+    const result = await deleteRegRequest(workspace.id, id, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       return conflict("Cannot delete a reg request that is already closed or cancelled");

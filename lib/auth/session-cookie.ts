@@ -14,14 +14,18 @@ const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days, matches lib/repo/
 /**
  * Secure requires HTTPS; a browser silently refuses to store or send a
  * Secure cookie over plain http, which would break local dev/smoke testing
- * (http://localhost) if this were forced on unconditionally. Derived from
- * the actual request protocol (x-forwarded-proto, set by Vercel's edge in
- * production; falls back to the request URL's own protocol) rather than
- * NODE_ENV, so behaviour matches the connection actually in use rather than
- * how the app was built/started - mirrors lib/db.ts's shouldUseSsl, which
- * makes the same kind of call at the DB-connection layer.
+ * (http://localhost) if this were forced on unconditionally. `x-forwarded-proto`
+ * is a CLIENT-SUPPLIED header in general (only Vercel's edge is trusted to
+ * overwrite it in production) - trusting it on its own would let a request
+ * sending `x-forwarded-proto: http` strip Secure from the cookie it gets
+ * back, exactly the failure mode lib/rate-limit.ts's getClientIp() already
+ * reasons about for x-forwarded-for. NODE_ENV === "production" is checked
+ * FIRST and is authoritative when true (Vercel prod is always https, and
+ * this value is not attacker-controlled); the header is only consulted as a
+ * fallback so local dev over a self-signed https tunnel still gets Secure.
  */
 function isHttps(request: NextRequest): boolean {
+  if (process.env.NODE_ENV === "production") return true;
   const forwardedProto = request.headers.get("x-forwarded-proto");
   if (forwardedProto) return forwardedProto.split(",")[0]?.trim().toLowerCase() === "https";
   return request.nextUrl.protocol === "https:";

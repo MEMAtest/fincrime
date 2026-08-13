@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createAssessmentControl, listAssessmentControls, type CreateAssessmentControlInput } from "@/lib/repo/assessments";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   instantiateLibraryControl,
   isControlCoverage,
   notFound,
@@ -41,7 +39,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  *   - controlSlug alone -> a reference-only attachment to the library entry,
  *     with no live workspace_controls row (yet)
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     const assessment = await requireAssessment(workspace.id, id);
@@ -65,7 +63,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
 
     if (body?.instantiate === true) {
       if (!controlSlug) return badRequest("controlSlug is required to instantiate a control");
-      const created = await instantiateLibraryControl(workspace.id, controlSlug, ACTOR);
+      const created = await instantiateLibraryControl(workspace.id, controlSlug, actor);
       if (!created) return badRequest(`Unknown control_slug: ${controlSlug}`);
       instantiated = created;
       workspaceControlId = created.id;
@@ -82,7 +80,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       coverage: body.coverage,
     };
 
-    const control = await createAssessmentControl(workspace.id, id, input, ACTOR);
+    const control = await createAssessmentControl(workspace.id, id, input, actor);
     // Include the freshly instantiated live control so the client can update
     // its workspace-controls state without a refetch.
     return NextResponse.json({ control, workspaceControl: instantiated ?? undefined }, { status: 201 });

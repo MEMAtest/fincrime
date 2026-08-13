@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createEvidence, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { getReadinessObligationWithClient, withReadinessAssessmentLock } from "@/lib/repo/readiness";
-import {
-  ACTOR,
-  OBLIGATION_SUBJECT_TYPE,
+import { OBLIGATION_SUBJECT_TYPE,
   badRequest,
   conflict,
   isIsoDate,
@@ -43,7 +41,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * Creates an evidence row against this single obligation (subjectType
  * 'readiness_obligation'). Refuses once the parent assessment is final.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id, obligationId } = await context.params;
     if (!isUuid(id) || !isUuid(obligationId)) return notFound("Readiness obligation not found");
@@ -87,7 +85,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       return createEvidence(
         workspace.id,
         { subjectType: OBLIGATION_SUBJECT_TYPE, subjectId: obligationId, type, title, description, linkUrl, evidenceDate, addedByPersonId },
-        ACTOR,
+        actor,
         client
       );
     });

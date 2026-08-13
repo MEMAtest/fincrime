@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createEvidence, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { requirePerson } from "@/lib/pra/helpers";
-import { ACTOR, SUBJECT_TYPE, badRequest, isUuid, notFound, requireControlChange, serverError } from "@/lib/control-changes/helpers";
+import { SUBJECT_TYPE, badRequest, isUuid, notFound, requireControlChange, serverError } from "@/lib/control-changes/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -28,7 +28,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * linkUrl?, evidenceDate?, addedByPersonId?}. Creates an evidence row against
  * this change (subject_type 'control_change').
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Control change not found");
@@ -58,7 +58,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const evidence = await createEvidence(
       workspace.id,
       { subjectType: SUBJECT_TYPE, subjectId: id, type, title, description, linkUrl, evidenceDate, addedByPersonId },
-      ACTOR
+      actor
     );
 
     return NextResponse.json({ evidence }, { status: 201 });

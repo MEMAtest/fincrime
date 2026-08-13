@@ -4,9 +4,7 @@ import { createControlTestFinding, listControlTestFindings } from "@/lib/repo/co
 import { createAction } from "@/lib/repo/actions";
 import { requirePerson } from "@/lib/pra/helpers";
 import { withTransaction } from "@/lib/db";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   conflict,
   isFindingSeverity,
@@ -48,7 +46,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * dropped when createAction is false or absent. A test that is already
  * complete or cancelled is a historical record and 409s.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Control test not found");
@@ -104,7 +102,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
             dueDate,
             priority: severity === "high" ? "high" : severity === "medium" ? "medium" : "low",
           },
-          ACTOR,
+          actor,
           client
         );
         actionId = action.id;
@@ -114,7 +112,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
         workspace.id,
         id,
         { description, severity, sampleRef, actionId },
-        ACTOR,
+        actor,
         client
       );
       return { finding };

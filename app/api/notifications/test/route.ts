@@ -9,6 +9,18 @@ import { loadGovernancePortfolio } from "@/lib/governance/load";
 import { buildDigest } from "@/lib/notifications/digest";
 import { sendDigestEmail, unsubscribeUrlForToken } from "@/lib/notifications/send";
 import { getOrCreatePreferences } from "@/lib/repo/notifications";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { tooManyRequests } from "@/lib/auth/helpers";
+
+// Keyed on the USER id, not the caller's IP: this route runs a full
+// portfolio aggregation AND an SES send per call, so it is a shared-SES-quota
+// abuse vector (30 rapid POSTs from one account previously all returned 200 -
+// each real senders on the shared quota, which the same PDF-delivery and
+// lead-capture sends depend on). An IP-keyed limit would not stop a single
+// account script-looping this from behind a rotating/shared IP; a user-keyed
+// limit stops the abusive ACCOUNT regardless of source IP.
+const TEST_DIGEST_LIMIT = 5;
+const TEST_DIGEST_WINDOW_MS = 10 * 60 * 1000;
 
 /**
  * POST /api/notifications/test - body {workspaceId}. Session-authenticated.
@@ -41,6 +53,9 @@ export async function POST(request: NextRequest) {
   if (!membership) return NextResponse.json({ error: "Sign in and select a workspace you are a member of" }, { status: 401 });
   const user = await getUserById(session.user_id);
   if (!user) return NextResponse.json({ error: "Sign in and select a workspace you are a member of" }, { status: 401 });
+
+  const { allowed } = checkRateLimit(`notifications-test:${user.id}`, TEST_DIGEST_LIMIT, TEST_DIGEST_WINDOW_MS);
+  if (!allowed) return tooManyRequests("Too many test digests requested. Try again in a few minutes.");
 
   const workspace = await getWorkspace(workspaceId);
   if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });

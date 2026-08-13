@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readSessionCookie } from "@/lib/auth/session-cookie";
 import { verifySession } from "@/lib/repo/sessions";
-import { getUserById, claimWorkspace } from "@/lib/repo/users";
+import { getUserById } from "@/lib/repo/users";
 import { verifyWorkspace, toWorkspaceSummary } from "@/lib/repo/workspace";
+import { attemptClaimWorkspace } from "@/lib/auth/claim-flow";
 import { isUuid } from "@/lib/auth/validation";
 import { badRequest, conflict, serverError, unauthorized } from "@/lib/auth/helpers";
 
@@ -12,10 +13,19 @@ import { badRequest, conflict, serverError, unauthorized } from "@/lib/auth/help
  * account" action, only meaningful once signed in). Proves the caller
  * actually holds the anonymous workspace's token (same verification
  * withWorkspace's header path uses - not merely a workspaceId the caller
- * could guess), then grants that user membership. Refuses if the workspace
- * already has a DIFFERENT owner - claiming is one-shot, not an open door
- * for a second person who later obtains the same token to also take
- * ownership.
+ * could guess).
+ *
+ * What happens next depends on the workspace's state (see
+ * lib/auth/claim-flow.ts's attemptClaimWorkspace): a workspace with no
+ * owner yet and no owner_email set claims immediately (201); a workspace
+ * with no owner yet but a KNOWN owner_email instead defers behind an
+ * emailed confirmation link to that address (202, `pending: true`) - proving
+ * you hold the raw token is not, on its own, enough to permanently claim a
+ * workspace someone already gave an owner_email for, precisely because a
+ * bare token can leak (a stolen laptop, a support screenshare) without its
+ * owner ever knowing; a workspace that already has a DIFFERENT owner
+ * refuses outright (409) regardless of owner_email, since claiming is
+ * one-shot.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -45,17 +55,27 @@ export async function POST(request: NextRequest) {
     const workspace = await verifyWorkspace(b.workspaceId, b.workspaceToken);
     if (!workspace) return badRequest("Unknown or invalid workspace credentials");
 
-    const result = await claimWorkspace(workspace.id, user.id, user.email);
-    if (!result.ok) {
-      if (result.reason === "already_member") {
+    const result = await attemptClaimWorkspace(workspace, user.id, user.email);
+    switch (result.kind) {
+      case "already_member":
         // Idempotent: claiming a workspace you already belong to is a
         // harmless no-op, not an error.
         return NextResponse.json({ workspace: toWorkspaceSummary(workspace), role: "already_member" });
-      }
-      return conflict("This workspace is already owned by a different account");
+      case "owned_by_other":
+        return conflict("This workspace is already owned by a different account");
+      case "pending":
+        return NextResponse.json(
+          {
+            pending: true,
+            message: "This workspace has a registered owner email. We sent a confirmation link to that address - access is granted once it is clicked.",
+          },
+          { status: 202 }
+        );
+      case "claimed":
+        return NextResponse.json({ workspace: toWorkspaceSummary(workspace), role: result.role }, { status: 201 });
+      default:
+        return serverError("Claim workspace error", new Error(`Unexpected claim result: ${JSON.stringify(result)}`));
     }
-
-    return NextResponse.json({ workspace: toWorkspaceSummary(workspace), role: result.role }, { status: 201 });
   } catch (error) {
     return serverError("Claim workspace error", error);
   }

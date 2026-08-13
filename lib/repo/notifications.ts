@@ -134,17 +134,35 @@ export interface WorkspaceMemberForNotify {
 
 /**
  * Every (workspace, user) membership with a real login, grouped by the
- * caller for per-workspace processing. Ordered by workspace_id so the cron
- * endpoint can build each workspace's governance portfolio exactly once and
- * reuse it across all of that workspace's members, instead of recomputing
- * it per member.
+ * caller for per-workspace processing.
+ *
+ * Ordered by each WORKSPACE's last successful digest send (oldest/never-sent
+ * first, NULLS FIRST) rather than by workspace_id - workspace_id ASC is a
+ * fixed, deterministic order, so under app/api/notifications/run's
+ * MAX_WORKSPACES_PER_RUN cap the same tail of workspaces (whichever sort
+ * last alphabetically by UUID) would NEVER be reached, run after run. Once
+ * a workspace's digest succeeds, its last-sent timestamp advances to "now",
+ * which pushes it to the BACK of this ordering for the next run - so the
+ * cap rotates which workspaces get skipped instead of permanently starving
+ * one tail. A workspace with no successful send yet sorts first (NULLS
+ * FIRST), so a brand-new workspace is never queued behind an established
+ * one purely because of the tiebreak. workspace_id/user_id remain secondary
+ * sort keys only to make the order stable when timestamps tie (e.g. two
+ * workspaces that have never sent).
  */
-export async function listWorkspaceMembersWithEmail(): Promise<WorkspaceMemberForNotify[]> {
+export async function listWorkspaceMembersWithEmail(kind = "digest"): Promise<WorkspaceMemberForNotify[]> {
   return query<WorkspaceMemberForNotify>(
     `SELECT wm.workspace_id, wm.user_id, u.email
      FROM workspace_members wm
      JOIN users u ON u.id = wm.user_id
-     ORDER BY wm.workspace_id ASC, wm.user_id ASC`
+     LEFT JOIN (
+       SELECT workspace_id, MAX(sent_at) AS last_sent_at
+       FROM notification_log
+       WHERE kind = $1 AND error IS NULL
+       GROUP BY workspace_id
+     ) last_send ON last_send.workspace_id = wm.workspace_id
+     ORDER BY last_send.last_sent_at ASC NULLS FIRST, wm.workspace_id ASC, wm.user_id ASC`,
+    [kind]
   );
 }
 

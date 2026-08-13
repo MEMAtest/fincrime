@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { reject } from "@/lib/repo/reg-requests";
-import { ACTOR, badRequest, isUuid, notFound, parseApprovalBody, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
+import { badRequest, isUuid, notFound, parseApprovalBody, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -18,7 +18,7 @@ function rejectConflict(message: string): NextResponse {
  * unanswered questions, since a reviewer may reject a response precisely
  * because of them.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Reg request not found");
@@ -29,7 +29,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const parsed = await parseApprovalBody(workspace.id, body);
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const result = await reject(workspace.id, id, parsed.decidedByPersonId, parsed.rationale, parsed.conditions, ACTOR);
+    const result = await reject(workspace.id, id, parsed.decidedByPersonId, parsed.rationale, parsed.conditions, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       return rejectConflict("Reg request is already closed or cancelled");

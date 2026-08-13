@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createEvidence, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { withRegRequestLock, REG_REQUEST_SUBJECT_TYPE } from "@/lib/repo/reg-requests";
-import { ACTOR, badRequest, conflict, isIsoDate, isUuid, notFound, requirePerson, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
+import { badRequest, conflict, isIsoDate, isUuid, notFound, requirePerson, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -31,7 +31,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * cannot flip the request to final in the window between the check and the
  * write.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Reg request not found");
@@ -67,7 +67,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       createEvidence(
         workspace.id,
         { subjectType: REG_REQUEST_SUBJECT_TYPE, subjectId: id, type, title, description, linkUrl, evidenceDate, addedByPersonId },
-        ACTOR,
+        actor,
         client
       )
     );

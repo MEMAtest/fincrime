@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createAction, type ActionPriority } from "@/lib/repo/actions";
 import { getReadinessObligationWithClient, withReadinessAssessmentLock } from "@/lib/repo/readiness";
-import {
-  ACTOR,
-  OBLIGATION_SUBJECT_TYPE,
+import { OBLIGATION_SUBJECT_TYPE,
   badRequest,
   conflict,
   isIsoDate,
@@ -31,7 +29,7 @@ function isActionPriority(value: unknown): value is ActionPriority {
  * against this obligation specifically (subjectType 'readiness_obligation'),
  * distinct from an action against the assessment as a whole.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id, obligationId } = await context.params;
     if (!isUuid(id) || !isUuid(obligationId)) return notFound("Readiness obligation not found");
@@ -75,7 +73,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       return createAction(
         workspace.id,
         { subjectType: OBLIGATION_SUBJECT_TYPE, subjectId: obligationId, title, ownerPersonId, dueDate, priority },
-        ACTOR,
+        actor,
         client
       );
     });

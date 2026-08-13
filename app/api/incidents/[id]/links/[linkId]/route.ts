@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { deleteIncidentLink, isFinalIncidentStatus } from "@/lib/repo/incidents";
-import { ACTOR, conflict, isUuid, notFound, requireIncident, requireIncidentLink, serverError } from "@/lib/incidents/helpers";
+import { conflict, isUuid, notFound, requireIncident, requireIncidentLink, serverError } from "@/lib/incidents/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string; linkId: string }>;
 }
 
 /** DELETE /api/incidents/[id]/links/[linkId] */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id, linkId } = await context.params;
     if (!isUuid(id) || !isUuid(linkId)) return notFound("Incident or link not found");
@@ -19,7 +19,7 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
     const link = await requireIncidentLink(workspace.id, id, linkId);
     if (!link) return notFound("Link not found");
 
-    await deleteIncidentLink(workspace.id, linkId, ACTOR);
+    await deleteIncidentLink(workspace.id, linkId, actor);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return serverError("Incident link delete error", error);

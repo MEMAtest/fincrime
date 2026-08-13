@@ -13,7 +13,6 @@ import {
   sanitiseFileName,
 } from "@/lib/evidence/file-validation";
 
-const ACTOR = "workspace";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
@@ -39,7 +38,7 @@ interface RouteContext {
  * every deployment, regardless of whether Blob storage happens to be
  * configured there.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return NextResponse.json({ error: "Evidence not found" }, { status: 404 });
@@ -127,7 +126,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       workspace.id,
       id,
       { fileUrl: uploaded.url, fileName, fileSizeBytes: file.size, fileContentType: contentType },
-      ACTOR
+      actor
     );
     if (!updated) return NextResponse.json({ error: "Evidence not found" }, { status: 404 });
 
@@ -176,7 +175,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * blob delete + clears the metadata columns). Leaves the evidence row and
  * its link_url/description untouched. Same immutability guard as POST.
  */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return NextResponse.json({ error: "Evidence not found" }, { status: 404 });
@@ -197,7 +196,7 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
     }
 
     await deleteEvidenceFileBestEffort(evidence.file_url);
-    const updated = await clearEvidenceFile(workspace.id, id, ACTOR);
+    const updated = await clearEvidenceFile(workspace.id, id, actor);
     if (!updated) return NextResponse.json({ error: "Evidence not found" }, { status: 404 });
 
     return NextResponse.json({ evidence: updated });

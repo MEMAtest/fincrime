@@ -73,9 +73,18 @@ function escapeHtml(value: string): string {
 }
 
 function itemHtml(item: DigestItem, dateFormat: "en-GB" | "iso"): string {
+  // Escaped exactly like `label` beside it - href values are built from
+  // DB-stored data (a subject id interpolated into a path in
+  // lib/governance/portfolio.ts), not free text, but this HTML is
+  // assembled by string concatenation, not a templating engine that
+  // escapes attribute values for you, so an unescaped url dropped straight
+  // into `href="${url}"` is one stray `"` away from breaking out of the
+  // attribute (and, worse, past the '"' out of it into HTML/script
+  // context) if that assumption is ever wrong.
   const url = absoluteUrl(item.href);
+  const escapedUrl = url ? escapeHtml(url) : null;
   const label = escapeHtml(item.label);
-  const linkedLabel = url ? `<a href="${url}" style="color:#0f766e;text-decoration:none;">${label}</a>` : label;
+  const linkedLabel = escapedUrl ? `<a href="${escapedUrl}" style="color:#0f766e;text-decoration:none;">${label}</a>` : label;
   const dueLabel = item.dueDateLabel ? `${escapeHtml(item.dueDateLabel)}: ${formatDueDate(item.dueDate, dateFormat)}` : formatDueDate(item.dueDate, dateFormat);
   const urgency = escapeHtml(URGENCY_LABEL[item.urgency] ?? item.urgency);
   return `

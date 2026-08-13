@@ -15,8 +15,20 @@ import {
 
 const DIGEST_KIND = "digest";
 
-/** Caps how many workspaces one invocation processes, so a very large membership table cannot make a single cron run unbounded - the daily GitHub Actions schedule simply catches the rest on the next run. */
+/** Caps how many workspaces one invocation processes, so a very large membership table cannot make a single cron run unbounded. listWorkspaceMembersWithEmail orders workspaces by oldest-successful-send-first (NULLS FIRST), so a workspace skipped by this cap this run sorts to the FRONT next run once another workspace's send advances its own timestamp past it - the cap rotates which tail is deferred instead of permanently starving one, unlike a fixed workspace_id order would. */
 const MAX_WORKSPACES_PER_RUN = Number.parseInt(process.env.NOTIFICATIONS_MAX_WORKSPACES_PER_RUN || "500", 10);
+
+/**
+ * Vercel's default serverless function timeout is too short for a run that
+ * legitimately processes hundreds of workspaces each doing a governance
+ * portfolio load plus an SES send; without an explicit maxDuration the
+ * platform default silently cuts the loop off mid-run, losing whatever
+ * workspaces were still queued with no error surfaced anywhere. 300s (5
+ * minutes) comfortably covers MAX_WORKSPACES_PER_RUN=500 at a generous
+ * per-workspace budget while still failing loudly (a Vercel-logged timeout)
+ * rather than silently, if it is ever exceeded regardless.
+ */
+export const maxDuration = 300;
 
 function timingSafeEqualStrings(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
@@ -74,7 +86,7 @@ export async function POST(request: NextRequest) {
   }
 
   const today = new Date();
-  const members = await listWorkspaceMembersWithEmail();
+  const members = await listWorkspaceMembersWithEmail(DIGEST_KIND);
   const byWorkspace = groupByWorkspace(members);
 
   let workspacesProcessed = 0;

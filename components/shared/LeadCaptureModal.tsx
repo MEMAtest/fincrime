@@ -8,7 +8,8 @@ import Button from "@/components/ui/Button";
 import { Download, Loader2 } from "lucide-react";
 import type { PDFModule, ExportFormat } from "./PDFExportButton";
 import { trackOwnedEvent } from "@/lib/owned-analytics";
-import { readStoredWorkspace, workspaceAuthHeaders } from "@/lib/workspace-client";
+import { readStoredWorkspace, workspaceAuthHeaders, WORKSPACE_ID_HEADER } from "@/lib/workspace-client";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 
 const MODULE_LABEL: Record<PDFModule, string> = {
   typology_iq: "TypologyIQ",
@@ -55,6 +56,7 @@ export default function LeadCaptureModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const { mode, workspaceId } = useWorkspace();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,16 +83,34 @@ export default function LeadCaptureModal({
       if (!leadRes.ok) throw new Error("Failed to submit");
       trackOwnedEvent("lead_submitted", { flow: "document_export", module });
 
-      // 2. Generate and download the document. If an anonymous workspace
-      // already exists in this browser (e.g. exporting a PRA committee
-      // pack), carry its auth headers so the route can opportunistically
-      // attribute this lead's email to the workspace - read-only, never
-      // bootstraps a new workspace just to export a free-tool PDF.
+      // 2. Generate and download the document. Carries whatever workspace
+      // auth this browser actually has - WITHOUT ever bootstrapping a new
+      // workspace just to export a free-tool PDF (this is a read-only
+      // credential-attach, not a save action). Two distinct paths, not
+      // interchangeable:
+      //  - Signed in with an active session workspace: send ONLY
+      //    x-workspace-id (no token) so the route resolves the SESSION's
+      //    workspace via the cookie, exactly like every other authenticated
+      //    route (see lib/workspace-auth.ts's resolveWorkspaceAuth). Do NOT
+      //    also send an anonymous localStorage token here: if this browser
+      //    still holds a leftover unclaimed anonymous workspace credential
+      //    from before signing in, sending BOTH would let the header path
+      //    win and silently export that unrelated workspace's governance
+      //    pack instead of the session's - the session, being the
+      //    account's deliberate choice of tenant, must take priority.
+      //  - Otherwise (anonymous, not signed in): fall back to the existing
+      //    localStorage {id, token} pair if one already exists (e.g.
+      //    exporting a PRA committee pack from an anonymous workspace) -
+      //    same opportunistic owner_email-backfill behaviour as before.
+      const workspaceHeaders: Record<string, string> =
+        mode === "session" && workspaceId
+          ? { [WORKSPACE_ID_HEADER]: workspaceId }
+          : workspaceAuthHeaders(readStoredWorkspace());
       const pdfRes = await fetch("/api/export/pdf", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...workspaceAuthHeaders(readStoredWorkspace()),
+          ...workspaceHeaders,
         },
         body: JSON.stringify({
           module,

@@ -4,9 +4,7 @@ import { deleteControlChange, updateControlChange, type UpdateControlChangeInput
 import { listDecisionsBySubject, listConditionsByDecision } from "@/lib/repo/decisions";
 import { listActionsBySubject } from "@/lib/repo/actions";
 import { listEvidenceBySubject } from "@/lib/repo/evidence";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   conflict,
   isControlChangeType,
@@ -69,7 +67,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * Once a change is implemented or rolled_back it is historical: PATCHing
  * proposed, or rollbackCriteria on it 409s.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Control change not found");
@@ -148,7 +146,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
         typeof body.rollbackCriteria === "string" && body.rollbackCriteria.trim() ? body.rollbackCriteria.trim() : null;
     }
 
-    const updated = await updateControlChange(workspace.id, id, patch, ACTOR);
+    const updated = await updateControlChange(workspace.id, id, patch, actor);
     if (!updated) return notFound("Control change not found");
 
     return NextResponse.json({ change: updated });
@@ -158,14 +156,14 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 });
 
 /** DELETE /api/control-changes/[id] */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Control change not found");
     const existing = await requireControlChange(workspace.id, id);
     if (!existing) return notFound("Control change not found");
 
-    await deleteControlChange(workspace.id, id, ACTOR);
+    await deleteControlChange(workspace.id, id, actor);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return serverError("Control change delete error", error);

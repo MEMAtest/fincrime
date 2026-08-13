@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createControlChange, listControlChanges } from "@/lib/repo/control-changes";
 import { listWorkspaceControls } from "@/lib/repo/controls";
-import { ACTOR, badRequest, isControlChangeType, serverError } from "@/lib/control-changes/helpers";
+import { badRequest, isControlChangeType, serverError } from "@/lib/control-changes/helpers";
 
 /**
  * GET /api/control-changes - list the workspace's control changes, one row
@@ -38,7 +38,7 @@ export const GET = withWorkspace(async (_request, workspace) => {
  * into `baseline` at creation time (the "current version" side of the
  * before/after comparison) and returns the new row.
  */
-export const POST = withWorkspace(async (request, workspace) => {
+export const POST = withWorkspace(async (request, workspace, _context, actor) => {
   try {
     const body = await request.json();
 
@@ -60,7 +60,7 @@ export const POST = withWorkspace(async (request, workspace) => {
       changeType = body.changeType;
     }
 
-    const change = await createControlChange(workspace.id, { workspaceControlId, title, rationale, changeType }, ACTOR);
+    const change = await createControlChange(workspace.id, { workspaceControlId, title, rationale, changeType }, actor);
     if (!change) return badRequest("Unknown workspaceControlId for this workspace");
 
     return NextResponse.json({ change }, { status: 201 });

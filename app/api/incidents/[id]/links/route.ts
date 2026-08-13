@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createIncidentLink, isFinalIncidentStatus, listIncidentLinks } from "@/lib/repo/incidents";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   checkLinkTarget,
   conflict,
   isIncidentLinkType,
@@ -44,7 +42,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * second row, since the DB unique constraint would otherwise surface as a
  * raw 500.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Incident not found");
@@ -99,7 +97,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
 
     let link;
     try {
-      link = await createIncidentLink(workspace.id, id, { linkType, targetId, targetRef, note }, ACTOR);
+      link = await createIncidentLink(workspace.id, id, { linkType, targetId, targetRef, note }, actor);
     } catch (error) {
       if (isUniqueViolation(error)) {
         return conflict("This link already exists on the incident");

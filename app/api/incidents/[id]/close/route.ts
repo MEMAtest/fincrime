@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { closeIncident } from "@/lib/repo/incidents";
-import { ACTOR, isUuid, notFound, requireIncident, serverError } from "@/lib/incidents/helpers";
+import { isUuid, notFound, requireIncident, serverError } from "@/lib/incidents/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -19,14 +19,14 @@ function closeConflict(message: string, reason: "already_final" | "open_actions"
  * human-readable `error` message): already closed/cancelled, an open
  * remediation action still attached, or no root cause recorded.
  */
-export const POST = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Incident not found");
     const incident = await requireIncident(workspace.id, id);
     if (!incident) return notFound("Incident not found");
 
-    const result = await closeIncident(workspace.id, id, ACTOR);
+    const result = await closeIncident(workspace.id, id, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Incident not found");
       if (result.reason === "open_actions") {

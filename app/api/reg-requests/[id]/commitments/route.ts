@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createRegCommitment, listRegCommitments } from "@/lib/repo/reg-requests";
-import { ACTOR, badRequest, conflict, isIsoDate, isUuid, notFound, requirePerson, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
+import { badRequest, conflict, isIsoDate, isUuid, notFound, requirePerson, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -29,7 +29,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * commitment and its id stored on action_id - see createRegCommitment. No
  * dueDate means no action.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Reg request not found");
@@ -63,7 +63,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
 
     const note = typeof body?.note === "string" && body.note.trim() ? body.note.trim() : null;
 
-    const result = await createRegCommitment(workspace.id, id, { questionId, description, dueDate, ownerPersonId, note }, ACTOR);
+    const result = await createRegCommitment(workspace.id, id, { questionId, description, dueDate, ownerPersonId, note }, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "question_not_found") return badRequest("Unknown questionId for this reg request");

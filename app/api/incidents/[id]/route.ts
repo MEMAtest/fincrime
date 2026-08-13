@@ -11,9 +11,7 @@ import { listActionsBySubject } from "@/lib/repo/actions";
 import { listCommentsBySubject, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { listDecisionsBySubject, listConditionsByDecision } from "@/lib/repo/decisions";
 import { requirePerson } from "@/lib/pra/helpers";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   conflict,
   isIncidentSource,
@@ -72,7 +70,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * routes. An incident that is already closed or cancelled is a historical
  * record and 409s on every PATCH.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Incident not found");
@@ -250,7 +248,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       patch.status = body.status;
     }
 
-    const result = await updateIncident(workspace.id, id, patch, ACTOR);
+    const result = await updateIncident(workspace.id, id, patch, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Incident not found");
       return conflict("Cannot update an incident that is already closed or cancelled");
@@ -269,12 +267,12 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
  * transaction with a row lock (see lib/repo/incidents.ts), so this is the
  * authoritative guard, not just a pre-check racing a concurrent close().
  */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Incident not found");
 
-    const result = await deleteIncident(workspace.id, id, ACTOR);
+    const result = await deleteIncident(workspace.id, id, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Incident not found");
       return conflict("Cannot delete an incident that is already closed or cancelled");

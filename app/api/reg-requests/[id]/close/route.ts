@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { closeRequest } from "@/lib/repo/reg-requests";
-import { ACTOR, isUuid, notFound, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
+import { isUuid, notFound, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -18,14 +18,14 @@ function closeConflict(message: string, reason: "already_final" | "not_submitted
  * lib/repo/reg-requests.ts for why: an open commitment means the matter is
  * not actually closed.
  */
-export const POST = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Reg request not found");
     const reqRow = await requireRegRequest(workspace.id, id);
     if (!reqRow) return notFound("Reg request not found");
 
-    const result = await closeRequest(workspace.id, id, ACTOR);
+    const result = await closeRequest(workspace.id, id, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "not_submitted") return closeConflict("Cannot close a reg request before it has been submitted", "not_submitted");

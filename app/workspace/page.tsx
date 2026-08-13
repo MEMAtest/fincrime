@@ -568,11 +568,26 @@ function ControlDueRow({ control }: { control: OverviewControlDue }) {
 }
 
 function ActivityRow({ entry }: { entry: OverviewActivity }) {
+  // Rendering `entry.actor` here is the actual fix for "the victim's only
+  // signal is a workspace.claimed audit row, and this page did not even
+  // render the actor column" - before this, a workspace.claimed event was
+  // indistinguishable in this list from any other routine "workspace" -
+  // attributed mutation, so a claim by an attacker who obtained a leaked
+  // token was invisible even to someone who scrolled straight past this
+  // section. A claim event is called out with a distinct badge; every
+  // other row still shows who (or "workspace" for the anonymous
+  // header-token path) did it, not just what happened.
+  const isClaimEvent = entry.verb === "workspace.claimed";
   return (
-    <div className="flex items-center justify-between gap-3 py-2 border-b border-surface-border/60 last:border-0">
+    <div className={`flex items-center justify-between gap-3 py-2 border-b border-surface-border/60 last:border-0 ${isClaimEvent ? "bg-amber-500/5 -mx-2 px-2 rounded" : ""}`}>
       <div className="min-w-0">
-        <p className="text-sm text-foreground truncate">{describeVerb(entry.verb)}</p>
-        <p className="text-xs text-text-muted mt-0.5">{entry.subject_type ?? "workspace"}</p>
+        <p className="text-sm text-foreground truncate">
+          {describeVerb(entry.verb)}
+          {isClaimEvent && <span className="ml-2 text-xs font-medium text-amber-600">Workspace claimed</span>}
+        </p>
+        <p className="text-xs text-text-muted mt-0.5 truncate">
+          {entry.subject_type ?? "workspace"} &middot; <span className="text-foreground/80">{entry.actor}</span>
+        </p>
       </div>
       <span className="text-xs text-text-muted shrink-0">{fmtDateTime(entry.created_at)}</span>
     </div>

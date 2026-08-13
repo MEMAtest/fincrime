@@ -60,6 +60,11 @@ export default function SignInPage() {
             {submitting ? "Signing in..." : "Sign in"}
           </Button>
           <p className="text-sm text-text-muted text-center">
+            <Link href="/account/forgot-password" className="text-accent hover:underline">
+              Forgot your password?
+            </Link>
+          </p>
+          <p className="text-sm text-text-muted text-center">
             No account yet?{" "}
             <Link href="/account/sign-up" className="text-accent hover:underline">
               Create one

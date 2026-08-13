@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { deleteAssessmentRisk, updateAssessmentRisk, type UpdateAssessmentRiskInput } from "@/lib/repo/assessments";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   notFound,
   parseOptionalScore,
   requireAssessment,
@@ -16,7 +14,7 @@ interface RouteContext {
 }
 
 /** PATCH /api/pra/assessments/[id]/risks/[riskId] - updates a risk register entry. */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id, riskId } = await context.params;
     const assessment = await requireAssessment(workspace.id, id);
@@ -49,7 +47,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       patch.residualScore = parsed.value ?? null;
     }
 
-    const updated = await updateAssessmentRisk(workspace.id, riskId, patch, ACTOR);
+    const updated = await updateAssessmentRisk(workspace.id, riskId, patch, actor);
     if (!updated) return notFound("Risk not found");
     return NextResponse.json({ risk: updated });
   } catch (error) {
@@ -58,7 +56,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 });
 
 /** DELETE /api/pra/assessments/[id]/risks/[riskId] - removes a risk register entry. */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id, riskId } = await context.params;
     const assessment = await requireAssessment(workspace.id, id);
@@ -67,7 +65,7 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
     const risk = await requireAssessmentRisk(workspace.id, id, riskId);
     if (!risk) return notFound("Risk not found");
 
-    const deleted = await deleteAssessmentRisk(workspace.id, riskId, ACTOR);
+    const deleted = await deleteAssessmentRisk(workspace.id, riskId, actor);
     return NextResponse.json({ success: deleted });
   } catch (error) {
     return serverError("PRA risk delete error", error);

@@ -45,6 +45,30 @@ interface SettingsResponse {
   settings: WorkspaceSettingsShape;
 }
 
+/** Shared shape for a route's error response - every app/api handler on this page returns `{error: string}` on failure. */
+interface ApiErrorBody {
+  error?: unknown;
+}
+
+interface PeopleListResponse extends ApiErrorBody {
+  people?: PersonDTO[];
+}
+
+interface PersonResponse extends ApiErrorBody {
+  person?: PersonDTO;
+}
+
+interface NotificationPreferencesResponse extends ApiErrorBody {
+  frequency?: NotificationFrequency;
+  categories?: NotificationCategories;
+}
+
+interface NotificationTestResponse extends ApiErrorBody {
+  sent?: boolean;
+  itemCount?: number;
+  message?: string;
+}
+
 const APPETITE_BAND_LABEL: Record<AppetiteResult, string> = {
   within: "Within appetite",
   tolerated: "Tolerated",
@@ -192,7 +216,7 @@ export default function SettingsPage() {
         if (!cancelled) applyAll(settingsData);
 
         if (peopleRes.ok) {
-          const peopleData = await peopleRes.json();
+          const peopleData = (await peopleRes.json()) as PeopleListResponse;
           if (!cancelled) setPeople(Array.isArray(peopleData.people) ? peopleData.people : []);
         }
       } catch {
@@ -217,10 +241,10 @@ export default function SettingsPage() {
       try {
         const res = await fetch(`/api/notifications/preferences?workspaceId=${encodeURIComponent(workspaceId)}`);
         if (!res.ok) throw new Error("failed");
-        const body = await res.json();
+        const body = (await res.json()) as NotificationPreferencesResponse;
         if (cancelled) return;
-        setNotifFrequency(body.frequency);
-        setNotifCategories(body.categories);
+        if (body.frequency) setNotifFrequency(body.frequency);
+        if (body.categories) setNotifCategories(body.categories);
       } catch {
         if (!cancelled) setNotifError("Could not load notification preferences. Refresh to try again.");
       } finally {
@@ -242,14 +266,14 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId, ...patch }),
       });
-      const body = await res.json();
+      const body = (await res.json()) as NotificationPreferencesResponse;
       if (!res.ok) {
         setNotifSave("error");
         setNotifError(typeof body?.error === "string" ? body.error : "Could not save.");
         return;
       }
-      setNotifFrequency(body.frequency);
-      setNotifCategories(body.categories);
+      if (body.frequency) setNotifFrequency(body.frequency);
+      if (body.categories) setNotifCategories(body.categories);
       setNotifSave("saved");
     } catch {
       setNotifSave("error");
@@ -278,7 +302,7 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspaceId }),
       });
-      const body = await res.json();
+      const body = (await res.json()) as NotificationTestResponse;
       if (!res.ok) {
         setTestState("error");
         setTestMessage(typeof body?.error === "string" ? body.error : "Could not send the test digest.");
@@ -286,7 +310,7 @@ export default function SettingsPage() {
       }
       if (body.sent) {
         setTestState("sent");
-        setTestMessage(`Sent - ${body.itemCount} item${body.itemCount === 1 ? "" : "s"} in your digest.`);
+        setTestMessage(`Sent - ${body.itemCount ?? 0} item${body.itemCount === 1 ? "" : "s"} in your digest.`);
       } else {
         setTestState("empty");
         setTestMessage(body.message || "Nothing outstanding right now - no digest to send.");
@@ -310,7 +334,7 @@ export default function SettingsPage() {
           settings: { organisationName: organisationName.trim() || null, dateFormat },
         }),
       });
-      const body = await res.json();
+      const body = (await res.json()) as SettingsResponse & ApiErrorBody;
       if (!res.ok) {
         setOrgSave("error");
         setOrgError(typeof body?.error === "string" ? body.error : "Could not save.");
@@ -335,7 +359,7 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ appetiteThresholds: { toleratedFrom: tolerated, outsideFrom: outside } }),
       });
-      const body = await res.json();
+      const body = (await res.json()) as SettingsResponse & ApiErrorBody;
       if (!res.ok) {
         setAppetiteSave("error");
         setAppetiteError(typeof body?.error === "string" ? body.error : "Could not save.");
@@ -364,7 +388,7 @@ export default function SettingsPage() {
           },
         }),
       });
-      const body = await res.json();
+      const body = (await res.json()) as SettingsResponse & ApiErrorBody;
       if (!res.ok) {
         setOpSave("error");
         setOpError(typeof body?.error === "string" ? body.error : "Could not save.");
@@ -389,12 +413,12 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: trimmed, role: newRole, email: newEmail.trim() || undefined }),
       });
-      const body = await res.json();
+      const body = (await res.json()) as PersonResponse;
       if (!res.ok) {
         setPeopleError(typeof body?.error === "string" ? body.error : "Could not add that person.");
         return;
       }
-      setPeople((prev) => [...prev, body.person]);
+      if (body.person) setPeople((prev) => [...prev, body.person as PersonDTO]);
       setNewName("");
       setNewEmail("");
     } catch {
@@ -408,7 +432,7 @@ export default function SettingsPage() {
     setPeopleError(null);
     try {
       const res = await wsFetch(`/api/workspace/people/${id}`, { method: "DELETE" });
-      const body = await res.json().catch(() => ({}));
+      const body = (await res.json().catch(() => ({}))) as ApiErrorBody;
       if (!res.ok) {
         setPeopleError(typeof body?.error === "string" ? body.error : "Could not remove that person.");
         return;

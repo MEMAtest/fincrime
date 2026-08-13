@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { getProduct, updateProduct, type UpdateProductInput } from "@/lib/repo/products";
 import { listAssessmentRisks, listAssessmentControls, updateAssessment, type UpdateAssessmentInput } from "@/lib/repo/assessments";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   isAppetiteResult,
   isAssessmentStatus,
   notFound,
@@ -48,7 +46,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * in one call so the journey shell can save-on-step-change in a single round
  * trip.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     const assessment = await requireAssessment(workspace.id, id);
@@ -72,7 +70,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 
     let product = await getProduct(workspace.id, assessment.product_id);
     if (Object.keys(productPatch).length > 0) {
-      product = await updateProduct(workspace.id, assessment.product_id, productPatch, ACTOR);
+      product = await updateProduct(workspace.id, assessment.product_id, productPatch, actor);
     }
 
     const assessmentPatch: UpdateAssessmentInput = {};
@@ -106,7 +104,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 
     let updatedAssessment = assessment;
     if (Object.keys(assessmentPatch).length > 0) {
-      const result = await updateAssessment(workspace.id, id, assessmentPatch, ACTOR);
+      const result = await updateAssessment(workspace.id, id, assessmentPatch, actor);
       if (result) updatedAssessment = result;
     }
 

@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createReadinessAssessment, listReadinessAssessments, listReadinessSummaries } from "@/lib/repo/readiness";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   isEntityType,
   isIsoDate,
   isJurisdiction,
@@ -62,7 +60,7 @@ export const GET = withWorkspace(async (request, workspace) => {
  * falls back to the FATF/global baseline at generate time, same as the
  * Matrix UI), so creation only rejects values outside the enum itself.
  */
-export const POST = withWorkspace(async (request, workspace) => {
+export const POST = withWorkspace(async (request, workspace, _context, actor) => {
   try {
     const body = await request.json();
 
@@ -108,7 +106,7 @@ export const POST = withWorkspace(async (request, workspace) => {
     const assessment = await createReadinessAssessment(
       workspace.id,
       { title, entityType, jurisdiction, riskLevel, productId, productNote, targetLaunchDate, ownerPersonId },
-      ACTOR
+      actor
     );
 
     return NextResponse.json({ assessment }, { status: 201 });

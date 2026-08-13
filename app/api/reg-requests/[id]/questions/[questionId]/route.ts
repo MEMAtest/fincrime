@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { deleteRegQuestion, updateRegQuestion, type UpdateRegQuestionInput } from "@/lib/repo/reg-requests";
-import { ACTOR, badRequest, conflict, isRegQuestionStatus, isUuid, notFound, requireRegQuestion, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
+import { badRequest, conflict, isRegQuestionStatus, isUuid, notFound, requireRegQuestion, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string; questionId: string }>;
@@ -12,7 +12,7 @@ interface RouteContext {
  * response?, exceptionNote?, status?}. NOT position - use
  * /questions/reorder, which is the only path that may change ordering.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id, questionId } = await context.params;
     if (!isUuid(id) || !isUuid(questionId)) return notFound("Reg question not found");
@@ -48,7 +48,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       patch.status = body.status;
     }
 
-    const result = await updateRegQuestion(workspace.id, id, questionId, patch, ACTOR);
+    const result = await updateRegQuestion(workspace.id, id, questionId, patch, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "question_not_found") return notFound("Reg question not found");
@@ -65,7 +65,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 });
 
 /** DELETE /api/reg-requests/[id]/questions/[questionId] - renumbers remaining questions to stay contiguous. */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id, questionId } = await context.params;
     if (!isUuid(id) || !isUuid(questionId)) return notFound("Reg question not found");
@@ -74,7 +74,7 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
     const question = await requireRegQuestion(workspace.id, id, questionId);
     if (!question) return notFound("Reg question not found");
 
-    const result = await deleteRegQuestion(workspace.id, id, questionId, ACTOR);
+    const result = await deleteRegQuestion(workspace.id, id, questionId, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "question_not_found") return notFound("Reg question not found");

@@ -3,9 +3,7 @@ import { withWorkspace } from "@/lib/workspace-auth";
 import { createAction, listActionsBySubject, type ActionPriority } from "@/lib/repo/actions";
 import { isFinalIncidentStatus } from "@/lib/repo/incidents";
 import { requirePerson } from "@/lib/pra/helpers";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   conflict,
   isIsoDate,
@@ -46,7 +44,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
   }
 });
 
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Incident not found");
@@ -82,7 +80,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const action = await createAction(
       workspace.id,
       { subjectType: SUBJECT_TYPE, subjectId: id, title, ownerPersonId, dueDate, priority },
-      ACTOR
+      actor
     );
 
     return NextResponse.json({ action }, { status: 201 });

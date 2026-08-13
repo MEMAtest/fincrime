@@ -3,7 +3,7 @@ import { withWorkspace } from "@/lib/workspace-auth";
 import { createControlTest, listControlTests } from "@/lib/repo/control-tests";
 import { listWorkspaceControls } from "@/lib/repo/controls";
 import { requirePerson, requireWorkspaceControl } from "@/lib/pra/helpers";
-import { ACTOR, badRequest, isControlTestMethod, isIsoDate, isUuid, parseOptionalCount, serverError } from "@/lib/control-tests/helpers";
+import { badRequest, isControlTestMethod, isIsoDate, isUuid, parseOptionalCount, serverError } from "@/lib/control-tests/helpers";
 
 /**
  * GET /api/control-tests - list the workspace's control tests, one row per
@@ -36,7 +36,7 @@ export const GET = withWorkspace(async (_request, workspace) => {
  * resolve to a control in this workspace; testerPersonId (if supplied) must
  * resolve to a person in this workspace.
  */
-export const POST = withWorkspace(async (request, workspace) => {
+export const POST = withWorkspace(async (request, workspace, _context, actor) => {
   try {
     const body = await request.json();
 
@@ -94,7 +94,7 @@ export const POST = withWorkspace(async (request, workspace) => {
         testerPersonId,
         sampleSize: sampleSizeParsed.value ?? null,
       },
-      ACTOR
+      actor
     );
 
     return NextResponse.json({ test }, { status: 201 });

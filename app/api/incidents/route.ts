@@ -4,9 +4,7 @@ import { createIncident, listIncidents } from "@/lib/repo/incidents";
 import { countOpenActionsBySubjectType } from "@/lib/repo/actions";
 import { listPeople } from "@/lib/repo/people";
 import { requirePerson } from "@/lib/pra/helpers";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   isIncidentSeverity,
   isIncidentSource,
@@ -67,7 +65,7 @@ export const GET = withWorkspace(async (request, workspace) => {
  * POST /api/incidents - body {title, source?, severity?, occurredAt?,
  * detectedAt?, summary?, ownerPersonId?}.
  */
-export const POST = withWorkspace(async (request, workspace) => {
+export const POST = withWorkspace(async (request, workspace, _context, actor) => {
   try {
     const body = await request.json();
 
@@ -127,7 +125,7 @@ export const POST = withWorkspace(async (request, workspace) => {
     const incident = await createIncident(
       workspace.id,
       { title, source, severity, occurredAt, detectedAt, summary, ownerPersonId },
-      ACTOR
+      actor
     );
 
     return NextResponse.json({ incident }, { status: 201 });

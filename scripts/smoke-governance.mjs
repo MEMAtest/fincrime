@@ -434,6 +434,69 @@ async function main() {
   });
   expect("governance pack export ignores a forged client payload -> still 200", forgedExport.status, 200);
 
+  // --- session-mode export: the gap a header-only auth check left behind ---
+  // Before this fix, app/api/export/pdf/route.ts only ever accepted the
+  // x-workspace-id/x-workspace-token headers (getAuthenticatedWorkspace),
+  // so a signed-in user exporting via their session cookie - x-workspace-id
+  // but NO token header, exactly what LeadCaptureModal now sends in session
+  // mode - got a bare 401 even though every other workspace route already
+  // accepted a session. Proves the route now resolves via
+  // resolveWorkspaceAuth's session path, and that it resolves to the
+  // SESSION's own workspace (claimedWs), never `other` or the unclaimed
+  // `orphanWs` below - i.e. exactly the tenant the session's owner sees on
+  // the dashboard, not whichever workspace credential happens to be lying
+  // around.
+  const sessionExportEmail = `smoke-governance-session-${Date.now()}@example.com`;
+  const signupForExport = await fetch(`${BASE_URL}/api/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: sessionExportEmail, password: "correct horse battery staple export" }),
+  });
+  const exportCookie = (signupForExport.headers.get("set-cookie") || "").split(";")[0];
+  exportCookie ? ok("session-mode export: signed up a fresh user") : fail("session-mode export: signed up a fresh user");
+
+  const rawWs = await body(
+    await fetch(`${BASE_URL}/api/workspace/bootstrap`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+  );
+  const claimForExport = await fetch(`${BASE_URL}/api/auth/claim-workspace`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: exportCookie },
+    body: JSON.stringify({ workspaceId: rawWs.id, workspaceToken: rawWs.token }),
+  });
+  expect("session-mode export: claim workspace -> 201", claimForExport.status, 201);
+
+  // An entirely UNRELATED, still-anonymous workspace - stands in for "a
+  // stale anonymous credential left over in this browser's localStorage
+  // from before the user signed in." Never claimed by anyone.
+  const orphanWs = await body(
+    await fetch(`${BASE_URL}/api/workspace/bootstrap`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+  );
+
+  // Exactly what LeadCaptureModal now sends in session mode: the session
+  // cookie plus x-workspace-id naming the CLAIMED workspace, and NO token
+  // header at all - so there is nothing here for a stale anonymous
+  // credential to smuggle through even if the browser also held one.
+  const sessionExportRes = await fetch(`${BASE_URL}/api/export/pdf`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: exportCookie, "x-workspace-id": rawWs.id },
+    body: JSON.stringify({ module: "governance_pack", assessmentData: {} }),
+  });
+  expect("session-mode governance pack export (cookie + x-workspace-id, no token) -> 200", sessionExportRes.status, 200);
+  expect("session-mode export content-type", sessionExportRes.headers.get("content-type"), "application/pdf");
+  const sessionPdfBuffer = Buffer.from(await sessionExportRes.arrayBuffer());
+  expect("session-mode export PDF magic bytes", sessionPdfBuffer.subarray(0, 4).toString("latin1"), "%PDF");
+
+  // Same request but naming the UNRELATED orphan workspace's id while still
+  // authenticated by the SAME session - the session holder is not a member
+  // of orphanWs, so this must refuse exactly like an unknown/wrong header
+  // token would, never silently fall back to serving orphanWs's pack.
+  const sessionWrongWorkspaceRes = await fetch(`${BASE_URL}/api/export/pdf`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: exportCookie, "x-workspace-id": orphanWs.id },
+    body: JSON.stringify({ module: "governance_pack", assessmentData: {} }),
+  });
+  expect("session-mode export naming a workspace the user is NOT a member of -> 401", sessionWrongWorkspaceRes.status, 401);
+
   console.log(`\n${passed}/${passed + failed} assertions passed`);
   if (failed > 0) process.exit(1);
 }

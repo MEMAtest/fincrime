@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createEvidence, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { withReadinessAssessmentLock } from "@/lib/repo/readiness";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   conflict,
   isIsoDate,
@@ -40,7 +38,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * the assessment as a whole (subjectType 'readiness_assessment'). Refuses on
  * a final assessment.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Readiness assessment not found");
@@ -81,7 +79,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       createEvidence(
         workspace.id,
         { subjectType: SUBJECT_TYPE, subjectId: id, type, title, description, linkUrl, evidenceDate, addedByPersonId },
-        ACTOR,
+        actor,
         client
       )
     );

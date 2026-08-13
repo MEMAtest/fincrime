@@ -3,9 +3,7 @@ import { withWorkspace } from "@/lib/workspace-auth";
 import { createEvidence, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { isFinalIncidentStatus } from "@/lib/repo/incidents";
 import { requirePerson } from "@/lib/pra/helpers";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   conflict,
   isIsoDate,
@@ -41,7 +39,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * already closed or cancelled is a historical record and 409s, matching the
  * control-tests evidence route.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Incident not found");
@@ -77,7 +75,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const evidence = await createEvidence(
       workspace.id,
       { subjectType: SUBJECT_TYPE, subjectId: id, type, title, description, linkUrl, evidenceDate, addedByPersonId },
-      ACTOR
+      actor
     );
 
     return NextResponse.json({ evidence }, { status: 201 });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { approveResponse } from "@/lib/repo/reg-requests";
-import { ACTOR, badRequest, isUuid, notFound, parseApprovalBody, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
+import { badRequest, isUuid, notFound, parseApprovalBody, requireRegRequest, serverError } from "@/lib/reg-response/helpers";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -20,7 +20,7 @@ function approveConflict(message: string, reason: "already_final" | "wrong_statu
  * Requires the request to be draft/in_progress/in_review (wrong_status
  * otherwise).
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Reg request not found");
@@ -31,7 +31,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const parsed = await parseApprovalBody(workspace.id, body);
     if (!parsed.ok) return badRequest(parsed.error);
 
-    const result = await approveResponse(workspace.id, id, parsed.decidedByPersonId, parsed.rationale, parsed.conditions, ACTOR);
+    const result = await approveResponse(workspace.id, id, parsed.decidedByPersonId, parsed.rationale, parsed.conditions, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Reg request not found");
       if (result.reason === "no_questions") {

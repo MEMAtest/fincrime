@@ -10,9 +10,7 @@ import {
 } from "@/lib/repo/decisions";
 import { createAction, listActionsBySubject, type ActionPriority } from "@/lib/repo/actions";
 import { requirePerson } from "@/lib/pra/helpers";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   conflict,
   isDecisionOutcome,
@@ -89,7 +87,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * any conditions and follow-up actions, then moves the change to the
  * matching status (approved / rejected).
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Control change not found");
@@ -153,20 +151,20 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const decision = await createDecision(
       workspace.id,
       { subjectType: SUBJECT_TYPE, subjectId: id, outcome, rationale, decidedByPersonId: decider.id },
-      ACTOR
+      actor
     );
 
     const conditions = [];
     for (const input of conditionInputs) {
-      conditions.push(await createCondition(workspace.id, decision.id, input, ACTOR));
+      conditions.push(await createCondition(workspace.id, decision.id, input, actor));
     }
 
     const actions = [];
     for (const input of actionInputs) {
-      actions.push(await createAction(workspace.id, { subjectType: SUBJECT_TYPE, subjectId: id, ...input }, ACTOR));
+      actions.push(await createAction(workspace.id, { subjectType: SUBJECT_TYPE, subjectId: id, ...input }, actor));
     }
 
-    const updatedChange = await updateControlChange(workspace.id, id, { status: OUTCOME_STATUS[outcome] }, ACTOR);
+    const updatedChange = await updateControlChange(workspace.id, id, { status: OUTCOME_STATUS[outcome] }, actor);
 
     return NextResponse.json(
       { decision, conditions, actions, change: updatedChange ?? change },

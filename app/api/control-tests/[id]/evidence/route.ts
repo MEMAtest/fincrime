@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { createEvidence, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { requirePerson } from "@/lib/pra/helpers";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   conflict,
   isFinalTestStatus,
@@ -40,7 +38,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * this test (subject_type 'control_test'). A test that is already complete
  * or cancelled is a historical record and 409s, matching the findings routes.
  */
-export const POST = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const POST = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Control test not found");
@@ -76,7 +74,7 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const evidence = await createEvidence(
       workspace.id,
       { subjectType: SUBJECT_TYPE, subjectId: id, type, title, description, linkUrl, evidenceDate, addedByPersonId },
-      ACTOR
+      actor
     );
 
     return NextResponse.json({ evidence }, { status: 201 });

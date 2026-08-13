@@ -228,11 +228,27 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const workspaceId = mode === "session" ? effectiveSelectedId : (anonymousWorkspace?.id ?? null);
 
+  // Gated on BOTH the anonymous localStorage read having happened AND the
+  // account status having resolved (GET /api/auth/me returned). Before this
+  // fix, `ready` reflected only the anonymous mount flag, so a signed-in
+  // user saw a flash of "not ready" (empty state) while /api/auth/me was
+  // still in flight, and - if this browser also still held a stale
+  // anonymous workspace credential - could briefly render THAT unrelated
+  // workspace's data before `mode` flipped to "session", because
+  // `anonymousReady` alone said "go ahead" before the account lookup that
+  // determines `mode` had actually finished. Every consumer of `ready`
+  // (list pages deciding whether to fetch yet) now waits for the mode
+  // itself to be settled, which also removes the double-fetch a page
+  // gated only on the anonymous flag would otherwise do: once for the
+  // (possibly wrong) anonymous workspace, then again once session mode
+  // resolved.
+  const ready = anonymousReady && status !== "loading";
+
   return (
     <WorkspaceContext.Provider
       value={{
         workspaceId,
-        ready: anonymousReady,
+        ready,
         mode,
         ensureWorkspace,
         wsFetch,

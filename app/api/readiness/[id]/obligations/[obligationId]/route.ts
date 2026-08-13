@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { updateReadinessObligation, type UpdateReadinessObligationInput } from "@/lib/repo/readiness";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   conflict,
   isIsoDate,
   isReadinessGap,
@@ -26,7 +24,7 @@ interface RouteContext {
  * dueDate?, notes?}. workspaceControlId must resolve to a control in THIS
  * workspace. Refuses once the parent assessment is final.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id, obligationId } = await context.params;
     if (!isUuid(id) || !isUuid(obligationId)) return notFound("Readiness obligation not found");
@@ -85,7 +83,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       patch.notes = typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
     }
 
-    const result = await updateReadinessObligation(workspace.id, id, obligationId, patch, ACTOR);
+    const result = await updateReadinessObligation(workspace.id, id, obligationId, patch, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Readiness obligation not found");
       return conflict("Cannot update an obligation on an assessment that is already approved_global, rejected, or cancelled");

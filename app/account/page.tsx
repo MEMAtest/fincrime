@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, LogOut, Save, ShieldCheck, User } from "lucide-react";
+import { Building2, LogOut, Mail, Save, ShieldCheck, Trash2, User, Users } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import ToolPageHeader from "@/components/shared/ToolPageHeader";
 import Button from "@/components/ui/Button";
@@ -13,11 +13,111 @@ import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import { claimWorkspaceRequest } from "@/lib/auth-client";
 import { readStoredWorkspace } from "@/lib/workspace-client";
 
+interface WorkspaceMember {
+  userId: string;
+  email: string;
+  role: "owner" | "member";
+  createdAt: string;
+  isSelf: boolean;
+}
+
+/** GET/DELETE the member list for the active session workspace - see app/api/workspace/members/**, the fix for "a claimed workspace can never be un-claimed" (a leaked token that got claimed can now be removed by the workspace's owner). */
+function MembersPanel({ workspaceId, isOwner }: { workspaceId: string; isOwner: boolean }) {
+  const [members, setMembers] = useState<WorkspaceMember[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+
+  // Cancelled-flag async fetch (matches components/account/AccountProvider.tsx's
+  // mount-fetch pattern) - setState only ever happens after the await, never
+  // synchronously in the effect body. The parent renders this component with
+  // `key={workspaceId}` (see below), so switching the active workspace
+  // remounts it fresh (members starts at null again via useState's initial
+  // value) rather than this effect needing to reset it itself.
+  const load = useCallback(async () => {
+    setError(null);
+    const res = await fetch(`/api/workspace/members?workspaceId=${encodeURIComponent(workspaceId)}`);
+    if (!res.ok) {
+      setError("Could not load members.");
+      return;
+    }
+    const body = (await res.json()) as { members?: WorkspaceMember[] };
+    setMembers(Array.isArray(body.members) ? body.members : []);
+  }, [workspaceId]);
+
+  // load() is an async fetch (see its own doc comment above); every setState
+  // inside it happens after an await, never synchronously in this effect
+  // body - the linter cannot see through the named function reference to
+  // confirm that on its own.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+  }, [load]);
+
+  const handleRemove = async (userId: string) => {
+    setRemovingUserId(userId);
+    setError(null);
+    const res = await fetch(`/api/workspace/members/${userId}?workspaceId=${encodeURIComponent(workspaceId)}`, { method: "DELETE" });
+    setRemovingUserId(null);
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setError(body.error || "Could not remove that member.");
+      return;
+    }
+    await load();
+  };
+
+  return (
+    <div className="glass-card rounded-2xl p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <div className="h-9 w-9 rounded-lg bg-accent/10 text-accent grid place-items-center shrink-0">
+          <Users className="h-4.5 w-4.5" />
+        </div>
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Members</h2>
+          <p className="text-sm text-text-muted mt-0.5">
+            {isOwner ? "Everyone with session access to this workspace. You can remove anyone but yourself." : "Everyone with session access to this workspace."}
+          </p>
+        </div>
+      </div>
+      {error && <p className="text-sm text-red-500 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>}
+      {members === null ? (
+        <p className="text-sm text-text-muted">Loading...</p>
+      ) : (
+        <div className="space-y-2">
+          {members.map((m) => (
+            <div key={m.userId} className="flex items-center justify-between gap-3 rounded-lg border border-surface-border px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{m.email}</p>
+                <p className="text-xs text-text-muted">Joined {new Date(m.createdAt).toLocaleDateString()}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge variant={m.role === "owner" ? "success" : "default"}>{m.role}</Badge>
+                {isOwner && !m.isSelf && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={removingUserId === m.userId}
+                    onClick={() => handleRemove(m.userId)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {removingUserId === m.userId ? "Removing..." : "Remove"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AccountPage() {
   const { status, user, workspaces, refresh, signOut } = useAccount();
   const { mode, workspaceId, switchWorkspace } = useWorkspace();
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimPendingMessage, setClaimPendingMessage] = useState<string | null>(null);
   const [signingOutAll, setSigningOutAll] = useState(false);
   const router = useRouter();
 
@@ -48,6 +148,7 @@ export default function AccountPage() {
   const handleClaim = async () => {
     setClaiming(true);
     setClaimError(null);
+    setClaimPendingMessage(null);
     const stored = readStoredWorkspace();
     if (!stored) {
       setClaimError("No workspace found in this browser to save.");
@@ -58,6 +159,16 @@ export default function AccountPage() {
     setClaiming(false);
     if ("error" in result) {
       setClaimError(result.error);
+      return;
+    }
+    if ("pending" in result) {
+      // This workspace already has a registered owner_email - the claim is
+      // NOT granted yet, only requested. See lib/auth/claim-flow.ts: a bare
+      // token is not enough on its own to permanently claim a workspace
+      // someone already gave an owner_email for, precisely because a token
+      // can leak without its owner knowing. Access completes only once the
+      // confirmation link mailed to that address is clicked.
+      setClaimPendingMessage(result.message);
       return;
     }
     await refresh();
@@ -84,6 +195,12 @@ export default function AccountPage() {
               </div>
             </div>
             {claimError && <p className="text-sm text-red-500 bg-red-500/10 rounded-lg px-3 py-2">{claimError}</p>}
+            {claimPendingMessage && (
+              <p className="text-sm text-amber-600 bg-amber-500/10 rounded-lg px-3 py-2 flex items-start gap-2">
+                <Mail className="h-4 w-4 shrink-0 mt-0.5" />
+                {claimPendingMessage}
+              </p>
+            )}
             <Button onClick={handleClaim} disabled={claiming} size="sm">
               {claiming ? "Saving..." : "Save this workspace to your account"}
             </Button>
@@ -127,6 +244,14 @@ export default function AccountPage() {
             })}
           </div>
         </div>
+
+        {mode === "session" && workspaceId && (
+          <MembersPanel
+            key={workspaceId}
+            workspaceId={workspaceId}
+            isOwner={workspaces.find((w) => w.id === workspaceId)?.role === "owner"}
+          />
+        )}
 
         <div className="glass-card rounded-2xl p-6 space-y-4">
           <div className="flex items-start gap-3">

@@ -4,9 +4,7 @@ import { deleteControlTest, listControlTestFindings, updateControlTest, type Upd
 import { listActionsBySubject } from "@/lib/repo/actions";
 import { listEvidenceBySubject } from "@/lib/repo/evidence";
 import { requirePerson } from "@/lib/pra/helpers";
-import {
-  ACTOR,
-  SUBJECT_TYPE,
+import { SUBJECT_TYPE,
   badRequest,
   conflict,
   isControlTestMethod,
@@ -57,7 +55,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * already complete or cancelled is a historical record and 409s on every
  * PATCH.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Control test not found");
@@ -170,7 +168,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       patch.status = body.status;
     }
 
-    const updated = await updateControlTest(workspace.id, id, patch, ACTOR);
+    const updated = await updateControlTest(workspace.id, id, patch, actor);
     if (!updated) return notFound("Control test not found");
 
     return NextResponse.json({ test: updated });
@@ -180,7 +178,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 });
 
 /** DELETE /api/control-tests/[id] - refuses on a complete or cancelled test: deleting a historical record would cascade its findings away while the control keeps its bumped version with nothing left explaining it. */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Control test not found");
@@ -188,7 +186,7 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
     if (!existing) return notFound("Control test not found");
     if (isFinalTestStatus(existing.status)) return conflict("Cannot delete a test that is already complete or cancelled");
 
-    await deleteControlTest(workspace.id, id, ACTOR);
+    await deleteControlTest(workspace.id, id, actor);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return serverError("Control test delete error", error);

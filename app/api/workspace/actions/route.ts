@@ -3,7 +3,7 @@ import { withWorkspace } from "@/lib/workspace-auth";
 import { createAction, listActions, listActionsBySubject } from "@/lib/repo/actions";
 import { requirePerson } from "@/lib/pra/helpers";
 import { isActionStatus, isActionSubjectType, isUuid, validateCreateActionInput } from "@/lib/workspace/action-input";
-import { ACTOR, badRequest, serverError } from "@/lib/workspace/http";
+import { badRequest, serverError } from "@/lib/workspace/http";
 
 /**
  * GET /api/workspace/actions - list actions across the workspace.
@@ -50,7 +50,7 @@ export const GET = withWorkspace(async (request, workspace) => {
  * Lab's monitoring step, and any future caller, uses instead of only writing
  * to JSONB.
  */
-export const POST = withWorkspace(async (request, workspace) => {
+export const POST = withWorkspace(async (request, workspace, _context, actor) => {
   try {
     const body = await request.json().catch(() => null);
     const result = validateCreateActionInput(body);
@@ -73,7 +73,7 @@ export const POST = withWorkspace(async (request, workspace) => {
         priority: input.priority,
         status: input.status,
       },
-      ACTOR
+      actor
     );
 
     return NextResponse.json({ action }, { status: 201 });

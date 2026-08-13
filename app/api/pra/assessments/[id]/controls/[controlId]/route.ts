@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { withWorkspace } from "@/lib/workspace-auth";
 import { deleteAssessmentControl, updateAssessmentControl, type UpdateAssessmentControlInput } from "@/lib/repo/assessments";
-import {
-  ACTOR,
-  badRequest,
+import { badRequest,
   instantiateLibraryControl,
   isControlCoverage,
   notFound,
@@ -23,7 +21,7 @@ interface RouteContext {
  * (controlSlug set, workspaceControlId null) to a live control after the
  * fact via { instantiate: true }.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id, controlId } = await context.params;
     const assessment = await requireAssessment(workspace.id, id);
@@ -58,7 +56,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
     if (body?.instantiate === true) {
       const slugToInstantiate = patch.controlSlug ?? existing.control_slug;
       if (!slugToInstantiate) return badRequest("No control_slug to instantiate on this mapping");
-      const created = await instantiateLibraryControl(workspace.id, slugToInstantiate, ACTOR);
+      const created = await instantiateLibraryControl(workspace.id, slugToInstantiate, actor);
       if (!created) return badRequest(`Unknown control_slug: ${slugToInstantiate}`);
       instantiated = created;
       patch.workspaceControlId = created.id;
@@ -75,7 +73,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       }
     }
 
-    const updated = await updateAssessmentControl(workspace.id, controlId, patch, ACTOR);
+    const updated = await updateAssessmentControl(workspace.id, controlId, patch, actor);
     if (!updated) return notFound("Control mapping not found");
     // Include the freshly instantiated live control so the client can update
     // its workspace-controls state without a refetch.
@@ -86,7 +84,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 });
 
 /** DELETE /api/pra/assessments/[id]/controls/[controlId] - removes a control mapping. */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id, controlId } = await context.params;
     const assessment = await requireAssessment(workspace.id, id);
@@ -95,7 +93,7 @@ export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, co
     const existing = await requireAssessmentControl(workspace.id, id, controlId);
     if (!existing) return notFound("Control mapping not found");
 
-    const deleted = await deleteAssessmentControl(workspace.id, controlId, ACTOR);
+    const deleted = await deleteAssessmentControl(workspace.id, controlId, actor);
     return NextResponse.json({ success: deleted });
   } catch (error) {
     return serverError("PRA control delete error", error);

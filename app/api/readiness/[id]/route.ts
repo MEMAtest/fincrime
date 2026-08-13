@@ -11,9 +11,7 @@ import {
 import { listActionsBySubject, listActionsBySubjectIds } from "@/lib/repo/actions";
 import { listCommentsBySubject, listEvidenceBySubject } from "@/lib/repo/evidence";
 import { listConditionsByDecision, listDecisionsBySubject } from "@/lib/repo/decisions";
-import {
-  ACTOR,
-  OBLIGATION_SUBJECT_TYPE,
+import { OBLIGATION_SUBJECT_TYPE,
   SUBJECT_TYPE,
   badRequest,
   conflict,
@@ -89,7 +87,7 @@ export const GET = withWorkspace<RouteContext>(async (_request, workspace, conte
  * in lib/repo/readiness.ts) never accepts those fields as patchable at all,
  * so there is nothing for this route to condition on.
  */
-export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
+export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Readiness assessment not found");
@@ -166,7 +164,7 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       if (typeof parsed.value === "number") patch.currentStep = parsed.value;
     }
 
-    const result = await updateReadinessAssessment(workspace.id, id, patch, ACTOR);
+    const result = await updateReadinessAssessment(workspace.id, id, patch, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Readiness assessment not found");
       return conflict("Cannot update a readiness assessment that is already approved_global, rejected, or cancelled");
@@ -179,12 +177,12 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 });
 
 /** DELETE /api/readiness/[id] - refuses on a final assessment (approved_global, rejected, cancelled). */
-export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context) => {
+export const DELETE = withWorkspace<RouteContext>(async (_request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
     if (!isUuid(id)) return notFound("Readiness assessment not found");
 
-    const result = await deleteReadinessAssessment(workspace.id, id, ACTOR);
+    const result = await deleteReadinessAssessment(workspace.id, id, actor);
     if (!result.ok) {
       if (result.reason === "not_found") return notFound("Readiness assessment not found");
       return conflict("Cannot delete a readiness assessment that is already approved_global, rejected, or cancelled");

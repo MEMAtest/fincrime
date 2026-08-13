@@ -15,8 +15,9 @@
  * Emailing: run the local server with NOTIFICATIONS_CAPTURE=1 set (see
  * lib/notifications/send.ts) - every send this smoke triggers is appended
  * to an in-memory array instead of calling SES, and GET
- * /api/notifications/_captured (itself 404 unless that env var is set)
- * drains and returns it. Nothing is actually emailed during this run.
+ * /api/notifications/captured (itself 404 in production, and unless
+ * NOTIFICATIONS_CAPTURE=1 is set - see that route's doc comment) drains and
+ * returns it. Nothing is actually emailed during this run.
  *
  * Usage:
  *   CRON_SECRET=test-secret-for-smoke-1234567890 NOTIFICATIONS_CAPTURE=1 \
@@ -353,6 +354,115 @@ async function main() {
     body: JSON.stringify({ workspaceId: ws.id }),
   });
   expect("test digest without a session -> 401", testNoSessionRes.status, 401);
+
+  // --- 10b. /api/notifications/test is rate limited, keyed on the user ------
+  // Before this fix, this route ran a full portfolio aggregation plus an SES
+  // send on EVERY call with no limit at all - 30 rapid POSTs all returned
+  // 200. TEST_DIGEST_LIMIT=5 per 10 minutes (see the route) - this run
+  // already made at least one successful test-digest-shaped call path
+  // above indirectly, but the limiter counts POSTs to THIS route
+  // specifically, so a handful more here is enough to trip it.
+  let sawTestDigestRateLimit = false;
+  for (let i = 0; i < 8; i += 1) {
+    const res = await fetch(`${BASE_URL}/api/notifications/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieA },
+      body: JSON.stringify({ workspaceId: ws.id }),
+    });
+    if (res.status === 429) {
+      sawTestDigestRateLimit = true;
+      break;
+    }
+  }
+  sawTestDigestRateLimit ? ok("/api/notifications/test is rate limited (429 after repeated calls)") : fail("/api/notifications/test is rate limited");
+
+  // --- 11. Run cap rotates rather than starving one tail ---------------------
+  // Only runs when the server under test was started with
+  // NOTIFICATIONS_MAX_WORKSPACES_PER_RUN=1 (see app/api/notifications/run/
+  // route.ts) AND direct DB access is available - with the default cap of
+  // 500 this can't be exercised without seeding 500+ workspaces, so it is
+  // opt-in via the same env var:
+  //   NOTIFICATIONS_MAX_WORKSPACES_PER_RUN=1 NOTIFICATIONS_CAPTURE=1 CRON_SECRET=... \
+  //     npx next start -p 3210 &
+  //   NOTIFICATIONS_MAX_WORKSPACES_PER_RUN=1 CRON_SECRET=... node scripts/smoke-notifications.mjs
+  // Proves listWorkspaceMembersWithEmail's "oldest successful send first"
+  // ordering (lib/repo/notifications.ts) actually rotates the cap: with the
+  // cap forced to 1 workspace per run, two workspaces both due a digest
+  // must each get exactly one send across two runs - NOT the same workspace
+  // getting it both times while the other is starved, which is what a fixed
+  // workspace_id ASC order would have produced.
+  //
+  // Runs LAST and clears every workspace first (DELETE FROM workspaces,
+  // cascading to workspace_members/notification_preferences/notification_log
+  // via their FKs - see migrations 010/011): with cap=1, the ordering picks
+  // exactly ONE eligible workspace per run, so ANY other workspace left over
+  // in this DB from earlier sections of THIS run, or from previous manual
+  // smoke runs against the same local dev DB, would compete for that one
+  // slot and make the assertion below flaky depending on unrelated history.
+  // A local dev DB is explicitly fine to reset for this - see this repo's
+  // house rules ("local dev DB is DATABASE_URL in .env.local").
+  if (process.env.NOTIFICATIONS_MAX_WORKSPACES_PER_RUN === "1" && dbUsable) {
+    await withDb((client) => client.query(`DELETE FROM workspaces`));
+
+    const rotEmailX = freshEmail();
+    const rotEmailY = freshEmail();
+    const signupX = await fetch(`${BASE_URL}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: rotEmailX, password: "correct horse battery staple rotate x" }),
+    });
+    const cookieX = extractCookiePair(signupX.headers.get("set-cookie") || "");
+    const signupY = await fetch(`${BASE_URL}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: rotEmailY, password: "correct horse battery staple rotate y" }),
+    });
+    const cookieY = extractCookiePair(signupY.headers.get("set-cookie") || "");
+
+    const wsX = await bootstrapWorkspace();
+    const wsY = await bootstrapWorkspace();
+    await fetch(`${BASE_URL}/api/auth/claim-workspace`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieX },
+      body: JSON.stringify({ workspaceId: wsX.id, workspaceToken: wsX.token }),
+    });
+    await fetch(`${BASE_URL}/api/auth/claim-workspace`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Cookie: cookieY },
+      body: JSON.stringify({ workspaceId: wsY.id, workspaceToken: wsY.token }),
+    });
+
+    const rotPastDue = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await fetch(`${BASE_URL}/api/workspace/controls`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-workspace-id": wsX.id, "x-workspace-token": wsX.token },
+      body: JSON.stringify({ name: "Rotation X overdue control", objective: "Prove rotation", nextTestDue: rotPastDue }),
+    });
+    await fetch(`${BASE_URL}/api/workspace/controls`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-workspace-id": wsY.id, "x-workspace-token": wsY.token },
+      body: JSON.stringify({ name: "Rotation Y overdue control", objective: "Prove rotation", nextTestDue: rotPastDue }),
+    });
+
+    const rotRun1 = await runCron(CRON_SECRET);
+    expect("rotation run 1 -> 200", rotRun1.status, 200);
+    const capturedRun1 = (await getCaptured()).filter((e) => e.to === rotEmailX || e.to === rotEmailY);
+    expect("rotation run 1 sends to exactly one of the two workspaces (cap=1)", capturedRun1.length, 1);
+
+    const rotRun2 = await runCron(CRON_SECRET);
+    expect("rotation run 2 -> 200", rotRun2.status, 200);
+    const capturedRun2 = (await getCaptured()).filter((e) => e.to === rotEmailX || e.to === rotEmailY);
+    expect("rotation run 2 sends to exactly one of the two workspaces (cap=1)", capturedRun2.length, 1);
+
+    const recipientsAcrossBothRuns = new Set([...capturedRun1, ...capturedRun2].map((e) => e.to));
+    expect(
+      "the SAME workspace does not get sent both times - the cap rotates rather than starving one",
+      recipientsAcrossBothRuns.size,
+      2
+    );
+  } else {
+    console.log("  (rotation smoke skipped: start the server with NOTIFICATIONS_MAX_WORKSPACES_PER_RUN=1 and DATABASE_URL to exercise it)");
+  }
 
   if (!dbUsable) {
     console.log("  (DB-dependent notification_log/unsubscribe_token checks skipped: DATABASE_URL not set or points elsewhere)");
