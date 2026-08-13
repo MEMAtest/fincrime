@@ -6,18 +6,35 @@ import {
   writeStoredWorkspace,
   workspaceAuthHeaders,
   WORKSPACE_STORAGE_KEY,
+  WORKSPACE_ID_HEADER,
   type StoredWorkspace,
 } from "@/lib/workspace-client";
+import { useAccount } from "@/components/account/AccountProvider";
+import { readActiveWorkspaceId, writeActiveWorkspaceId, ACTIVE_WORKSPACE_STORAGE_KEY } from "@/lib/auth-client";
+
+export type WorkspaceMode = "anonymous" | "session";
 
 interface WorkspaceContextValue {
   /** The current workspace id, or null until one exists (nothing is created on page load). */
   workspaceId: string | null;
   /** True once mounted on the client (the initial localStorage read has happened). */
   ready: boolean;
-  /** Returns the workspace id, creating a new workspace (via bootstrap) on first use. */
+  /**
+   * "session" when a signed-in account with at least one workspace is
+   * driving the active workspace (via the session cookie, no header
+   * token); "anonymous" when the browser's localStorage {id, token} pair
+   * is driving it, exactly as before accounts existed. Anonymous stays the
+   * default and the fallback: a signed-in account with zero workspaces
+   * still resolves to "anonymous" so ensureWorkspace() keeps working for
+   * "sign in, then save something for the first time".
+   */
+  mode: WorkspaceMode;
+  /** Returns the workspace id, creating a new anonymous workspace (via bootstrap) on first use if in anonymous mode. In session mode, the selected workspace already exists, so this resolves immediately. */
   ensureWorkspace: () => Promise<string>;
-  /** fetch() wrapper that calls ensureWorkspace() and adds the workspace auth headers. */
+  /** fetch() wrapper that calls ensureWorkspace() and adds the appropriate auth (workspace headers in anonymous mode; just x-workspace-id, relying on the session cookie, in session mode). */
   wsFetch: (input: string, init?: RequestInit) => Promise<Response>;
+  /** Switches the active workspace among the signed-in account's memberships and persists the choice - no reload required. No-op if `id` is not one of the account's workspaces. */
+  switchWorkspace: (id: string) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
@@ -25,7 +42,8 @@ const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefi
 // A minimal external store over the "fincrime-workspace" localStorage key, so
 // reading it on mount does not need an effect + setState (which triggers a
 // synchronous cascading re-render). Mirrors the useSyncExternalStore pattern
-// already used by components/theme/ThemeProvider.tsx.
+// already used by components/theme/ThemeProvider.tsx. UNCHANGED from before
+// accounts existed - this is exactly the anonymous-mode machinery.
 type Listener = () => void;
 const listeners = new Set<Listener>();
 
@@ -75,6 +93,41 @@ function getServerSnapshot(): StoredWorkspace | null {
 const alwaysTrue = () => true;
 const alwaysFalse = () => false;
 
+// A second, equally minimal external store over the "which of my account's
+// workspaces is active" localStorage key - same rationale as the anonymous
+// store above (avoid an effect+setState cascade, and this doubles as the
+// mechanism switchWorkspace() uses to notify without a reload: writing the
+// key and calling notifyActiveListeners() re-renders every subscriber).
+type ActiveListener = () => void;
+const activeListeners = new Set<ActiveListener>();
+
+function notifyActiveListeners(): void {
+  for (const listener of activeListeners) listener();
+}
+
+function subscribeActive(callback: ActiveListener): () => void {
+  activeListeners.add(callback);
+  if (typeof window === "undefined") {
+    return () => activeListeners.delete(callback);
+  }
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === ACTIVE_WORKSPACE_STORAGE_KEY) callback();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    activeListeners.delete(callback);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function getActiveSnapshot(): string | null {
+  return readActiveWorkspaceId();
+}
+
+function getActiveServerSnapshot(): string | null {
+  return null;
+}
+
 async function bootstrapWorkspace(): Promise<StoredWorkspace> {
   const response = await fetch("/api/workspace/bootstrap", {
     method: "POST",
@@ -97,11 +150,40 @@ async function bootstrapWorkspace(): Promise<StoredWorkspace> {
 }
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const workspace = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const ready = useSyncExternalStore(subscribe, alwaysTrue, alwaysFalse);
+  const anonymousWorkspace = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const anonymousReady = useSyncExternalStore(subscribe, alwaysTrue, alwaysFalse);
   const bootstrapPromise = useRef<Promise<string> | null>(null);
 
+  const { status, workspaces: accountWorkspaces } = useAccount();
+
+  // The account's selected workspace id, if any - same sync-external-store
+  // pattern as the anonymous workspace above (null on the server, so no
+  // hydration mismatch; updates on both storage events from other tabs and
+  // switchWorkspace()'s own notifyActiveListeners() call, without a reload).
+  const selectedWorkspaceId = useSyncExternalStore(subscribeActive, getActiveSnapshot, getActiveServerSnapshot);
+
+  const sessionModeAvailable = status === "signed-in" && accountWorkspaces.length > 0;
+  const effectiveSelectedId =
+    selectedWorkspaceId && accountWorkspaces.some((w) => w.id === selectedWorkspaceId)
+      ? selectedWorkspaceId
+      : sessionModeAvailable
+        ? accountWorkspaces[0].id
+        : null;
+
+  const mode: WorkspaceMode = sessionModeAvailable && effectiveSelectedId ? "session" : "anonymous";
+
+  const switchWorkspace = useCallback(
+    (id: string) => {
+      if (!accountWorkspaces.some((w) => w.id === id)) return;
+      writeActiveWorkspaceId(id);
+      notifyActiveListeners();
+    },
+    [accountWorkspaces]
+  );
+
   const ensureWorkspace = useCallback(async (): Promise<string> => {
+    if (mode === "session" && effectiveSelectedId) return effectiveSelectedId;
+
     const current = getSnapshot();
     if (current) return current.id;
 
@@ -121,27 +203,40 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     } finally {
       bootstrapPromise.current = null;
     }
-  }, []);
+  }, [mode, effectiveSelectedId]);
 
   const wsFetch = useCallback(
     async (input: string, init: RequestInit = {}): Promise<Response> => {
-      await ensureWorkspace();
+      const id = await ensureWorkspace();
       const headers = new Headers(init.headers);
-      for (const [key, value] of Object.entries(workspaceAuthHeaders(getSnapshot()))) {
-        headers.set(key, value);
+      if (mode === "session") {
+        // No token header: the httpOnly session cookie authenticates the
+        // request (sent automatically by the browser on a same-origin
+        // fetch), and x-workspace-id names which of the account's
+        // memberships to use - see withWorkspace's session path in
+        // lib/workspace-auth.ts.
+        headers.set(WORKSPACE_ID_HEADER, id);
+      } else {
+        for (const [key, value] of Object.entries(workspaceAuthHeaders(getSnapshot()))) {
+          headers.set(key, value);
+        }
       }
       return fetch(input, { ...init, headers });
     },
-    [ensureWorkspace]
+    [ensureWorkspace, mode]
   );
+
+  const workspaceId = mode === "session" ? effectiveSelectedId : (anonymousWorkspace?.id ?? null);
 
   return (
     <WorkspaceContext.Provider
       value={{
-        workspaceId: workspace?.id ?? null,
-        ready,
+        workspaceId,
+        ready: anonymousReady,
+        mode,
         ensureWorkspace,
         wsFetch,
+        switchWorkspace,
       }}
     >
       {children}
@@ -154,12 +249,14 @@ const UNMOUNTED_ERROR = "WorkspaceProvider is not mounted";
 const DEFAULT_CONTEXT: WorkspaceContextValue = {
   workspaceId: null,
   ready: false,
+  mode: "anonymous",
   ensureWorkspace: async () => {
     throw new Error(UNMOUNTED_ERROR);
   },
   wsFetch: async () => {
     throw new Error(UNMOUNTED_ERROR);
   },
+  switchWorkspace: () => {},
 };
 
 export function useWorkspace(): WorkspaceContextValue {

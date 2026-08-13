@@ -1,0 +1,59 @@
+name: Notification digests
+
+# Triggers the daily notification-digest cron endpoint in production
+# (POST /api/notifications/run). Mirrors db-migrate.yml's pattern: Vercel
+# cron needs a paid plan, and this repo already runs scheduled work through
+# GitHub Actions successfully, so a secret-protected endpoint plus a GitHub
+# Actions schedule is the same shape rather than a new dependency.
+#
+# Requires:
+#   - Repo secret CRON_SECRET, sent as `Authorization: Bearer <CRON_SECRET>`.
+#   - The SAME value set as the CRON_SECRET environment variable on the
+#     Vercel project (production) - the endpoint compares the header
+#     against process.env.CRON_SECRET with a constant-time comparison and
+#     returns 401 (never revealing the secret) on any mismatch, so these
+#     two values must be kept in sync by hand.
+#
+# 07:00 UTC: after the overnight batch of due-date rollovers (a control's
+# next_test_due, a commitment's due_date) has settled for the day, and
+# early enough in most working timezones that a "daily" digest reads as
+# "this morning's digest" rather than an overnight surprise.
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: notifications-run
+  cancel-in-progress: false
+
+# This job needs no GitHub API access - only an outbound HTTPS POST.
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger notification digest run
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret is not set; skipping." >&2
+            exit 1
+          fi
+
+          status=$(curl -s -o /tmp/notifications-run.json -w "%{http_code}" \
+            -X POST "https://fincrime.memaconsultants.com/api/notifications/run" \
+            -H "Authorization: Bearer $CRON_SECRET")
+
+          echo "Response status: $status"
+          cat /tmp/notifications-run.json
+
+          if [ "$status" != "200" ]; then
+            echo "Notification run failed with status $status" >&2
+            exit 1
+          fi

@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import FieldBackground from "@/components/field/FieldBackground";
 import CommandPaletteProvider from "@/components/search/CommandPaletteProvider";
 import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
+import { AccountProvider } from "@/components/account/AccountProvider";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -82,12 +83,14 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <WorkspaceProvider>
-            <FieldBackground />
-            <CommandPaletteProvider>
-              {children}
-            </CommandPaletteProvider>
-          </WorkspaceProvider>
+          <AccountProvider>
+            <WorkspaceProvider>
+              <FieldBackground />
+              <CommandPaletteProvider>
+                {children}
+              </CommandPaletteProvider>
+            </WorkspaceProvider>
+          </AccountProvider>
         </ThemeProvider>
         <Analytics />
         <script

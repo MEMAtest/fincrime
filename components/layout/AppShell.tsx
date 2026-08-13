@@ -10,6 +10,7 @@ import {
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import WorkflowBar from "@/components/workflow/WorkflowBar";
 import SearchTrigger from "@/components/search/SearchTrigger";
+import AccountControl from "@/components/account/AccountControl";
 import { FIRM_TYPE_ORDER } from "@/data/firm-profiles";
 import { FIRM_TYPE_LABEL } from "@/data/typologies/labels";
 import type { FirmType } from "@/data/typologies/types";
@@ -205,6 +206,7 @@ export default function AppShell({
               <SearchTrigger />
               {firm && <FirmSwitcher value={firm.value} onChange={firm.onChange} />}
               <ThemeToggle />
+              <AccountControl />
             </div>
           </div>
         </header>

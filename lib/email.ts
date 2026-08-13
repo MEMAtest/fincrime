@@ -72,6 +72,60 @@ export async function sendEmailWithAttachment(options: {
   }
 }
 
+/**
+ * Sends a multipart/alternative email (plain text + HTML). The other two
+ * senders in this file are single-part (HTML-only, or HTML plus a binary
+ * attachment) - a digest, unlike a lead-capture notification or a PDF
+ * delivery, is read by real recipients on real mail clients often enough
+ * that a plain-text alternative is not optional for deliverability (some
+ * clients preview or spam-score on the absence of one). RFC 2046
+ * multipart/alternative orders parts worst-fidelity-first, so text/plain
+ * comes before text/html.
+ */
+export async function sendMultipartEmail(options: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<boolean> {
+  const { to, subject, html, text } = options;
+  const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+  const rawMessage = [
+    `From: ${FROM_NAME} <${FROM_EMAIL}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/plain; charset=UTF-8`,
+    `Content-Transfer-Encoding: 7bit`,
+    ``,
+    text,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/html; charset=UTF-8`,
+    `Content-Transfer-Encoding: 7bit`,
+    ``,
+    html,
+    ``,
+    `--${boundary}--`,
+  ].join("\r\n");
+
+  try {
+    await ses.send(
+      new SendRawEmailCommand({
+        RawMessage: { Data: Buffer.from(rawMessage) },
+      })
+    );
+    return true;
+  } catch (error) {
+    console.error("SES send error:", error);
+    return false;
+  }
+}
+
 export async function sendSimpleEmail(options: {
   to: string;
   subject: string;

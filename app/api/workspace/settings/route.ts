@@ -33,9 +33,14 @@ export const GET = withWorkspace(async (_request, workspace) => {
  * (never silently drops or stores them); ownerEmail (when non-null) must
  * match the same email shape used by the PDF export route's lead-capture
  * email. `settings` is a PARTIAL patch merged onto whatever is already
- * stored, so PATCHing one key never clobbers the others.
+ * stored, so PATCHing one key never clobbers the others. audit_log's actor
+ * for this write is whoever withWorkspace resolved the request as: the
+ * generic "workspace" string for the anonymous header path (unchanged), or
+ * the signed-in user's email when a session authenticated the request -
+ * this is the one route wired to demonstrate that end to end; see
+ * lib/workspace-auth.ts's withWorkspace doc for the general mechanism.
  */
-export const PATCH = withWorkspace(async (request, workspace) => {
+export const PATCH = withWorkspace(async (request, workspace, _context, actor) => {
   let body: unknown;
   try {
     body = await request.json();
@@ -90,7 +95,7 @@ export const PATCH = withWorkspace(async (request, workspace) => {
     update.settingsPatch = result.patch;
   }
 
-  const updated = await updateWorkspace(workspace.id, update, "workspace");
+  const updated = await updateWorkspace(workspace.id, update, actor);
   if (!updated) {
     return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
   }

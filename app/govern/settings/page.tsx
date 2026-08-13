@@ -1,14 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Settings as SettingsIcon, Users, ShieldCheck, SlidersHorizontal, Building2, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Settings as SettingsIcon, Users, ShieldCheck, SlidersHorizontal, Building2, Plus, Trash2, Bell } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import ToolPageHeader from "@/components/shared/ToolPageHeader";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
+import { useAccount } from "@/components/account/AccountProvider";
 import { compareToAppetite, type AppetiteResult } from "@/data/scoring/residual-risk";
 import type { PersonDTO, PersonRole } from "@/components/pra/types";
+
+type NotificationFrequency = "off" | "daily" | "weekly";
+
+interface NotificationCategories {
+  decisions: boolean;
+  actions: boolean;
+  conditions: boolean;
+  commitments: boolean;
+  controlTests: boolean;
+}
+
+const CATEGORY_LABELS: Record<keyof NotificationCategories, string> = {
+  decisions: "Decisions required",
+  actions: "Overdue actions",
+  conditions: "Overdue conditions",
+  commitments: "Regulatory commitments",
+  controlTests: "Controls due for testing",
+};
 
 interface WorkspaceSettingsShape {
   defaultHourlyCostGbp: number;
@@ -109,6 +129,21 @@ export default function SettingsPage() {
   const [newEmail, setNewEmail] = useState("");
   const [addingPerson, setAddingPerson] = useState(false);
 
+  const { status: accountStatus, workspaces: accountWorkspaces } = useAccount();
+  const [notifFrequency, setNotifFrequency] = useState<NotificationFrequency>("daily");
+  const [notifCategories, setNotifCategories] = useState<NotificationCategories>({
+    decisions: true,
+    actions: true,
+    conditions: true,
+    commitments: true,
+    controlTests: true,
+  });
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifError, setNotifError] = useState<string | null>(null);
+  const [notifSave, setNotifSave] = useState<SaveState>("idle");
+  const [testState, setTestState] = useState<"idle" | "sending" | "sent" | "empty" | "error">("idle");
+  const [testMessage, setTestMessage] = useState<string | null>(null);
+
   // Split by section rather than one applyFromServer that resets every
   // field: the Organisation card PATCHes on blur of each field while the
   // Operational card has its own save button, so a save in one section must
@@ -170,6 +205,97 @@ export default function SettingsPage() {
       cancelled = true;
     };
   }, [ready, workspaceId, wsFetch, applyAll]);
+
+  const isAccountMember = accountStatus === "signed-in" && !!workspaceId && accountWorkspaces.some((w) => w.id === workspaceId);
+
+  useEffect(() => {
+    if (!isAccountMember || !workspaceId) return;
+    let cancelled = false;
+    (async () => {
+      setNotifLoading(true);
+      setNotifError(null);
+      try {
+        const res = await fetch(`/api/notifications/preferences?workspaceId=${encodeURIComponent(workspaceId)}`);
+        if (!res.ok) throw new Error("failed");
+        const body = await res.json();
+        if (cancelled) return;
+        setNotifFrequency(body.frequency);
+        setNotifCategories(body.categories);
+      } catch {
+        if (!cancelled) setNotifError("Could not load notification preferences. Refresh to try again.");
+      } finally {
+        if (!cancelled) setNotifLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAccountMember, workspaceId]);
+
+  const saveNotificationPreferences = async (patch: { frequency?: NotificationFrequency; categories?: NotificationCategories }) => {
+    if (!workspaceId) return;
+    setNotifSave("saving");
+    setNotifError(null);
+    try {
+      const res = await fetch("/api/notifications/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId, ...patch }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setNotifSave("error");
+        setNotifError(typeof body?.error === "string" ? body.error : "Could not save.");
+        return;
+      }
+      setNotifFrequency(body.frequency);
+      setNotifCategories(body.categories);
+      setNotifSave("saved");
+    } catch {
+      setNotifSave("error");
+      setNotifError("Could not save. Please try again.");
+    }
+  };
+
+  const toggleCategory = (key: keyof NotificationCategories) => {
+    const next = { ...notifCategories, [key]: !notifCategories[key] };
+    setNotifCategories(next);
+    void saveNotificationPreferences({ categories: next });
+  };
+
+  const changeFrequency = (frequency: NotificationFrequency) => {
+    setNotifFrequency(frequency);
+    void saveNotificationPreferences({ frequency });
+  };
+
+  const sendTestDigest = async () => {
+    if (!workspaceId) return;
+    setTestState("sending");
+    setTestMessage(null);
+    try {
+      const res = await fetch("/api/notifications/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setTestState("error");
+        setTestMessage(typeof body?.error === "string" ? body.error : "Could not send the test digest.");
+        return;
+      }
+      if (body.sent) {
+        setTestState("sent");
+        setTestMessage(`Sent - ${body.itemCount} item${body.itemCount === 1 ? "" : "s"} in your digest.`);
+      } else {
+        setTestState("empty");
+        setTestMessage(body.message || "Nothing outstanding right now - no digest to send.");
+      }
+    } catch {
+      setTestState("error");
+      setTestMessage("Could not send the test digest. Please try again.");
+    }
+  };
 
   const saveOrganisation = async () => {
     setOrgSave("saving");
@@ -483,6 +609,87 @@ export default function SettingsPage() {
                   <SaveStatus state={opSave} />
                   {opError && <span className="text-xs text-red-500">{opError}</span>}
                 </div>
+              </SectionCard>
+
+              {/* Notifications */}
+              <SectionCard
+                icon={Bell}
+                title="Notifications"
+                description="A digest email of what needs your attention: decisions required, overdue actions and conditions, regulatory commitments due or overdue, and controls due for testing. Sent only when something is actually outstanding - never an empty 'all clear' email."
+              >
+                {accountStatus === "loading" ? (
+                  <p className="text-sm text-text-muted">Loading...</p>
+                ) : accountStatus !== "signed-in" ? (
+                  <p className="text-sm text-text-muted">
+                    Notification digests require an account.{" "}
+                    <Link href="/account/sign-up" className="text-accent hover:underline">
+                      Sign up
+                    </Link>{" "}
+                    to receive them for this workspace.
+                  </p>
+                ) : !isAccountMember ? (
+                  <p className="text-sm text-text-muted">
+                    Your account is signed in, but is not yet linked to this workspace.{" "}
+                    <Link href="/account" className="text-accent hover:underline">
+                      Claim this workspace
+                    </Link>{" "}
+                    to receive notification digests for it.
+                  </p>
+                ) : notifLoading ? (
+                  <p className="text-sm text-text-muted">Loading notification preferences...</p>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-1.5 max-w-xs">
+                      <label className="text-sm font-medium text-ink-soft">Frequency</label>
+                      <select
+                        value={notifFrequency}
+                        onChange={(e) => changeFrequency(e.target.value as NotificationFrequency)}
+                        className="px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly (Monday)</option>
+                        <option value="off">Off (unsubscribed)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-ink-soft">Include in digest</p>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {(Object.keys(CATEGORY_LABELS) as (keyof NotificationCategories)[]).map((key) => (
+                          <label
+                            key={key}
+                            className="flex items-center gap-2 text-sm text-foreground p-2 rounded-lg bg-white/[0.02] border border-white/10 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={notifCategories[key]}
+                              onChange={() => toggleCategory(key)}
+                              disabled={notifFrequency === "off"}
+                              className="accent-accent"
+                            />
+                            {CATEGORY_LABELS[key]}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Button size="sm" variant="secondary" onClick={sendTestDigest} disabled={testState === "sending"}>
+                        {testState === "sending" ? "Sending..." : "Send me a test digest now"}
+                      </Button>
+                      <SaveStatus state={notifSave} />
+                      {notifError && <span className="text-xs text-red-500">{notifError}</span>}
+                    </div>
+                    {testMessage && (
+                      <p className={`text-xs ${testState === "error" ? "text-red-500" : "text-text-muted"}`}>{testMessage}</p>
+                    )}
+                    {notifFrequency === "off" && (
+                      <p className="text-xs text-text-muted">
+                        You are currently unsubscribed from digests for this workspace. Choose Daily or Weekly above to resubscribe.
+                      </p>
+                    )}
+                  </>
+                )}
               </SectionCard>
 
               {/* People */}

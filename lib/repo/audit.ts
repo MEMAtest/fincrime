@@ -2,7 +2,7 @@ import { query, queryWithClient, type DbTransactionClient } from "@/lib/db";
 
 export interface AuditLogRow {
   id: string;
-  workspace_id: string;
+  workspace_id: string | null;
   actor: string;
   verb: string;
   subject_type: string | null;
@@ -16,10 +16,13 @@ export interface AuditLogRow {
  * Writes an audit_log row. Every mutating repo function calls this after a
  * successful write, describing who (actor) did what (verb) to which subject.
  * Pass an existing transaction client to include the audit row in the same
- * transaction as the mutation it describes.
+ * transaction as the mutation it describes. workspaceId is null for
+ * account-level mutations that are not scoped to any single workspace
+ * (signup, login, logout, session create/revoke) - see migration 010, which
+ * dropped audit_log.workspace_id's NOT NULL constraint for exactly this.
  */
 export async function writeAudit(
-  workspaceId: string,
+  workspaceId: string | null,
   actor: string,
   verb: string,
   subjectType: string | null,
