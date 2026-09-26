@@ -5,19 +5,69 @@
  * model provider.
  */
 import { callDrafterModel, isUnderCostCap, PROMPT_VERSIONS, formatCostCapMessage } from "./llm";
-import { buildJudgePrompt, buildJudgeRepairPrompt, buildJudgeJsonSchema, validateJudgeOutput, type JudgeResult } from "./judge";
+import { buildJudgePrompt, buildJudgeRepairPrompt, buildJudgeJsonSchema, validateJudgeOutput, type JudgeResult, type JudgeCriterionResult } from "./judge";
 import { combineStatus } from "./review-status";
 import { isPlaceholderOnlyText } from "./lint";
+import { applyFactBoundary } from "./fact-boundary";
+import { getAllowedInputTextsForEnhancement } from "./allowed-inputs";
 import {
   getEnhancement,
   getPra,
   getSectionById,
   updateEnhancementReview,
+  createOpenItem,
   type DrafterEnhancementRow,
 } from "@/lib/repo/drafter-pras";
 import { getStylepackVersion } from "@/lib/repo/drafter-stylepacks";
 import { writeDrafterAudit } from "@/lib/repo/drafter-audit";
 import { maybeAdvancePraStatus } from "./pra-status";
+
+/**
+ * SAFETY (fact boundary on judge rewrites): a judge's suggested_rewrite is
+ * free-text from the model and is never passed through the fact boundary at
+ * generation time (unlike the writer's control_text/rationale in
+ * draft-enhancement.ts). Left unchecked, "Apply fix" could paste an invented
+ * number, frequency, role or system name straight into the draft. This runs
+ * the SAME fact-boundary check the writer's output gets, against the SAME
+ * inputs the enhancement was drafted from (its register rows' draft inputs +
+ * obligation description + product description - never the register's
+ * Rationale column, per BUILD-DECISIONS "Fact boundary"). Unsupported
+ * numbers/frequencies in the rewrite are replaced with a bracketed
+ * placeholder; unsupported roles/systems are flagged. The rewrite shown in
+ * the panel and used by Apply fix is always this sanitised version, never
+ * the model's raw one, and `rewriteAdjusted`/`rewriteFlags` tell the panel a
+ * suggestion was adjusted so it is never silently swapped.
+ */
+async function sanitiseRewrites(
+  criteria: Record<string, JudgeCriterionResult>,
+  enhancement: DrafterEnhancementRow,
+  pra: Parameters<typeof getAllowedInputTextsForEnhancement>[1]
+): Promise<{ criteria: Record<string, JudgeCriterionResult>; openItemDescriptions: string[] }> {
+  const allowedInputTexts = await getAllowedInputTextsForEnhancement(enhancement, pra);
+  const openItemDescriptions: string[] = [];
+  const result: Record<string, JudgeCriterionResult> = {};
+  for (const [key, c] of Object.entries(criteria)) {
+    if (!c.suggestedRewrite) {
+      result[key] = c;
+      continue;
+    }
+    const boundary = applyFactBoundary(c.suggestedRewrite, allowedInputTexts);
+    const adjusted = boundary.text !== c.suggestedRewrite;
+    result[key] = {
+      ...c,
+      suggestedRewrite: boundary.text,
+      rewriteAdjusted: adjusted,
+      rewriteFlags: boundary.flags.map((f) => f.term),
+    };
+    for (const p of boundary.placeholders) {
+      openItemDescriptions.push(`Judge suggested rewrite for "${key}" invented "${p.original}" - ${p.reason} Replaced with a placeholder before it could be applied.`);
+    }
+    for (const f of boundary.flags) {
+      openItemDescriptions.push(`Judge suggested rewrite for "${key}" used "${f.term}" - ${f.reason}`);
+    }
+  }
+  return { criteria: result, openItemDescriptions };
+}
 
 export interface JudgeRunResult {
   ok: boolean;
@@ -140,12 +190,18 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
     return { ok: false, reason: validated.reason, enhancement: updated };
   }
 
+  const { criteria: sanitisedCriteria, openItemDescriptions } = await sanitiseRewrites(validated.criteria, enhancement, pra);
+
   const judgeResult: JudgeResult = {
-    criteria: validated.criteria,
+    criteria: sanitisedCriteria,
     overall: validated.overall,
     modelName: finalCall.modelName,
     promptVersion: PROMPT_VERSIONS.judge_rubric,
   };
+
+  for (const description of openItemDescriptions) {
+    await createOpenItem({ praId: pra.id, enhancementId: enhancement.id, itemType: "unsupported_term", description });
+  }
 
   const updated = await updateEnhancementReview(enhancement.id, {
     reviewResult: {

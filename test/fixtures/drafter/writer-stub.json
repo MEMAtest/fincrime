@@ -304,6 +304,51 @@
         },
         {
           "matchIncludes": [
+            "JUDGE-INVENTED-REWRITE"
+          ],
+          "response": {
+            "criteria": {
+              "mechanism_not_policy_restatement": {
+                "quote": "The reviewer screens JUDGE-INVENTED-REWRITE relationships and records the outcome.",
+                "pass": false,
+                "reason": "Frequency is missing.",
+                "suggested_rewrite": "The reviewer screens JUDGE-INVENTED-REWRITE relationships every 12 months and the MLRO records the outcome."
+              },
+              "trigger_actor_action_outcome": {
+                "quote": "The reviewer screens JUDGE-INVENTED-REWRITE relationships and records the outcome.",
+                "pass": true,
+                "reason": "Trigger/actor/action/outcome all present.",
+                "suggested_rewrite": null
+              },
+              "rationale_explains_risk": {
+                "quote": "This addresses the risk of an unreviewed relationship.",
+                "pass": true,
+                "reason": "Explains the risk clearly.",
+                "suggested_rewrite": null
+              },
+              "scope_stated": {
+                "quote": "The reviewer screens JUDGE-INVENTED-REWRITE relationships and records the outcome.",
+                "pass": true,
+                "reason": "Scope stated.",
+                "suggested_rewrite": null
+              },
+              "tone_measured": {
+                "quote": "The reviewer screens JUDGE-INVENTED-REWRITE relationships and records the outcome.",
+                "pass": true,
+                "reason": "Tone is measured.",
+                "suggested_rewrite": null
+              },
+              "correct_section": {
+                "quote": "The reviewer screens JUDGE-INVENTED-REWRITE relationships and records the outcome.",
+                "pass": true,
+                "reason": "Fits the section.",
+                "suggested_rewrite": null
+              }
+            }
+          }
+        },
+        {
+          "matchIncludes": [
             "JUDGE-MALFORMED"
           ],
           "malformed": true

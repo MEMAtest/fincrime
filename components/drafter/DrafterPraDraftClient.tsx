@@ -42,6 +42,8 @@ interface JudgeCriterionResult {
   pass: boolean;
   reason: string;
   suggestedRewrite: string | null;
+  rewriteAdjusted?: boolean;
+  rewriteFlags?: string[];
 }
 
 interface JudgeResult {
@@ -799,21 +801,44 @@ function EnhancementCard({
               <p className="text-text-muted italic">Quote: &quot;{c.quote}&quot;</p>
               <p>Reason: {c.reason}</p>
               {!c.pass && c.suggestedRewrite && (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-text-muted">Suggested: {c.suggestedRewrite}</span>
-                  <button
-                    className="px-2 py-0.5 rounded border border-border"
-                    onClick={() => applyFixToField(c.quote, c.suggestedRewrite!)}
-                  >
-                    Apply fix
-                  </button>
+                <div className="mt-1 space-y-1">
+                  {c.rewriteAdjusted && (
+                    <p className="text-amber-700">
+                      This suggestion was adjusted: the reviewer&apos;s wording included a fact not found in your inputs, so it has been replaced with a placeholder. Never fill a placeholder with a guessed fact - only with your own.
+                    </p>
+                  )}
+                  {c.rewriteFlags && c.rewriteFlags.length > 0 && (
+                    <p className="text-amber-700">
+                      Check before applying: {c.rewriteFlags.join(", ")} - not found in your inputs, verify it is not an invented role or system name.
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-text-muted">Suggested: {c.suggestedRewrite}</span>
+                    <button
+                      className="px-2 py-0.5 rounded border border-border"
+                      onClick={() => applyFixToField(c.quote, c.suggestedRewrite!)}
+                    >
+                      Apply fix
+                    </button>
+                  </div>
                 </div>
+              )}
+              {!c.pass && !c.suggestedRewrite && (
+                <p className="text-text-muted mt-1">
+                  No rewrite suggested: this needs a fact only you can supply. Fill the placeholder and save.
+                </p>
               )}
             </div>
           ))}
         </div>
       )}
-      {judge && isJudgeInvalid(judge) && <p className="text-xs text-red-600">Judge result invalid: {judge.error}</p>}
+      {judge && isJudgeInvalid(judge) && (
+        <p className="text-xs text-red-600">
+          {judge.error.includes("not found verbatim")
+            ? "The reviewer's answer could not be verified against your text. Run the review again."
+            : `Judge result invalid: ${judge.error}`}
+        </p>
+      )}
       {!judge && status !== "needs_input" && enhancement.control_text && (
         <p className="text-xs text-text-muted">Not reviewed yet. Run judge above to see criteria here.</p>
       )}

@@ -124,6 +124,27 @@ describe("judgeOneEnhancement (real DB + stub judge fixtures)", () => {
     expect(result.enhancement?.review_result?.status).not.toBe("pass");
   });
 
+  it("SAFETY: sanitises an invented number/frequency and flags an invented role in a judge's suggested_rewrite, and never applies the model's raw rewrite - neither 'every 12 months' nor 'MLRO' is in this enhancement's inputs", async () => {
+    const id = await makeEnhancement(
+      "The reviewer screens JUDGE-INVENTED-REWRITE relationships and records the outcome.",
+      "This addresses the risk of an unreviewed relationship."
+    );
+    const result = await judgeOneEnhancement(id, ACTOR);
+    expect(result.ok).toBe(true);
+    const judge = result.enhancement?.review_result?.judge as
+      | { criteria: Record<string, { suggestedRewrite: string | null; rewriteAdjusted?: boolean; rewriteFlags?: string[] }> }
+      | undefined;
+    const criterion = judge?.criteria.mechanism_not_policy_restatement;
+    expect(criterion?.suggestedRewrite).not.toContain("every 12 months");
+    expect(criterion?.suggestedRewrite).toContain("[unsupported figure - verify]");
+    expect(criterion?.rewriteAdjusted).toBe(true);
+    expect(criterion?.rewriteFlags).toContain("MLRO");
+
+    const openItems = await query<{ description: string }>(`SELECT description FROM drafter_open_items WHERE enhancement_id = $1`, [id]);
+    expect(openItems.some((i) => i.description.includes("every 12 months"))).toBe(true);
+    expect(openItems.some((i) => i.description.includes("MLRO"))).toBe(true);
+  });
+
   it("checkExportReadiness blocks on a critical or not_reviewed enhancement, and clears once every enhancement passes", async () => {
     const before = await checkExportReadiness(praId);
     expect(before.ready).toBe(false); // several enhancements above are critical/not_reviewed
@@ -136,6 +157,7 @@ describe("judgeOneEnhancement (real DB + stub judge fixtures)", () => {
       "This addresses the onboarding risk because it catches issues before exposure begins."
     );
     const otherIds = enhancementIds.filter((id) => id !== onlyGoodId);
+    await query(`DELETE FROM drafter_open_items WHERE enhancement_id = ANY($1::uuid[])`, [otherIds]);
     await query(`DELETE FROM drafter_model_calls WHERE enhancement_id = ANY($1::uuid[])`, [otherIds]);
     await query(`DELETE FROM drafter_enhancements WHERE id = ANY($1::uuid[])`, [otherIds]);
     await judgeOneEnhancement(onlyGoodId, ACTOR);

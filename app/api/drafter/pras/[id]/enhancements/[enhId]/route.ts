@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
-import { getEnhancement, getPra, saveEnhancementEdit } from "@/lib/repo/drafter-pras";
+import { getEnhancement, getPra, saveEnhancementEdit, createOpenItem } from "@/lib/repo/drafter-pras";
 import { getStylepackVersion } from "@/lib/repo/drafter-stylepacks";
 import { lintEnhancement, isPlaceholderOnlyText } from "@/lib/drafter/lint";
 import { combineStatus, type JudgeInvalid } from "@/lib/drafter/review-status";
 import type { JudgeResult } from "@/lib/drafter/judge";
 import { maybeAdvancePraStatus } from "@/lib/drafter/pra-status";
+import { flagUnsupportedEditTerms } from "@/lib/drafter/edit-fact-boundary";
 
 interface RouteContext {
   params: Promise<{ id: string; enhId: string }>;
@@ -73,6 +74,20 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   // lint immediately, marks the judge result stale, judge re-run on
   // request") - the previous judge output is kept for reference but never
   // counted as current.
+  // SAFETY: an edit that came from Apply fix pasted a judge-suggested
+  // rewrite into the box, so it is re-checked against the fact boundary on
+  // save (the same inputs the enhancement was drafted from) - never
+  // silently. A manual edit stays the user's own responsibility for its
+  // wording (BUILD-DECISIONS/SPEC.md), but it is still checked so any new
+  // unsupported term is flagged as an open item rather than disappearing.
+  // This never rewrites what the user just saved - only flags.
+  if (editType === "apply_fix") {
+    const descriptions = await flagUnsupportedEditTerms(edits, enhancement, pra, editType);
+    for (const description of descriptions) {
+      await createOpenItem({ praId: pra.id, enhancementId: enhId, itemType: "unsupported_term", description });
+    }
+  }
+
   const existingJudge = (enhancement.review_result?.judge ?? null) as JudgeResult | JudgeInvalid | null;
   const judgeStale = Boolean(existingJudge);
   const needsInput = enhancement.is_gap || isPlaceholderOnlyText(nextControlText) || !nextControlText.trim();

@@ -74,6 +74,15 @@ export interface JudgeCriterionResult {
   pass: boolean;
   reason: string;
   suggestedRewrite: string | null;
+  /**
+   * True when the fact boundary changed `suggestedRewrite` after the judge
+   * returned it (an unsupported number/frequency/duration replaced with a
+   * bracketed placeholder, per BUILD-DECISIONS "Fact boundary"). The panel
+   * must show this, never apply the raw model rewrite silently.
+   */
+  rewriteAdjusted?: boolean;
+  /** Roles/system names in the rewrite not present in the enhancement's inputs - flagged, never silently trusted or silently stripped. */
+  rewriteFlags?: string[];
 }
 
 export interface JudgeResult {
@@ -122,6 +131,8 @@ export function buildJudgePrompt(input: JudgePromptInput): BuiltJudgePrompt {
     "For EACH of the 6 criteria below, return, in this exact field order: the exact sentence you quote from the control text or rationale as your evidence (quote first), then pass/fail, then your reason, then a suggested rewrite (only when failing; null when passing).",
     "The quote MUST be copied verbatim, character-for-character, from the control text or rationale given to you - the same words, spacing and punctuation, not a paraphrase, summary or partial fragment stitched together with '...'. Whether the criterion passes or fails, quote the actual sentence that is your evidence: for a PASS, quote the sentence that satisfies the criterion; for a FAIL, quote the sentence that is the problem.",
     "Never quote something that is not in the text given to you.",
+    "A FAILING criterion must include a suggested_rewrite, UNLESS the only fix is a fact you were not given (a number, frequency, role or system name the text needs but the inputs do not supply) - in that case suggested_rewrite is null and the reason names exactly which fact is missing, so the user knows what to add.",
+    "A suggested_rewrite must never invent or fill in a number, frequency, duration, threshold, role or system name that is not already in the control text, rationale or the inputs you were given - keep any existing bracketed placeholder (e.g. \"[frequency]\") in the rewrite exactly as a placeholder rather than filling it with a guessed fact.",
     "Criteria (exactly these 6 keys, no others):",
     ...JUDGE_CRITERIA.map((c, i) => `${i + 1}. ${c.key}: ${c.description}`),
     "Style rules the enhancement should already follow:",
