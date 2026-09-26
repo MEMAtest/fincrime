@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
+import { applyFix as applyFixText, fieldForQuote } from "@/lib/drafter/apply-fix";
 
 interface Pra {
   id: string;
@@ -138,7 +139,14 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
   }, [praId]);
 
   useEffect(() => {
-    load();
+    drafterFetch<{ pra: Pra; sections: Section[]; enhancements: Enhancement[]; openItems: OpenItem[] }>(`/api/drafter/pras/${praId}`).then((r) => {
+      if (r.ok && "pra" in r.data) {
+        setPra(r.data.pra);
+        setSections(r.data.sections);
+        setEnhancements(r.data.enhancements);
+        setOpenItems(r.data.openItems);
+      }
+    });
     drafterFetch<{ grouped: CandidatesGrouped }>(`/api/drafter/pras/${praId}/candidates`).then((r) => {
       if (r.ok && "grouped" in r.data) setCandidates(r.data.grouped);
     });
@@ -505,12 +513,14 @@ function EnhancementCard({
   const judge = enhancement.review_result?.judge;
   const judgeStale = Boolean(enhancement.review_result?.judgeStale);
 
-  const applyFix = (quote: string, suggestion: string, field: "control_text" | "rationale") => {
+  const applyFixToField = (quote: string, suggestion: string) => {
+    const field = fieldForQuote(quote, controlText, rationale);
+    if (!field) return;
     const current = field === "control_text" ? controlText : rationale;
-    if (!current.includes(quote)) return;
-    const next = current.replace(quote, suggestion);
-    if (field === "control_text") setControlText(next);
-    else setRationale(next);
+    const result = applyFixText(current, quote, suggestion);
+    if (!result.applied) return;
+    if (field === "control_text") setControlText(result.text);
+    else setRationale(result.text);
   };
 
   const toggleSource = async () => {
@@ -629,7 +639,7 @@ function EnhancementCard({
                   <span className="text-text-muted">Suggested: {c.suggestedRewrite}</span>
                   <button
                     className="px-2 py-0.5 rounded border border-border"
-                    onClick={() => applyFix(c.quote, c.suggestedRewrite!, controlText.includes(c.quote) ? "control_text" : "rationale")}
+                    onClick={() => applyFixToField(c.quote, c.suggestedRewrite!)}
                   >
                     Apply fix
                   </button>

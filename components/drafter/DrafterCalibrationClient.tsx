@@ -58,7 +58,12 @@ export default function DrafterCalibrationClient() {
   };
 
   useEffect(() => {
-    load();
+    drafterFetch<{ items: CalibrationItem[] }>("/api/drafter/calibration/items").then((r) => {
+      if (r.ok && "items" in r.data) setItems(r.data.items);
+    });
+    drafterFetch<{ runs: CalibrationRun[] }>("/api/drafter/calibration/runs").then((r) => {
+      if (r.ok && "runs" in r.data) setRuns(r.data.runs);
+    });
   }, []);
 
   const addItem = async () => {

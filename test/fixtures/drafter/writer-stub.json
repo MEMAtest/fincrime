@@ -10,7 +10,9 @@
       },
       "entries": [
         {
-          "matchIncludes": ["REQ-0001-BAD-NUMBER"],
+          "matchIncludes": [
+            "REQ-0001-BAD-NUMBER"
+          ],
           "response": {
             "control_text": "The system reviews correspondent relationships every 3 months and escalates any relationship exceeding a 40% risk score to the Senior Risk Committee, which was informed via the FCRM engine and will confirm sign-off within 5 working days.",
             "rationale": "This was designed to reduce risk, and will be delivered by the FinCrime Ops Guild once resourcing is confirmed.",
@@ -18,7 +20,9 @@
           }
         },
         {
-          "matchIncludes": ["REQ-0001-BANNED-PHRASE"],
+          "matchIncludes": [
+            "REQ-0001-BANNED-PHRASE"
+          ],
           "response": {
             "control_text": "This non-negotiable check is severe and prevents contagion by requiring immediate escalation through dedicated rails before any correspondent relationship is opened, and a nominated reviewer confirms every outcome is recorded before any payment instructions are accepted from the respondent institution across the full portfolio of relationships the firm holds today.",
             "rationale": "This is a non-negotiable and severe control that prevents contagion across the firm's correspondent book.",
@@ -26,7 +30,9 @@
           }
         },
         {
-          "matchIncludes": ["REQ-0001-REQID-IN-TEXT"],
+          "matchIncludes": [
+            "REQ-0001-REQID-IN-TEXT"
+          ],
           "response": {
             "control_text": "The system screens each new correspondent relationship under REQ-0012 and Art. 19 (1) before the relationship is opened, and a nominated reviewer confirms the outcome is recorded before any payment instructions are accepted from the respondent institution, applying consistently across every jurisdiction the firm operates a correspondent banking relationship in today and going forward as the book grows.",
             "rationale": "REQ-0012 requires this check to happen before exposure begins rather than after, per Art. 19 (1), keeping the decision auditable and evidenced.",
@@ -34,15 +40,19 @@
           }
         },
         {
-          "matchIncludes": ["REQ-0001-EM-DASH"],
+          "matchIncludes": [
+            "REQ-0001-EM-DASH"
+          ],
           "response": {
-            "control_text": "The system screens each new correspondent relationship against sanctions and adverse media sources — before the relationship is opened — and a nominated reviewer confirms the outcome is recorded before any payment instructions are accepted from the respondent institution, applying consistently across the full portfolio of relationships the firm holds regardless of jurisdiction or transaction volume expected in the first year.",
-            "rationale": "A correspondent relationship extends exposure to a respondent's own customers — so screening happens before the relationship opens, not after.",
+            "control_text": "The system screens each new correspondent relationship against sanctions and adverse media sources \u2014 before the relationship is opened \u2014 and a nominated reviewer confirms the outcome is recorded before any payment instructions are accepted from the respondent institution, applying consistently across the full portfolio of relationships the firm holds regardless of jurisdiction or transaction volume expected in the first year.",
+            "rationale": "A correspondent relationship extends exposure to a respondent's own customers \u2014 so screening happens before the relationship opens, not after.",
             "placeholders": []
           }
         },
         {
-          "matchIncludes": ["REQ-0001-TOO-LONG"],
+          "matchIncludes": [
+            "REQ-0001-TOO-LONG"
+          ],
           "response": {
             "control_text": "The system screens each new correspondent relationship against the firm's sanctions and adverse media sources before the relationship is opened, and a nominated reviewer confirms the outcome is recorded before any payment instructions are accepted from the respondent, and this happens for every relationship regardless of jurisdiction, and the second line reviews every alert raised by the screening tool within one business day of it being raised, and the compliance team maintains a log of every decision taken, and that log is reviewed quarterly by the second line as part of its ongoing oversight of the correspondent banking book, and any theme identified in that review is reported to the relevant committee, and the committee considers whether the control remains adequate given the volume and nature of relationships in scope, and where it does not the committee directs a remediation plan with an owner and a target date, and that plan is tracked to completion and closed out only once evidenced, and the entire cycle repeats twice a year as a matter of course for as long as the correspondent banking product remains live and available to customers of the firm across every market it serves today and into the foreseeable future as the book continues to grow in scale and complexity over time.",
             "rationale": "This keeps the control's operation auditable end to end, from the initial screening decision through to committee oversight and remediation tracking, which matters because correspondent banking exposure compounds quickly if a weak link in the respondent's own controls is not caught early.",
@@ -50,11 +60,255 @@
           }
         },
         {
-          "matchIncludes": ["REQ-0001-MALFORMED"],
+          "matchIncludes": [
+            "REQ-0001-MALFORMED"
+          ],
           "malformed": true
         }
       ]
     }
   },
-  "judge": {}
+  "judge": {
+    "pra-judge-rubric-v1": {
+      "entries": [
+        {
+          "matchIncludes": [
+            "JUDGE-PASS"
+          ],
+          "response": {
+            "criteria": {
+              "mechanism_not_policy_restatement": {
+                "quote": "The reviewer screens JUDGE-PASS every new relationship before onboarding and records the outcome.",
+                "pass": true,
+                "reason": "Describes a real mechanism.",
+                "suggested_rewrite": null
+              },
+              "trigger_actor_action_outcome": {
+                "quote": "The reviewer screens JUDGE-PASS every new relationship before onboarding and records the outcome.",
+                "pass": true,
+                "reason": "Trigger/actor/action/outcome all present.",
+                "suggested_rewrite": null
+              },
+              "rationale_explains_risk": {
+                "quote": "This addresses the onboarding risk because it catches issues before exposure begins.",
+                "pass": true,
+                "reason": "Explains the risk clearly.",
+                "suggested_rewrite": null
+              },
+              "scope_stated": {
+                "quote": "The reviewer screens JUDGE-PASS every new relationship before onboarding and records the outcome.",
+                "pass": true,
+                "reason": "Scope stated as every new relationship.",
+                "suggested_rewrite": null
+              },
+              "tone_measured": {
+                "quote": "The reviewer screens JUDGE-PASS every new relationship before onboarding and records the outcome.",
+                "pass": true,
+                "reason": "Tone is measured.",
+                "suggested_rewrite": null
+              },
+              "correct_section": {
+                "quote": "The reviewer screens JUDGE-PASS every new relationship before onboarding and records the outcome.",
+                "pass": true,
+                "reason": "Fits the section.",
+                "suggested_rewrite": null
+              }
+            }
+          }
+        },
+        {
+          "matchIncludes": [
+            "JUDGE-MINOR"
+          ],
+          "response": {
+            "criteria": {
+              "mechanism_not_policy_restatement": {
+                "quote": "The reviewer screens JUDGE-MINOR every new relationship before onboarding and records the outcome, though the tone here is a bit dramatic.",
+                "pass": true,
+                "reason": "Describes a real mechanism.",
+                "suggested_rewrite": null
+              },
+              "trigger_actor_action_outcome": {
+                "quote": "The reviewer screens JUDGE-MINOR every new relationship before onboarding and records the outcome, though the tone here is a bit dramatic.",
+                "pass": true,
+                "reason": "Trigger/actor/action/outcome all present.",
+                "suggested_rewrite": null
+              },
+              "rationale_explains_risk": {
+                "quote": "This addresses the onboarding risk because it catches issues before exposure begins.",
+                "pass": true,
+                "reason": "Explains the risk clearly.",
+                "suggested_rewrite": null
+              },
+              "scope_stated": {
+                "quote": "The reviewer screens JUDGE-MINOR every new relationship before onboarding and records the outcome, though the tone here is a bit dramatic.",
+                "pass": true,
+                "reason": "Scope stated.",
+                "suggested_rewrite": null
+              },
+              "tone_measured": {
+                "quote": "The reviewer screens JUDGE-MINOR every new relationship before onboarding and records the outcome, though the tone here is a bit dramatic.",
+                "pass": false,
+                "reason": "Tone is a bit dramatic.",
+                "suggested_rewrite": "Remove 'dramatic' framing."
+              },
+              "correct_section": {
+                "quote": "The reviewer screens JUDGE-MINOR every new relationship before onboarding and records the outcome, though the tone here is a bit dramatic.",
+                "pass": true,
+                "reason": "Fits the section.",
+                "suggested_rewrite": null
+              }
+            }
+          }
+        },
+        {
+          "matchIncludes": [
+            "JUDGE-CRITICAL"
+          ],
+          "response": {
+            "criteria": {
+              "mechanism_not_policy_restatement": {
+                "quote": "A policy exists for JUDGE-CRITICAL relationships and nothing else is described here.",
+                "pass": false,
+                "reason": "Only restates a policy exists.",
+                "suggested_rewrite": "Describe the actual mechanism."
+              },
+              "trigger_actor_action_outcome": {
+                "quote": "A policy exists for JUDGE-CRITICAL relationships and nothing else is described here.",
+                "pass": false,
+                "reason": "No trigger/actor/action/outcome given.",
+                "suggested_rewrite": "Add who does what and when."
+              },
+              "rationale_explains_risk": {
+                "quote": "This is required because the register said so.",
+                "pass": false,
+                "reason": "Describes a register gap, not a risk.",
+                "suggested_rewrite": "Explain the underlying risk."
+              },
+              "scope_stated": {
+                "quote": "A policy exists for JUDGE-CRITICAL relationships and nothing else is described here.",
+                "pass": false,
+                "reason": "No scope given.",
+                "suggested_rewrite": "State who this applies to."
+              },
+              "tone_measured": {
+                "quote": "A policy exists for JUDGE-CRITICAL relationships and nothing else is described here.",
+                "pass": true,
+                "reason": "Tone is fine.",
+                "suggested_rewrite": null
+              },
+              "correct_section": {
+                "quote": "A policy exists for JUDGE-CRITICAL relationships and nothing else is described here.",
+                "pass": true,
+                "reason": "Fits the section.",
+                "suggested_rewrite": null
+              }
+            }
+          }
+        },
+        {
+          "matchIncludes": [
+            "JUDGE-QUOTE-NOT-FOUND"
+          ],
+          "response": {
+            "criteria": {
+              "mechanism_not_policy_restatement": {
+                "quote": "This exact sentence is not in the text.",
+                "pass": true,
+                "reason": "bad quote",
+                "suggested_rewrite": null
+              },
+              "trigger_actor_action_outcome": {
+                "quote": "JUDGE-QUOTE-NOT-FOUND control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "rationale_explains_risk": {
+                "quote": "JUDGE-QUOTE-NOT-FOUND control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "scope_stated": {
+                "quote": "JUDGE-QUOTE-NOT-FOUND control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "tone_measured": {
+                "quote": "JUDGE-QUOTE-NOT-FOUND control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "correct_section": {
+                "quote": "JUDGE-QUOTE-NOT-FOUND control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              }
+            }
+          }
+        },
+        {
+          "matchIncludes": [
+            "JUDGE-UNKNOWN-CRITERION"
+          ],
+          "response": {
+            "criteria": {
+              "mechanism_not_policy_restatement": {
+                "quote": "JUDGE-UNKNOWN-CRITERION control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "trigger_actor_action_outcome": {
+                "quote": "JUDGE-UNKNOWN-CRITERION control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "rationale_explains_risk": {
+                "quote": "JUDGE-UNKNOWN-CRITERION control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "scope_stated": {
+                "quote": "JUDGE-UNKNOWN-CRITERION control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "tone_measured": {
+                "quote": "JUDGE-UNKNOWN-CRITERION control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "correct_section": {
+                "quote": "JUDGE-UNKNOWN-CRITERION control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              },
+              "extra_bogus_criterion": {
+                "quote": "JUDGE-UNKNOWN-CRITERION control text",
+                "pass": true,
+                "reason": "ok",
+                "suggested_rewrite": null
+              }
+            }
+          }
+        },
+        {
+          "matchIncludes": [
+            "JUDGE-MALFORMED"
+          ],
+          "malformed": true
+        }
+      ]
+    }
+  }
 }
