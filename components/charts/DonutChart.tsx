@@ -48,9 +48,11 @@ export default function DonutChart({
               strokeWidth={thickness}
               strokeLinecap="butt"
               strokeDashoffset={-s.offset}
-              initial={reduce ? { strokeDasharray: `${s.dash} ${circ - s.dash}` } : { strokeDasharray: `0 ${circ}` }}
+              // The server can't know the user's motion preference, so the initial state must not depend on
+              // it (that caused a hydration mismatch for reduced-motion users); skip the animation instead.
+              initial={{ strokeDasharray: `0 ${circ}` }}
               animate={{ strokeDasharray: `${s.dash} ${circ - s.dash}` }}
-              transition={{ duration: 0.6, delay: i * 0.1, ease: "easeOut" }}
+              transition={reduce ? { duration: 0 } : { duration: 0.6, delay: i * 0.1, ease: "easeOut" }}
             />
           ))}
         </g>
