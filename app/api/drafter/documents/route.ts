@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireDrafterActorApi } from "@/lib/drafter/access";
-import { createDrafterDocument, listDrafterDocuments, sha256Hex } from "@/lib/repo/drafter-documents";
-import { isBlobConfigured, uploadDrafterDocument } from "@/lib/storage/blob";
+import { createDrafterDocument, listDrafterDocuments, sha256Hex, type DrafterDocumentRow } from "@/lib/repo/drafter-documents";
+import { isBlobConfigured, uploadDrafterDocument, getDrafterDocumentStream } from "@/lib/storage/blob";
 import { parseMarkdown } from "@/lib/drafter/parsers/markdown";
 import { parseHtml } from "@/lib/drafter/parsers/html";
 import { parseDocx } from "@/lib/drafter/parsers/docx";
@@ -13,8 +13,12 @@ import type { ParsedDocument } from "@/lib/drafter/blocks";
  * 4MB cap, same rationale as the evidence upload cap (commit cf2e9ab): stays
  * under Vercel's serverless request body limit so a too-large file gets our
  * 400 message rather than an opaque platform 413. A register or PRA bigger
- * than this would need the client-direct Blob upload flow - not built in
- * this pass (see docs/pra-drafter/HANDOFF-2.md "not built").
+ * than this uses the client-direct Blob upload flow instead (Scope B #11):
+ * the browser calls POST /api/drafter/documents/upload-token to get a
+ * scoped token, uploads straight to Blob via @vercel/blob/client's
+ * `upload()`, then finalises here with {directUpload: true, blobUrl,
+ * pathname, filename} - this route fetches the already-uploaded bytes back
+ * (they never touch this app's request body) to parse and hash them.
  */
 const MAX_FILE_SIZE_BYTES = 4 * 1024 * 1024;
 
@@ -39,42 +43,19 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ documents });
 }
 
-/**
- * POST /api/drafter/documents - multipart/form-data with a `file` field.
- * Stores the original unchanged (private blob, or fallback_bytes locally
- * when no blob token is configured), computes a sha256, parses into the
- * internal block structure, and suggests a document type for the user to
- * confirm via PATCH /api/drafter/documents/[id].
- */
-export async function POST(request: NextRequest) {
-  const gate = await requireDrafterActorApi(request);
-  if ("response" in gate) return gate.response;
-  const { actor } = gate;
+interface FinalizedDocument {
+  document: DrafterDocumentRow;
+  detection: { suggestedType: string; reasons: string[]; registerRejectedReason?: string; blobConfigured: boolean };
+}
 
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json({ error: "Expected multipart/form-data with a 'file' field" }, { status: 400 });
-  }
-
-  const file = formData.get("file");
-  if (!(file instanceof File)) return NextResponse.json({ error: "Missing file field" }, { status: 400 });
-  if (file.size === 0) return NextResponse.json({ error: "File is empty" }, { status: 400 });
-  if (file.size > MAX_FILE_SIZE_BYTES) {
-    return NextResponse.json(
-      { error: `File is too large: ${Math.round(file.size / 1024 / 1024)}MB exceeds the 4MB limit for this deployment.` },
-      { status: 400 }
-    );
-  }
-
-  const ext = extensionOf(file.name || "");
-  const format = FORMAT_BY_EXT[ext];
-  if (!format) {
-    return NextResponse.json({ error: `Unsupported file extension ".${ext}". Allowed: .md, .html, .docx, .xlsx` }, { status: 400 });
-  }
-
-  const bytes = Buffer.from(await file.arrayBuffer());
+/** Parses bytes into the internal block structure, detects a doc type, uploads/stores, and creates the drafter_documents row. Shared by the multipart path and the client-direct-upload finalize path. */
+async function finalizeDocument(
+  bytes: Buffer,
+  filename: string,
+  format: "docx" | "md" | "html" | "xlsx",
+  actor: string,
+  already: { blobUrl: string; blobPathname: string } | null
+): Promise<FinalizedDocument> {
   const contentHash = sha256Hex(bytes);
 
   let parsedContent: ParsedDocument | null = null;
@@ -112,37 +93,109 @@ export async function POST(request: NextRequest) {
     parseError = error instanceof Error ? error.message : "Failed to parse the uploaded file";
   }
 
-  let blobUrl: string | null = null;
-  let blobPathname: string | null = null;
+  let blobUrl: string | null = already?.blobUrl ?? null;
+  let blobPathname: string | null = already?.blobPathname ?? null;
   let fallbackBytes: Buffer | null = null;
 
-  // A document row is created first (to get an id for the blob pathname is
-  // nicer, but we don't have one yet) - upload by content hash instead, then
-  // insert the row referencing the resulting blob/fallback.
-  if (isBlobConfigured()) {
-    const uploaded = await uploadDrafterDocument(contentHash, file.name, bytes, file.type || "application/octet-stream");
-    blobUrl = uploaded.url;
-    blobPathname = uploaded.pathname;
-  } else {
-    fallbackBytes = bytes;
+  if (!already) {
+    if (isBlobConfigured()) {
+      const uploaded = await uploadDrafterDocument(contentHash, filename, bytes, "application/octet-stream");
+      blobUrl = uploaded.url;
+      blobPathname = uploaded.pathname;
+    } else {
+      fallbackBytes = bytes;
+    }
   }
 
   const document = await createDrafterDocument({
     docType: suggestedType,
-    filename: file.name,
+    filename,
     format,
     contentHash,
     blobUrl,
     blobPathname,
     fallbackBytes,
-    sizeBytes: file.size,
+    sizeBytes: bytes.length,
     parsedContent,
     parseError,
-    actor: actor.email,
+    actor,
   });
 
-  return NextResponse.json({
-    document,
-    detection: { suggestedType, reasons: detectionReasons, registerRejectedReason, blobConfigured: isBlobConfigured() },
-  });
+  return { document, detection: { suggestedType, reasons: detectionReasons, registerRejectedReason, blobConfigured: isBlobConfigured() } };
+}
+
+/**
+ * POST /api/drafter/documents - EITHER multipart/form-data with a `file`
+ * field (files up to MAX_FILE_SIZE_BYTES), OR application/json
+ * {directUpload: true, blobUrl, pathname, filename} to finalise a file
+ * already uploaded client-direct to Blob via
+ * POST /api/drafter/documents/upload-token (Scope B #11 - larger files).
+ * Either way: stores the original unchanged (private blob, or
+ * fallback_bytes locally when no blob token is configured), computes a
+ * sha256, parses into the internal block structure, and suggests a
+ * document type for the user to confirm via PATCH
+ * /api/drafter/documents/[id].
+ */
+export async function POST(request: NextRequest) {
+  const gate = await requireDrafterActorApi(request);
+  if ("response" in gate) return gate.response;
+  const { actor } = gate;
+
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    const body = await request.json().catch(() => null);
+    if (!body?.directUpload || typeof body.blobUrl !== "string" || typeof body.pathname !== "string" || typeof body.filename !== "string") {
+      return NextResponse.json({ error: "Expected {directUpload: true, blobUrl, pathname, filename}" }, { status: 400 });
+    }
+    const ext = extensionOf(body.filename);
+    const format = FORMAT_BY_EXT[ext];
+    if (!format) {
+      return NextResponse.json({ error: `Unsupported file extension ".${ext}". Allowed: .md, .html, .docx, .xlsx` }, { status: 400 });
+    }
+    const streamed = await getDrafterDocumentStream(body.blobUrl);
+    if (!streamed) return NextResponse.json({ error: "Could not read the uploaded blob back - was the upload token used before it expired?" }, { status: 400 });
+    const chunks: Uint8Array[] = [];
+    const reader = streamed.stream.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) chunks.push(value);
+    }
+    const bytes = Buffer.concat(chunks);
+    if (bytes.length === 0) return NextResponse.json({ error: "Uploaded file is empty" }, { status: 400 });
+
+    const result = await finalizeDocument(bytes, body.filename, format, actor.email, { blobUrl: body.blobUrl, blobPathname: body.pathname });
+    return NextResponse.json(result);
+  }
+
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "Expected multipart/form-data with a 'file' field" }, { status: 400 });
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File)) return NextResponse.json({ error: "Missing file field" }, { status: 400 });
+  if (file.size === 0) return NextResponse.json({ error: "File is empty" }, { status: 400 });
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    return NextResponse.json(
+      {
+        error: `File is too large: ${Math.round(file.size / 1024 / 1024)}MB exceeds the ${MAX_FILE_SIZE_BYTES / 1024 / 1024}MB limit for a direct upload.`,
+        useDirectUpload: true,
+      },
+      { status: 400 }
+    );
+  }
+
+  const ext = extensionOf(file.name || "");
+  const format = FORMAT_BY_EXT[ext];
+  if (!format) {
+    return NextResponse.json({ error: `Unsupported file extension ".${ext}". Allowed: .md, .html, .docx, .xlsx` }, { status: 400 });
+  }
+
+  const bytes = Buffer.from(await file.arrayBuffer());
+  const result = await finalizeDocument(bytes, file.name, format, actor.email, null);
+  return NextResponse.json(result);
 }

@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
+
+/** Same 4MB cap the server enforces on a direct multipart upload (app/api/drafter/documents/route.ts) - above this, upload client-direct to Blob instead (Scope B #11). */
+const DIRECT_UPLOAD_THRESHOLD_BYTES = 4 * 1024 * 1024;
 
 interface DocBlock {
   type: string;
@@ -62,22 +66,51 @@ export default function DrafterDocumentsClient() {
     if (!file) return;
     setUploading(true);
     setMessage(null);
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/drafter/documents", { method: "POST", credentials: "include", body: formData });
-    const data = await res.json();
-    setUploading(false);
-    if (!res.ok) {
-      setMessage(data.error || "Upload failed");
-      return;
+
+    try {
+      let res: Response;
+      if (file.size > DIRECT_UPLOAD_THRESHOLD_BYTES) {
+        // Client-direct upload to private Blob (Scope B #11): bytes never
+        // pass through this app's serverless function body, so there is no
+        // 4MB ceiling here. onBeforeGenerateToken in the upload-token route
+        // still gates this on the same drafter access check.
+        const blob = await upload(file.name, file, {
+          // `access` is required by this SDK's TypeScript type for the
+          // handleUploadUrl flow, but the actual access level is decided
+          // server-side by onBeforeGenerateToken (which always returns
+          // "private" - see app/api/drafter/documents/upload-token) and
+          // embedded in the signed token; this value is not sent or used.
+          access: "public",
+          handleUploadUrl: "/api/drafter/documents/upload-token",
+        });
+        res = await fetch("/api/drafter/documents", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ directUpload: true, blobUrl: blob.url, pathname: blob.pathname, filename: file.name }),
+        });
+      } else {
+        const formData = new FormData();
+        formData.append("file", file);
+        res = await fetch("/api/drafter/documents", { method: "POST", credentials: "include", body: formData });
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Upload failed");
+        return;
+      }
+      setMessage(
+        `Uploaded. Suggested type: ${data.detection.suggestedType}${
+          data.detection.registerRejectedReason ? ` (${data.detection.registerRejectedReason})` : ""
+        }${data.detection.blobConfigured ? "" : " - stored locally (no blob token configured in this deployment)."}`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      await reload();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setUploading(false);
     }
-    setMessage(
-      `Uploaded. Suggested type: ${data.detection.suggestedType}${
-        data.detection.registerRejectedReason ? ` (${data.detection.registerRejectedReason})` : ""
-      }${data.detection.blobConfigured ? "" : " - stored locally (no blob token configured in this deployment)."}`
-    );
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    await reload();
   }
 
   async function confirmType(id: string, docType: string) {
