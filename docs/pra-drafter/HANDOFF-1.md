@@ -95,7 +95,7 @@ The host is **OpenRouter**. `lib/drafter/llm.ts` was updated accordingly:
   hardcoded as a literal default in code, so a deploy always states
   explicitly which host it talks to).
 - Default models when `PRA_WRITER_MODEL`/`PRA_JUDGE_MODEL` are unset:
-  writer `openai/gpt-5.6-luna`, judge `google/gemini-3.8-flash` (different
+  writer `openai/gpt-5.6-luna`, judge `minimax/minimax-m3` (different
   family, per BUILD-DECISIONS).
 - Every request body now includes
   `provider: { data_collection: "deny", zdr: true }` alongside
@@ -106,7 +106,7 @@ The host is **OpenRouter**. `lib/drafter/llm.ts` was updated accordingly:
 - Pricing setting renamed to `model_prices_per_million_tokens_usd_cents`
   (migration 013's seed + local DB both updated), shape
   `{ writer: {model, in, out}, judge: {model, in, out} }`, seeded with
-  luna $0.20 in / $1.20 out and gemini-3.8-flash $0.75 / $3.75 per 1M
+  luna $0.20 in / $1.20 out and minimax-m3 $0.30 / $1.20 per 1M
   tokens. `drafter_model_calls.cost_estimate_pence` is USD-cent-equivalent
   now, not GBP pence - the column name predates this decision and was kept
   to avoid a second migration; treat it as "smallest unit of whatever

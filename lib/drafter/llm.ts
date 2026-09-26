@@ -31,7 +31,7 @@ interface RoleConfig {
 // deploy always states explicitly which host it talks to.
 const DEFAULT_MODELS: Record<"writer" | "judge", string> = {
   writer: "openai/gpt-5.6-luna",
-  judge: "google/gemini-3.8-flash",
+  judge: "minimax/minimax-m3",
 };
 
 function envRoleConfig(role: "writer" | "judge"): RoleConfig | null {

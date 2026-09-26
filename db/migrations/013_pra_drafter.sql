@@ -388,7 +388,7 @@ INSERT INTO drafter_settings (key, value, updated_by) VALUES
   ('cost_cap_pence_per_pra', '2000', 'system'),
   ('model_prices_per_million_tokens_usd_cents', '{
     "writer": {"model": "openai/gpt-5.6-luna", "in": 20, "out": 120},
-    "judge": {"model": "google/gemini-3.8-flash", "in": 75, "out": 375}
+    "judge": {"model": "minimax/minimax-m3", "in": 30, "out": 120}
   }', 'system'),
   ('judge_agreement_threshold_pct', '80', 'system'),
   ('control_text_word_limits', '{"min": 60, "max": 150}', 'system')
