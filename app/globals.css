@@ -390,7 +390,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 /* ---------------- nav (sticky floating pill, site-wide) ---------------- */
 .nav-shell { position: relative; z-index: 100; display: flex; justify-content: center; padding: 16px 16px 0; pointer-events: none; }
 .nav {
-  pointer-events: auto; width: 100%; max-width: 1100px;
+  pointer-events: auto; width: 100%; max-width: 1320px;
   display: flex; align-items: center; gap: 18px;
   padding: 10px 12px 10px 16px; border-radius: 14px;
   background: var(--glass); border: 1px solid var(--line-2);
@@ -405,7 +405,11 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 .brand-text { display: flex; flex-direction: column; line-height: 1.12; }
 .brand-text b { font-family: var(--font-display); font-size: 15px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; }
 .brand-text span { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
-.nav-links { display: flex; align-items: center; gap: 2px; }
+/* The link row may shrink (and scroll inside the pill) rather than push the search/CTA out of it. */
+.nav-links { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%); }
+.nav-links::-webkit-scrollbar { display: none; }
 .nav-links a { color: var(--ink-soft); text-decoration: none; font-size: 13.5px; font-weight: 500; padding: 8px 11px; border-radius: 8px; white-space: nowrap; transition: background .15s, color .15s; }
 .nav-links a:hover { background: var(--surface-2); color: var(--accent-bright); }
 :root[data-theme="light"] .nav-links a:hover { color: var(--accent); }
@@ -418,6 +422,18 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 .theme-toggle:hover { border-color: var(--line-bright); color: var(--accent-bright); }
 .theme-toggle svg { width: 16px; height: 16px; }
 @media (max-width: 1100px) { .nav-links { display: none; } }
+/* Search: icon on phones, full field on tablets (links hidden, room to spare), icon again once the link row shows. */
+.nav-cta .nav-search-full { display: none; }
+@media (min-width: 640px) and (max-width: 1100px) {
+  .nav-cta .nav-search-compact { display: none; }
+  .nav-cta .nav-search-full { display: inline-flex; }
+}
+/* While the link row is showing, drop the brand tagline until the pill is wide enough for it. */
+@media (min-width: 1101px) and (max-width: 1351px) {
+  .nav { gap: 14px; }
+  .brand-text span { display: none; }
+  .nav-links a { padding-left: 9px; padding-right: 9px; }
+}
 @media (min-width: 1101px) { .nav-hamburger { display: none; } }
 /* Header must fit narrow phones. Placed AFTER the base .nav/.brand rules so it
    wins the cascade: drop the nowrap brand tagline, tighten the pill, and let the

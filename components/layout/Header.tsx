@@ -52,8 +52,9 @@ export default function Header() {
         </div>
 
         <div className="nav-cta">
-          <SearchTrigger compact className="sm:hidden" />
-          <SearchTrigger className="hidden sm:inline-flex" />
+          {/* Which one shows is decided in globals.css alongside the other nav breakpoints. */}
+          <SearchTrigger compact className="nav-search-compact" />
+          <SearchTrigger className="nav-search-full" />
           <Link className="btn btn-primary btn-sm hidden min-[1101px]:inline-flex" href="/start">
             Start free
           </Link>
