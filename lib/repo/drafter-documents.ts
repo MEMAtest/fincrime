@@ -112,3 +112,43 @@ export async function getDrafterDocumentBytesSource(
   if (!row) return null;
   return { blobUrl: row.blob_url, fallbackBytes: row.fallback_bytes, filename: row.filename };
 }
+
+/**
+ * Deletes a document row and, if it has a blob, the blob itself
+ * (best-effort - see lib/storage/blob.ts's deleteEvidenceFileBestEffort).
+ * Prod walkthrough item 5. Never deletes a register import's own
+ * drafter_register_imports row - that has its own delete path
+ * (lib/repo/drafter-register.ts deleteRegisterImport) with its own
+ * referenced-by-a-PRA guard, since a register import is built from a
+ * document but outlives it in the data model.
+ */
+export async function deleteDrafterDocument(
+  id: string,
+  actor: string
+): Promise<{ deleted: boolean; blobUrl: string | null; blockedReason?: string }> {
+  const doc = await getDrafterDocument(id);
+  if (!doc) return { deleted: false, blobUrl: null };
+
+  const [imports, templates, exemplars, styleBriefs] = await Promise.all([
+    query<{ count: string }>(`SELECT count(*) FROM drafter_register_imports WHERE document_id = $1`, [id]),
+    query<{ count: string }>(`SELECT count(*) FROM drafter_templates WHERE source_document_id = $1`, [id]),
+    query<{ count: string }>(`SELECT count(*) FROM drafter_exemplars WHERE source_document_id = $1`, [id]),
+    query<{ count: string }>(`SELECT count(*) FROM drafter_stylepack_versions WHERE style_brief_document_id = $1`, [id]),
+  ]);
+  const referencedBy: string[] = [];
+  if (Number(imports[0].count) > 0) referencedBy.push("a register import");
+  if (Number(templates[0].count) > 0) referencedBy.push("a template");
+  if (Number(exemplars[0].count) > 0) referencedBy.push("an exemplar");
+  if (Number(styleBriefs[0].count) > 0) referencedBy.push("a StylePack's style brief");
+  if (referencedBy.length > 0) {
+    return {
+      deleted: false,
+      blobUrl: null,
+      blockedReason: `This document is used by ${referencedBy.join(", ")} and cannot be deleted. Delete that first, or leave the document in place.`,
+    };
+  }
+
+  await query(`DELETE FROM drafter_documents WHERE id = $1`, [id]);
+  await writeDrafterAudit(actor, "document.delete", "drafter_document", id, { filename: doc.filename });
+  return { deleted: true, blobUrl: doc.blob_url };
+}

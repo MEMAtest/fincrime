@@ -6,6 +6,7 @@ import ToolFrame from "@/components/layout/ToolFrame";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
+import ConfirmDialog from "./ConfirmDialog";
 
 /** Same 4MB cap the server enforces on a direct multipart upload (app/api/drafter/documents/route.ts) - above this, upload client-direct to Blob instead (Scope B #11). */
 const DIRECT_UPLOAD_THRESHOLD_BYTES = 4 * 1024 * 1024;
@@ -47,6 +48,9 @@ export default function DrafterDocumentsClient() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DocumentRow | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const res = await drafterFetch<{ documents: DocumentRow[] }>("/api/drafter/documents");
@@ -137,6 +141,20 @@ export default function DrafterDocumentsClient() {
     await reload();
   }
 
+  async function deleteDocument() {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    const res = await drafterFetch(`/api/drafter/documents/${deleteTarget.id}`, { method: "DELETE" });
+    setDeleteBusy(false);
+    if (!res.ok) {
+      setDeleteError("error" in res.data ? res.data.error ?? "Could not delete this document." : "Could not delete this document.");
+      return;
+    }
+    setDeleteTarget(null);
+    await reload();
+  }
+
   return (
     <ToolFrame breadcrumb={[{ label: "Home", href: "/" }, { label: "PRA Drafter", href: "/drafter" }, { label: "Documents" }]}>
       <main className="flex-1">
@@ -194,18 +212,37 @@ export default function DrafterDocumentsClient() {
                     </p>
                   )}
 
-                  {!doc.confirmed_doc_type && (
-                    <div className="flex flex-wrap gap-2">
-                      {DOC_TYPES.filter((t) => t.value !== "register" || doc.format === "xlsx").map((t) => (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!doc.confirmed_doc_type &&
+                      DOC_TYPES.filter((t) => t.value !== "register" || doc.format === "xlsx").map((t) => (
                         <Button key={t.value} variant="secondary" size="sm" onClick={() => confirmType(doc.id, t.value)}>
                           Confirm: {t.label}
                         </Button>
                       ))}
-                    </div>
-                  )}
+                    <button
+                      className="text-xs px-3 py-1.5 rounded border border-red-300 text-red-700"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget(doc);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
+          )}
+
+          {deleteTarget && (
+            <ConfirmDialog
+              title="Delete this document?"
+              description={`"${deleteTarget.filename}" and its stored file will be permanently removed. This cannot be undone.`}
+              busy={deleteBusy}
+              error={deleteError}
+              onConfirm={deleteDocument}
+              onCancel={() => setDeleteTarget(null)}
+            />
           )}
         </div>
       </main>

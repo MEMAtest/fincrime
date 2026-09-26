@@ -209,3 +209,51 @@ export async function getRegisterImport(id: string): Promise<RegisterImportRow |
   const rows = await query<RegisterImportRow>(`SELECT * FROM drafter_register_imports WHERE id = $1`, [id]);
   return rows[0] ?? null;
 }
+
+/**
+ * Deletes a register import and all its versions/rows/mappings/overrides -
+ * prod walkthrough item 5. Blocked if any of its versions is referenced by
+ * a PRA (drafter_pras.register_version_id) - deleting the register out from
+ * under a PRA would silently orphan it, so this explains why instead.
+ */
+export async function deleteRegisterImport(
+  importId: string,
+  actor: string
+): Promise<{ deleted: boolean; blockedReason?: string }> {
+  const registerImport = await getRegisterImport(importId);
+  if (!registerImport) return { deleted: false };
+
+  const versions = await listRegisterVersions(importId);
+  const versionIds = versions.map((v) => v.id);
+  if (versionIds.length > 0) {
+    const referencing = await query<{ id: string; product: string }>(
+      `SELECT id, product FROM drafter_pras WHERE register_version_id = ANY($1::uuid[])`,
+      [versionIds]
+    );
+    if (referencing.length > 0) {
+      return {
+        deleted: false,
+        blockedReason: `This register import is used by ${referencing.length} PRA(s) (${referencing
+          .map((r) => r.product)
+          .join(", ")}) and cannot be deleted. Delete those PRA(s) first, or leave the register in place.`,
+      };
+    }
+  }
+
+  await withTransaction(async (client) => {
+    for (const versionId of versionIds) {
+      await queryWithClient(
+        client,
+        `DELETE FROM drafter_validation_overrides WHERE register_row_id IN (SELECT id FROM drafter_register_rows WHERE register_version_id = $1)`,
+        [versionId]
+      );
+      await queryWithClient(client, `DELETE FROM drafter_register_rows WHERE register_version_id = $1`, [versionId]);
+    }
+    await queryWithClient(client, `DELETE FROM drafter_register_versions WHERE register_import_id = $1`, [importId]);
+    await queryWithClient(client, `DELETE FROM drafter_column_mappings WHERE register_import_id = $1`, [importId]);
+    await queryWithClient(client, `DELETE FROM drafter_register_imports WHERE id = $1`, [importId]);
+  });
+
+  await writeDrafterAudit(actor, "register.import.delete", "drafter_register_import", importId, {});
+  return { deleted: true };
+}

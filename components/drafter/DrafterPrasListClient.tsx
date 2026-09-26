@@ -5,6 +5,7 @@ import Link from "next/link";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface PraSummary {
   id: string;
@@ -49,11 +50,18 @@ export default function DrafterPrasListClient() {
   const [stylepackVersionId, setStylepackVersionId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PraSummary | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const reloadPras = () => {
     drafterFetch<{ pras: PraSummary[] }>("/api/drafter/pras").then((r) => {
       if (r.ok && "pras" in r.data) setPras(r.data.pras);
     });
+  };
+
+  useEffect(() => {
+    reloadPras();
     drafterFetch<{ templates: TemplateWithVersions[] }>("/api/drafter/templates").then((r) => {
       if (r.ok && "templates" in r.data) setTemplates(r.data.templates);
     });
@@ -110,6 +118,20 @@ export default function DrafterPrasListClient() {
       return;
     }
     window.location.href = `/drafter/pras/${r.data.pra.id}`;
+  };
+
+  const deletePra = async () => {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    const r = await drafterFetch(`/api/drafter/pras/${deleteTarget.id}`, { method: "DELETE" });
+    setDeleteBusy(false);
+    if (!r.ok) {
+      setDeleteError("error" in r.data ? r.data.error ?? "Could not delete this PRA." : "Could not delete this PRA.");
+      return;
+    }
+    setDeleteTarget(null);
+    reloadPras();
   };
 
   return (
@@ -196,17 +218,37 @@ export default function DrafterPrasListClient() {
             ) : (
               <ul className="space-y-2">
                 {pras.map((p) => (
-                  <li key={p.id}>
-                    <Link href={`/drafter/pras/${p.id}`} className="flex items-center justify-between text-sm hover:text-accent">
-                      <span>{p.product}</span>
+                  <li key={p.id} className="flex items-center justify-between text-sm gap-3">
+                    <Link href={`/drafter/pras/${p.id}`} className="flex items-center gap-3 min-w-0 flex-1 hover:text-accent">
+                      <span className="truncate">{p.product}</span>
                       <Badge variant={p.status === "exported" ? "success" : "default"}>{p.status}</Badge>
                     </Link>
+                    <button
+                      className="text-xs px-3 py-1 rounded border border-red-300 text-red-700 shrink-0"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget(p);
+                      }}
+                    >
+                      Delete
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
           </div>
         </div>
+
+        {deleteTarget && (
+          <ConfirmDialog
+            title="Delete this PRA?"
+            description={`"${deleteTarget.product}" and all its sections, enhancements, edit history and open items will be permanently removed. This cannot be undone.`}
+            busy={deleteBusy}
+            error={deleteError}
+            onConfirm={deletePra}
+            onCancel={() => setDeleteTarget(null)}
+          />
+        )}
       </main>
     </ToolFrame>
   );

@@ -463,3 +463,34 @@ export async function getControlSourceFields(controlId: string): Promise<Evidenc
   }
   return out as EvidenceSourceRegisterFields;
 }
+
+/**
+ * Deletes a PRA and everything scoped to it (sections, enhancements, edit
+ * history, open items, model call log, calibration link, export log) -
+ * prod walkthrough item 5. No table here has ON DELETE CASCADE (see
+ * db/migrations/013_pra_drafter.sql), so this deletes child rows in FK
+ * order inside one transaction. Returns false (no-op) if the PRA does not
+ * exist, so the caller can 404.
+ */
+export async function deletePra(praId: string, actor: string): Promise<boolean> {
+  const pra = await getPra(praId);
+  if (!pra) return false;
+
+  await withTransaction(async (client) => {
+    await queryWithClient(
+      client,
+      `DELETE FROM drafter_enhancement_edits WHERE enhancement_id IN (SELECT id FROM drafter_enhancements WHERE pra_id = $1)`,
+      [praId]
+    );
+    await queryWithClient(client, `DELETE FROM drafter_model_calls WHERE pra_id = $1`, [praId]);
+    await queryWithClient(client, `DELETE FROM drafter_export_log WHERE pra_id = $1`, [praId]);
+    await queryWithClient(client, `DELETE FROM drafter_open_items WHERE pra_id = $1`, [praId]);
+    await queryWithClient(client, `DELETE FROM drafter_enhancements WHERE pra_id = $1`, [praId]);
+    await queryWithClient(client, `DELETE FROM drafter_sections WHERE pra_id = $1`, [praId]);
+    await queryWithClient(client, `UPDATE drafter_exemplars SET source_pra_id = NULL WHERE source_pra_id = $1`, [praId]);
+    await queryWithClient(client, `DELETE FROM drafter_pras WHERE id = $1`, [praId]);
+  });
+
+  await writeDrafterAudit(actor, "pra.delete", "drafter_pra", praId, { product: pra.product });
+  return true;
+}

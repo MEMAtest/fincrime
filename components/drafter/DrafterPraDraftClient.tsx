@@ -8,6 +8,8 @@ import { drafterFetch } from "./drafterFetch";
 import { applyFix as applyFixText, fieldForQuote } from "@/lib/drafter/apply-fix";
 import { STATUS_LABELS } from "@/lib/drafter/review-status";
 import ModelStatusBanner from "./ModelStatusBanner";
+import ConfirmDialog from "./ConfirmDialog";
+import { useRouter } from "next/navigation";
 
 interface Pra {
   id: string;
@@ -125,7 +127,11 @@ function isJudgeInvalid(judge: JudgeResult | JudgeInvalid | null | undefined): j
 }
 
 export default function DrafterPraDraftClient({ praId }: { praId: string }) {
+  const router = useRouter();
   const [pra, setPra] = useState<Pra | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [enhancements, setEnhancements] = useState<Enhancement[]>([]);
   const [openItems, setOpenItems] = useState<OpenItem[]>([]);
@@ -326,6 +332,18 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
     await load();
   };
 
+  const deletePraNow = async () => {
+    setDeleteBusy(true);
+    setDeleteError(null);
+    const res = await drafterFetch(`/api/drafter/pras/${praId}`, { method: "DELETE" });
+    setDeleteBusy(false);
+    if (!res.ok) {
+      setDeleteError("error" in res.data ? res.data.error ?? "Could not delete this PRA." : "Could not delete this PRA.");
+      return;
+    }
+    router.push("/drafter/pras");
+  };
+
   if (!pra) {
     return (
       <ToolFrame breadcrumb={[{ label: "Home", href: "/drafter" }, { label: "PRA Drafter", href: "/drafter" }, { label: "Loading..." }]}>
@@ -345,8 +363,24 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
               <h1 className="text-2xl font-bold text-foreground">{pra.product}</h1>
               <p className="text-sm text-text-muted">{pra.description}</p>
             </div>
-            <Badge>{pra.status.replace(/_/g, " ")}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge>{pra.status.replace(/_/g, " ")}</Badge>
+              <button className="text-xs px-3 py-1.5 rounded border border-red-300 text-red-700" onClick={() => setShowDeleteDialog(true)}>
+                Delete PRA
+              </button>
+            </div>
           </div>
+
+          {showDeleteDialog && (
+            <ConfirmDialog
+              title="Delete this PRA?"
+              description={`"${pra.product}" and all its sections, enhancements, edit history and open items will be permanently removed. This cannot be undone.`}
+              busy={deleteBusy}
+              error={deleteError}
+              onConfirm={deletePraNow}
+              onCancel={() => setShowDeleteDialog(false)}
+            />
+          )}
 
           <ModelStatusBanner />
 

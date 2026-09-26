@@ -7,6 +7,7 @@ import {
   listRegisterVersions,
   listRegisterRows,
   listValidationOverridesForVersion,
+  deleteRegisterImport,
 } from "@/lib/repo/drafter-register";
 
 interface RouteContext {
@@ -30,4 +31,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const missingColumnIssues = checkMissingColumns(mapping.map((m) => m.sourceHeader));
 
   return NextResponse.json({ registerImport, mapping, versions, latestVersion, rows, missingColumnIssues, overridesByRow });
+}
+
+/**
+ * DELETE /api/drafter/register/[importId] - removes the import and all its
+ * versions/rows (prod walkthrough item 5). 409 with an explanation if a PRA
+ * still references one of its versions.
+ */
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const gate = await requireDrafterActorApi(request);
+  if ("response" in gate) return gate.response;
+  const { importId } = await context.params;
+
+  const result = await deleteRegisterImport(importId, gate.actor.email);
+  if (!result.deleted && !result.blockedReason) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (result.blockedReason) return NextResponse.json({ error: result.blockedReason }, { status: 409 });
+  return NextResponse.json({ ok: true });
 }

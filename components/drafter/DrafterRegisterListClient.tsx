@@ -5,6 +5,7 @@ import Link from "next/link";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Button from "@/components/ui/Button";
 import { drafterFetch } from "./drafterFetch";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface DocumentRow {
   id: string;
@@ -28,6 +29,9 @@ export default function DrafterRegisterListClient() {
   const [selectedSheet, setSelectedSheet] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<RegisterImportRow | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function reload() {
     const [docsRes, importsRes] = await Promise.all([
@@ -77,6 +81,20 @@ export default function DrafterRegisterListClient() {
     } else if ("error" in res.data) {
       setMessage(res.data.error ?? "Import failed");
     }
+  }
+
+  async function deleteImport() {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    const res = await drafterFetch(`/api/drafter/register/${deleteTarget.id}`, { method: "DELETE" });
+    setDeleteBusy(false);
+    if (!res.ok) {
+      setDeleteError("error" in res.data ? res.data.error ?? "Could not delete this register import." : "Could not delete this register import.");
+      return;
+    }
+    setDeleteTarget(null);
+    await reload();
   }
 
   return (
@@ -146,12 +164,34 @@ export default function DrafterRegisterListClient() {
           {imports.length > 0 && (
             <div className="grid gap-3">
               {imports.map((imp) => (
-                <Link key={imp.id} href={`/drafter/register/${imp.id}`} className="glass-card rounded-xl p-5 block hover:border-accent/40 transition-colors">
-                  <p className="font-medium text-foreground">{imp.sheet_name}</p>
-                  <p className="text-xs text-text-muted mt-0.5">Imported {new Date(imp.created_at).toLocaleString()}</p>
-                </Link>
+                <div key={imp.id} className="glass-card rounded-xl p-5 flex items-center justify-between gap-4">
+                  <Link href={`/drafter/register/${imp.id}`} className="min-w-0 flex-1 hover:opacity-80 transition-opacity">
+                    <p className="font-medium text-foreground">{imp.sheet_name}</p>
+                    <p className="text-xs text-text-muted mt-0.5">Imported {new Date(imp.created_at).toLocaleString()}</p>
+                  </Link>
+                  <button
+                    className="text-xs px-3 py-1.5 rounded border border-red-300 text-red-700 shrink-0"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setDeleteTarget(imp);
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
               ))}
             </div>
+          )}
+
+          {deleteTarget && (
+            <ConfirmDialog
+              title="Delete this register import?"
+              description={`"${deleteTarget.sheet_name}" and all its versions and rows will be permanently removed. This cannot be undone. Blocked if a PRA still uses one of its versions.`}
+              busy={deleteBusy}
+              error={deleteError}
+              onConfirm={deleteImport}
+              onCancel={() => setDeleteTarget(null)}
+            />
           )}
         </div>
       </main>

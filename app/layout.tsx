@@ -7,6 +7,7 @@ import FieldBackground from "@/components/field/FieldBackground";
 import CommandPaletteProvider from "@/components/search/CommandPaletteProvider";
 import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
 import { AccountProvider } from "@/components/account/AccountProvider";
+import DrafterLockButton from "@/components/drafter/DrafterLockButton";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -89,6 +90,7 @@ export default function RootLayout({
               <CommandPaletteProvider>
                 {children}
               </CommandPaletteProvider>
+              <DrafterLockButton />
             </WorkspaceProvider>
           </AccountProvider>
         </ThemeProvider>

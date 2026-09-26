@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireDrafterActorApi } from "@/lib/drafter/access";
-import { confirmDrafterDocumentType, getDrafterDocument } from "@/lib/repo/drafter-documents";
+import { confirmDrafterDocumentType, getDrafterDocument, deleteDrafterDocument } from "@/lib/repo/drafter-documents";
+import { deleteEvidenceFileBestEffort } from "@/lib/storage/blob";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -51,4 +52,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   const updated = await confirmDrafterDocumentType(id, docType as typeof VALID_TYPES[number], gate.actor.email);
   return NextResponse.json({ document: updated });
+}
+
+/**
+ * DELETE - removes a document and its private blob (prod walkthrough item
+ * 5). Blocked with a 409 explaining why if the document is still used by a
+ * register import, template, exemplar or StylePack style brief - never a
+ * raw foreign-key error.
+ */
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  const gate = await requireDrafterActorApi(request);
+  if ("response" in gate) return gate.response;
+  const { id } = await context.params;
+
+  const result = await deleteDrafterDocument(id, gate.actor.email);
+  if (!result.deleted && !result.blockedReason) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (result.blockedReason) return NextResponse.json({ error: result.blockedReason }, { status: 409 });
+  if (result.blobUrl) await deleteEvidenceFileBestEffort(result.blobUrl);
+  return NextResponse.json({ ok: true });
 }
