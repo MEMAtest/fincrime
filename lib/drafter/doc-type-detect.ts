@@ -35,10 +35,12 @@ export function detectDocType(
   const headingTexts = parsed.blocks.filter((b) => b.type === "heading").map((b) => b.text.toLowerCase());
   const allText = (rawText ?? parsed.blocks.map((b) => ("text" in b ? b.text : "")).join(" ")).toLowerCase();
 
+  // Deliberately does NOT match on REQ IDs alone: a legitimate approved PRA
+  // cites REQ IDs in its Evidence field (SPEC.md), so that alone must never
+  // flag it as a register summary. Only an explicit "this is a summary"
+  // signal or a generation artifact counts.
   const citeArtifact = CITE_ARTIFACT_RE.test(rawText ?? "");
-  const looksLikeRegisterSummary =
-    citeArtifact ||
-    /requirement\s*id|req[-\s]?\d{4}|register\s+summary|summary of the (requirements )?register/i.test(allText);
+  const looksLikeRegisterSummary = citeArtifact || /register\s+summary|summary of the (requirements )?register/i.test(allText);
 
   if (looksLikeRegisterSummary) {
     const reason = citeArtifact

@@ -99,8 +99,9 @@ export async function POST(request: NextRequest) {
     } else if (format === "docx") {
       parsedContent = await parseDocx(bytes);
       const detection = detectDocType(format, parsedContent);
-      suggestedType = detection.suggestedType;
+      suggestedType = detection.registerRejected ? "policy" : detection.suggestedType;
       detectionReasons = detection.reasons;
+      registerRejectedReason = detection.registerRejectedReason;
     } else {
       const sheets = await listXlsxSheets(bytes);
       parsedContent = { blocks: [], warnings: [] };
