@@ -43,6 +43,7 @@ interface DetailResponse {
   latestVersion: RegisterVersion | null;
   rows: RegisterRow[];
   missingColumnIssues: ValidationIssue[];
+  overridesByRow: Record<string, Record<string, { resolution: string; note: string | null; actor: string }>>;
 }
 
 const ROLES: ColumnRole[] = ["filter", "section_and_tags", "reuse_adapt_new", "draft_input", "evidence", "reference_only", "unused"];
@@ -235,22 +236,33 @@ export default function DrafterRegisterDetailClient({ importId }: { importId: st
                     <p className="text-xs text-text-muted">No issues.</p>
                   ) : (
                     <ul className="space-y-1.5">
-                      {row.validation_issues.map((issue, i) => (
-                        <li key={i} className="text-xs flex items-center gap-2 flex-wrap">
-                          <Badge variant={SEVERITY_VARIANT[issue.severity]}>{issue.severity}</Badge>
-                          <span>{issue.message}</span>
-                          {issue.severity === "blocking" && (
-                            <span className="flex items-center gap-1.5 ml-auto">
-                              <Button size="sm" variant="secondary" onClick={() => resolveIssue(row.id, issue.check, "resolved")}>
-                                Mark resolved
-                              </Button>
-                              <Button size="sm" variant="secondary" onClick={() => resolveIssue(row.id, issue.check, "overridden")}>
-                                Override
-                              </Button>
-                            </span>
-                          )}
-                        </li>
-                      ))}
+                      {row.validation_issues.map((issue, i) => {
+                        const resolution = data.overridesByRow[row.id]?.[issue.check];
+                        return (
+                          <li key={i} className="text-xs flex items-center gap-2 flex-wrap">
+                            <Badge variant={SEVERITY_VARIANT[issue.severity]}>{issue.severity}</Badge>
+                            <span>{issue.message}</span>
+                            {issue.severity === "blocking" &&
+                              (resolution ? (
+                                <span className="ml-auto flex items-center gap-1.5">
+                                  <Badge variant="success">
+                                    {resolution.resolution === "overridden" ? "Overridden" : "Resolved"} by {resolution.actor}
+                                  </Badge>
+                                  {resolution.note && <span className="text-text-muted italic">&ldquo;{resolution.note}&rdquo;</span>}
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1.5 ml-auto">
+                                  <Button size="sm" variant="secondary" onClick={() => resolveIssue(row.id, issue.check, "resolved")}>
+                                    Mark resolved
+                                  </Button>
+                                  <Button size="sm" variant="secondary" onClick={() => resolveIssue(row.id, issue.check, "overridden")}>
+                                    Override
+                                  </Button>
+                                </span>
+                              ))}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>

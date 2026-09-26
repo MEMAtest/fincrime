@@ -1,0 +1,11 @@
+import { chromium } from "playwright";
+const TOKEN = "af12f1f7aaa74b4507ac8e698918b6ca9fc5c6166df14124e4c42ebb6a313d54";
+const b = await chromium.launch({ headless: true });
+const ctx = await b.newContext({ viewport: { width: 390, height: 844 } });
+await ctx.addCookies([{ name: "fincrime_session", value: TOKEN, url: "http://localhost:3107" }]);
+const p = await ctx.newPage();
+await p.goto("http://localhost:3107/drafter/library", { waitUntil: "networkidle" });
+await p.screenshot({ path: "/tmp/mobile-library-viewport.png" });
+await p.goto("http://localhost:3107/drafter/pras", { waitUntil: "networkidle" });
+await p.screenshot({ path: "/tmp/mobile-pras-viewport.png" });
+await b.close();

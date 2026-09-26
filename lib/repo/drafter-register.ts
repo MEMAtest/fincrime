@@ -164,6 +164,33 @@ export async function listValidationOverrides(registerRowId: string): Promise<
   );
 }
 
+/**
+ * All overrides for every row in a version, in one query, keyed by
+ * register_row_id -> check_name -> resolution. Used by the register detail
+ * screen so a resolved/overridden blocking issue can be shown as such
+ * instead of leaving its "Mark resolved"/"Override" buttons looking
+ * identically actionable forever (see docs/pra-drafter/REHEARSAL.md issue
+ * "register import screen never shows a resolved issue as resolved").
+ */
+export async function listValidationOverridesForVersion(
+  registerVersionId: string
+): Promise<Record<string, Record<string, { resolution: string; note: string | null; actor: string }>>> {
+  const rows = await query<{ register_row_id: string; check_name: string; resolution: string; note: string | null; actor: string }>(
+    `SELECT o.register_row_id, o.check_name, o.resolution, o.note, o.actor
+     FROM drafter_validation_overrides o
+     JOIN drafter_register_rows r ON r.id = o.register_row_id
+     WHERE r.register_version_id = $1
+     ORDER BY o.created_at ASC`,
+    [registerVersionId]
+  );
+  const byRow: Record<string, Record<string, { resolution: string; note: string | null; actor: string }>> = {};
+  for (const r of rows) {
+    byRow[r.register_row_id] ??= {};
+    byRow[r.register_row_id][r.check_name] = { resolution: r.resolution, note: r.note, actor: r.actor };
+  }
+  return byRow;
+}
+
 export async function acceptRegisterVersion(id: string, actor: string): Promise<RegisterVersionRow | null> {
   const rows = await query<RegisterVersionRow>(
     `UPDATE drafter_register_versions SET status = 'accepted', accepted_by = $2, accepted_at = now() WHERE id = $1 RETURNING *`,

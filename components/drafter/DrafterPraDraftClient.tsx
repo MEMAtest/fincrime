@@ -188,15 +188,29 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
     if (pending.length === 0) return;
     setDrafting(true);
     setProgress({ done: 0, total: pending.length });
+    // One enhancement failing (a bad model response, a cost-cap hit, etc.)
+    // must never silently stop the rest of the batch - every OTHER pending
+    // enhancement still gets a draft attempt, and every failure (not just
+    // the last one) is reported. A per-enhancement error is already shown
+    // inline via review_result.error (set by draftOneEnhancement itself);
+    // this summary is what tells the reviewer something needs attention
+    // without having to scroll every card looking for a red line.
+    const failures: string[] = [];
     for (let i = 0; i < pending.length; i++) {
       const r = await draftOne(pending[i].id);
       if (!r.ok) {
-        setMessage("error" in r.data ? r.data.error ?? "Drafting stopped" : "Drafting stopped");
-        break;
+        failures.push("error" in r.data ? r.data.error ?? "Drafting failed" : "Drafting failed");
       }
       setProgress({ done: i + 1, total: pending.length });
     }
     setDrafting(false);
+    if (failures.length > 0) {
+      setMessage(
+        `Drafted ${pending.length - failures.length} of ${pending.length}. ${failures.length} failed - see the red "Model error" line on each affected enhancement below.`
+      );
+    } else {
+      setMessage(null);
+    }
     await load();
   };
 

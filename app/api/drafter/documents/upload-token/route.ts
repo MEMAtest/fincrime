@@ -14,6 +14,18 @@ import { requireDrafterActorApi } from "@/lib/drafter/access";
  * /api/drafter/documents with {directUpload: true, blobUrl, pathname,
  * filename} - see that route.
  */
+/**
+ * Ceiling for a client-direct Blob upload. This route bypasses the app's
+ * serverless function body limit entirely (see file doc comment above), so
+ * without a cap here `maximumSizeInBytes` would default to Blob's own
+ * 4.5GB ceiling - a huge or zip-bomb .xlsx/.docx could be uploaded and then
+ * read fully into memory and parsed by POST /api/drafter/documents
+ * (finalize), exhausting the function's memory. 50MB is generous headroom
+ * over any real register/PRA document while keeping that failure mode
+ * bounded.
+ */
+const MAX_DIRECT_UPLOAD_BYTES = 50 * 1024 * 1024;
+
 const ALLOWED_CONTENT_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
@@ -40,9 +52,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           addRandomSuffix: true,
           access: "private",
           tokenPayload: JSON.stringify({ actor: actor.email, pathname }),
-          // 4.5GB is Vercel Blob's own ceiling; the real limit that matters
-          // here is "bigger than the 4MB direct-upload cap", not a specific
-          // number, so we do not add a tighter one.
+          maximumSizeInBytes: MAX_DIRECT_UPLOAD_BYTES,
         };
       },
       onUploadCompleted: async () => {

@@ -6,6 +6,7 @@ import {
   getColumnMapping,
   listRegisterVersions,
   listRegisterRows,
+  listValidationOverridesForVersion,
 } from "@/lib/repo/drafter-register";
 
 interface RouteContext {
@@ -25,7 +26,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const versions = await listRegisterVersions(importId);
   const latestVersion = versions[0] ?? null;
   const rows = latestVersion ? await listRegisterRows(latestVersion.id) : [];
+  const overridesByRow = latestVersion ? await listValidationOverridesForVersion(latestVersion.id) : {};
   const missingColumnIssues = checkMissingColumns(mapping.map((m) => m.sourceHeader));
 
-  return NextResponse.json({ registerImport, mapping, versions, latestVersion, rows, missingColumnIssues });
+  return NextResponse.json({ registerImport, mapping, versions, latestVersion, rows, missingColumnIssues, overridesByRow });
 }

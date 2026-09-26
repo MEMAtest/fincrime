@@ -8,6 +8,7 @@ import { parseDocx } from "@/lib/drafter/parsers/docx";
 import { listXlsxSheets } from "@/lib/drafter/parsers/xlsx";
 import { detectDocType } from "@/lib/drafter/doc-type-detect";
 import type { ParsedDocument } from "@/lib/drafter/blocks";
+import { readStreamBounded } from "@/lib/drafter/bounded-stream";
 
 /**
  * 4MB cap, same rationale as the evidence upload cap (commit cf2e9ab): stays
@@ -21,6 +22,18 @@ import type { ParsedDocument } from "@/lib/drafter/blocks";
  * (they never touch this app's request body) to parse and hash them.
  */
 const MAX_FILE_SIZE_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Ceiling for the direct-upload finalize path (matches
+ * upload-token/route.ts's MAX_DIRECT_UPLOAD_BYTES - kept as two constants,
+ * not one shared import, because they gate two different layers: the token
+ * route stops Blob accepting a bigger upload at all, this one stops THIS
+ * route reading an unbounded number of bytes into memory even if some
+ * other/older token without that cap is ever presented). Checked while
+ * streaming the blob back, not after - a multi-GB or zip-bomb-inflated file
+ * must never be buffered in full before we notice.
+ */
+const MAX_DIRECT_UPLOAD_FINALIZE_BYTES = 50 * 1024 * 1024;
 
 const FORMAT_BY_EXT: Record<string, "docx" | "md" | "html" | "xlsx"> = {
   docx: "docx",
@@ -155,14 +168,14 @@ export async function POST(request: NextRequest) {
     }
     const streamed = await getDrafterDocumentStream(body.blobUrl);
     if (!streamed) return NextResponse.json({ error: "Could not read the uploaded blob back - was the upload token used before it expired?" }, { status: 400 });
-    const chunks: Uint8Array[] = [];
-    const reader = streamed.stream.getReader();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) chunks.push(value);
+    const read = await readStreamBounded(streamed.stream, MAX_DIRECT_UPLOAD_FINALIZE_BYTES);
+    if (!read.ok) {
+      return NextResponse.json(
+        { error: `Uploaded file is too large: it exceeds the ${MAX_DIRECT_UPLOAD_FINALIZE_BYTES / 1024 / 1024}MB limit for this module.` },
+        { status: 413 }
+      );
     }
-    const bytes = Buffer.concat(chunks);
+    const bytes = read.bytes;
     if (bytes.length === 0) return NextResponse.json({ error: "Uploaded file is empty" }, { status: 400 });
 
     const result = await finalizeDocument(bytes, body.filename, format, actor.email, { blobUrl: body.blobUrl, blobPathname: body.pathname });
