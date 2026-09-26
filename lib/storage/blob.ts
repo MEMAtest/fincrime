@@ -92,3 +92,37 @@ export async function deleteEvidenceFileBestEffort(url: string): Promise<void> {
     console.error("Best-effort blob delete failed:", error);
   }
 }
+
+/**
+ * PRA Drafter document upload. Same private-blob pattern as
+ * uploadEvidenceFile, under its own `drafter-documents/` prefix. When
+ * BLOB_READ_WRITE_TOKEN is absent (local dev with no token configured), the
+ * caller falls back to storing the bytes directly in
+ * drafter_documents.fallback_bytes (BYTEA) instead of calling this - see
+ * lib/repo/drafter-documents.ts and the upload route, which check
+ * isBlobConfigured() first. This documents that fallback path as the
+ * intended local-dev behaviour, not a workaround: uploads must keep working
+ * with zero external configuration for local QA and CI.
+ */
+export async function uploadDrafterDocument(
+  documentId: string,
+  fileName: string,
+  data: Buffer,
+  contentType: string
+): Promise<UploadedBlob> {
+  if (!isBlobConfigured()) {
+    throw new Error("Blob storage is not configured (BLOB_READ_WRITE_TOKEN missing)");
+  }
+  const pathname = `drafter-documents/${documentId}/${fileName}`;
+  const blob = await put(pathname, data, {
+    access: "private",
+    contentType,
+    addRandomSuffix: true,
+  });
+  return { url: blob.url, pathname: blob.pathname };
+}
+
+/** Streams a drafter document's original bytes back (private blob, no public URL). */
+export async function getDrafterDocumentStream(url: string): Promise<EvidenceFileStream | null> {
+  return getEvidenceFileStream(url);
+}

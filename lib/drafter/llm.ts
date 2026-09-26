@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { query } from "@/lib/db";
 
 /**
@@ -145,8 +146,11 @@ export async function isUnderCostCap(praId: string): Promise<{ underCap: boolean
   return { underCap: capPence <= 0 || spentPence < capPence, spentPence, capPence };
 }
 
-/** Deterministic canned JSON for the stub provider (tests / local QA only). */
-function stubResponse(role: DrafterModelRole, userPrompt: string): unknown {
+/**
+ * Default (unconfigured-fixture) canned JSON for the stub provider, used
+ * when PRA_MODEL_STUB_FILE is unset or has no matching entry.
+ */
+function defaultStubResponse(role: DrafterModelRole, userPrompt: string): unknown {
   const inputHash = sha256(userPrompt).slice(0, 8);
   if (role === "writer") {
     return {
@@ -172,6 +176,80 @@ function stubResponse(role: DrafterModelRole, userPrompt: string): unknown {
 }
 
 /**
+ * Shape of a PRA_MODEL_STUB_FILE fixture file. Keyed by role, then by
+ * prompt kind (the promptVersion string, e.g. "pra-writer-enhancement-v1"),
+ * then by a lookup table of canned entries so a rehearsal can push both
+ * realistic-good and deliberately-bad outputs through the real pipeline
+ * without touching code:
+ *
+ * {
+ *   "writer": {
+ *     "pra-writer-enhancement-v1": {
+ *       "default": { "response": { control_text: "...", ... } },
+ *       "entries": [
+ *         { "matchIncludes": ["REQ-0002"], "response": { ...bad output with invented numbers... } },
+ *         { "matchIncludes": ["REQ-0099"], "malformed": true }
+ *       ]
+ *     }
+ *   }
+ * }
+ *
+ * Matching: the userPrompt is scanned for the FIRST entry whose every
+ * `matchIncludes` substring is present (in order given); "default" is used
+ * when nothing matches. `malformed: true` returns literally-broken JSON
+ * text so the malformed-JSON path (retry once, then a visible failure) is
+ * exercised end to end - this must never be swallowed into a silent pass.
+ */
+interface StubFileEntry {
+  matchIncludes?: string[];
+  response?: unknown;
+  malformed?: boolean;
+}
+interface StubFilePromptKind {
+  default?: { response?: unknown; malformed?: boolean };
+  entries?: StubFileEntry[];
+}
+type StubFile = Partial<Record<DrafterModelRole, Record<string, StubFilePromptKind>>>;
+
+let cachedStubFile: { path: string; data: StubFile } | null = null;
+
+function loadStubFile(): StubFile | null {
+  const path = (process.env.PRA_MODEL_STUB_FILE || "").trim();
+  if (!path) return null;
+  if (cachedStubFile && cachedStubFile.path === path) return cachedStubFile.data;
+  try {
+    const raw = readFileSync(path, "utf8");
+    const data = JSON.parse(raw) as StubFile;
+    cachedStubFile = { path, data };
+    return data;
+  } catch (error) {
+    console.error(`PRA_MODEL_STUB_FILE could not be read/parsed at "${path}":`, error);
+    return null;
+  }
+}
+
+/**
+ * Raw stub content (as a JSON string) for one call. Reads PRA_MODEL_STUB_FILE
+ * when set and a matching entry exists; a `malformed: true` entry returns a
+ * deliberately-broken string. Falls back to defaultStubResponse otherwise.
+ */
+function stubRawContent(role: DrafterModelRole, promptVersion: string, userPrompt: string): string {
+  const file = loadStubFile();
+  const promptKind = file?.[role]?.[promptVersion];
+  if (promptKind) {
+    const matched = (promptKind.entries ?? []).find(
+      (entry) => (entry.matchIncludes ?? []).length > 0 && entry.matchIncludes!.every((needle) => userPrompt.includes(needle))
+    );
+    const chosen = matched ?? promptKind.default;
+    if (chosen) {
+      if (chosen.malformed) return "{ this is not valid JSON ::: [[[";
+      if (chosen.response !== undefined) return JSON.stringify(chosen.response);
+    }
+  }
+  return JSON.stringify(defaultStubResponse(role, userPrompt));
+}
+
+/**
  * Makes one chat call for the given role and logs it to drafter_model_calls.
  * Refuses (returns ok:false) when the role is not configured and stub mode
  * is not active/available. Stub mode itself is refused when
@@ -190,8 +268,29 @@ export async function callDrafterModel(
   }
 
   if (isStubMode()) {
-    const json = stubResponse(input.role, input.userPrompt);
+    // Malformed JSON from the stub file must behave exactly like a real
+    // provider returning broken JSON: retry once, then fail visibly and log
+    // it. Never silently substitute a default "pass" response - that would
+    // be exactly the "absence renders as a pass" failure mode this repo has
+    // been bitten by before.
+    let json: unknown = null;
+    let parseError: string | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const raw = stubRawContent(input.role, input.promptVersion, input.userPrompt);
+      try {
+        json = JSON.parse(raw);
+        parseError = null;
+        break;
+      } catch (error) {
+        parseError = error instanceof Error ? error.message : "Invalid JSON from stub";
+      }
+    }
     const latencyMs = Date.now() - start;
+    if (parseError) {
+      const message = `Stub model response was not valid JSON after 1 retry: ${parseError}`;
+      await logCall(input, "stub", inputHash, null, 0, 0, 0, latencyMs, message);
+      return { ok: false, error: message };
+    }
     await logCall(input, "stub", inputHash, json, 0, 0, 0, latencyMs, null);
     return { ok: true, json, promptTokens: 0, completionTokens: 0, costEstimatePence: 0, latencyMs, modelName: "stub" };
   }
