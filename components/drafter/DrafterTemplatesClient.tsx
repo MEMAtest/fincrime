@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
@@ -61,6 +61,13 @@ export default function DrafterTemplatesClient() {
   const [acceptedKeys, setAcceptedKeys] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // See DrafterPraDraftClient.tsx's submittingCandidatesRef comment: a ref
+  // lock closes the same-tick double-click window that the `busy` state
+  // alone cannot (its re-render lands one tick too late). createStylepack,
+  // extract and createAndConfirm all share this one lock, same as they
+  // already share one `busy` state - only one of these three create
+  // actions can be in flight at a time.
+  const busyRef = useRef(false);
 
   const reload = () => {
     drafterFetch<{ documents: DocumentSummary[] }>("/api/drafter/documents").then((r) => {
@@ -78,40 +85,51 @@ export default function DrafterTemplatesClient() {
   };
 
   const createStylepack = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
-    const r = await drafterFetch("/api/drafter/stylepacks", {
-      method: "POST",
-      body: JSON.stringify({ name: "House style", styleBriefDocumentId: selectedStyleBriefId || null }),
-    });
-    setBusy(false);
-    if (r.ok) {
-      setMessage("StylePack created, seeded from the SPEC style rules and settings.");
-      reload();
-    } else {
-      setMessage("Could not create StylePack.");
+    try {
+      const r = await drafterFetch("/api/drafter/stylepacks", {
+        method: "POST",
+        body: JSON.stringify({ name: "House style", styleBriefDocumentId: selectedStyleBriefId || null }),
+      });
+      if (r.ok) {
+        setMessage("StylePack created, seeded from the SPEC style rules and settings.");
+        reload();
+      } else {
+        setMessage("Could not create StylePack.");
+      }
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
   };
 
   useEffect(reload, []);
 
   const extract = async () => {
-    if (!selectedDocId) return;
+    if (busyRef.current || !selectedDocId) return;
+    busyRef.current = true;
     setBusy(true);
     setMessage(null);
-    const r = await drafterFetch<{ skeleton: { sections: SkeletonSection[]; fieldLabels: FieldLabels; exemplarCandidates: SkeletonExemplarCandidate[]; warnings: string[] } }>(
-      "/api/drafter/templates/extract",
-      { method: "POST", body: JSON.stringify({ documentId: selectedDocId }) }
-    );
-    setBusy(false);
-    if (!r.ok || !("skeleton" in r.data)) {
-      setMessage("error" in r.data ? r.data.error ?? "Extraction failed" : "Extraction failed");
-      return;
+    try {
+      const r = await drafterFetch<{ skeleton: { sections: SkeletonSection[]; fieldLabels: FieldLabels; exemplarCandidates: SkeletonExemplarCandidate[]; warnings: string[] } }>(
+        "/api/drafter/templates/extract",
+        { method: "POST", body: JSON.stringify({ documentId: selectedDocId }) }
+      );
+      if (!r.ok || !("skeleton" in r.data)) {
+        setMessage("error" in r.data ? r.data.error ?? "Extraction failed" : "Extraction failed");
+        return;
+      }
+      setSections(r.data.skeleton.sections);
+      setFieldLabels(r.data.skeleton.fieldLabels);
+      setCandidates(r.data.skeleton.exemplarCandidates);
+      setAcceptedKeys(new Set(r.data.skeleton.exemplarCandidates.map((c) => c.sectionNumber)));
+      if (r.data.skeleton.warnings.length) setMessage(`Extracted with warnings: ${r.data.skeleton.warnings.join("; ")}`);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
     }
-    setSections(r.data.skeleton.sections);
-    setFieldLabels(r.data.skeleton.fieldLabels);
-    setCandidates(r.data.skeleton.exemplarCandidates);
-    setAcceptedKeys(new Set(r.data.skeleton.exemplarCandidates.map((c) => c.sectionNumber)));
-    if (r.data.skeleton.warnings.length) setMessage(`Extracted with warnings: ${r.data.skeleton.warnings.join("; ")}`);
   };
 
   const updateSection = (index: number, field: keyof SkeletonSection, value: string) => {
@@ -122,33 +140,37 @@ export default function DrafterTemplatesClient() {
   };
 
   const createAndConfirm = async () => {
-    if (!sections || !fieldLabels) return;
+    if (busyRef.current || !sections || !fieldLabels) return;
+    busyRef.current = true;
     setBusy(true);
     setMessage(null);
-    const acceptedExemplars = candidates.filter((c) => acceptedKeys.has(c.sectionNumber));
-    const created = await drafterFetch<{ template: { id: string }; version: { id: string } }>("/api/drafter/templates", {
-      method: "POST",
-      body: JSON.stringify({ documentId: selectedDocId, name: "Approved PRA template", sections, fieldLabels, acceptedExemplars }),
-    });
-    if (!created.ok || !("template" in created.data)) {
+    try {
+      const acceptedExemplars = candidates.filter((c) => acceptedKeys.has(c.sectionNumber));
+      const created = await drafterFetch<{ template: { id: string }; version: { id: string } }>("/api/drafter/templates", {
+        method: "POST",
+        body: JSON.stringify({ documentId: selectedDocId, name: "Approved PRA template", sections, fieldLabels, acceptedExemplars }),
+      });
+      if (!created.ok || !("template" in created.data)) {
+        setMessage("error" in created.data ? created.data.error ?? "Could not create template" : "Could not create template");
+        return;
+      }
+      const confirmed = await drafterFetch(`/api/drafter/templates/${created.data.template.id}/confirm`, {
+        method: "POST",
+        body: JSON.stringify({ versionId: created.data.version.id }),
+      });
+      if (!confirmed.ok) {
+        setMessage("Template created but could not be confirmed.");
+        return;
+      }
+      setMessage("Template confirmed. It is now available to pin on a new PRA.");
+      setSections(null);
+      setFieldLabels(null);
+      setCandidates([]);
+      reload();
+    } finally {
+      busyRef.current = false;
       setBusy(false);
-      setMessage("error" in created.data ? created.data.error ?? "Could not create template" : "Could not create template");
-      return;
     }
-    const confirmed = await drafterFetch(`/api/drafter/templates/${created.data.template.id}/confirm`, {
-      method: "POST",
-      body: JSON.stringify({ versionId: created.data.version.id }),
-    });
-    setBusy(false);
-    if (!confirmed.ok) {
-      setMessage("Template created but could not be confirmed.");
-      return;
-    }
-    setMessage("Template confirmed. It is now available to pin on a new PRA.");
-    setSections(null);
-    setFieldLabels(null);
-    setCandidates([]);
-    reload();
   };
 
   return (

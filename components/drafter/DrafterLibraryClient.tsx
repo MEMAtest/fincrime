@@ -114,8 +114,9 @@ export default function DrafterLibraryClient() {
               <button
                 key={g}
                 onClick={() => setFilterGroup(g)}
+                aria-pressed={filterGroup === g}
                 className={`px-3 py-1.5 rounded-lg text-xs border ${
-                  filterGroup === g ? "bg-accent/12 text-accent border-accent/30" : "border-white/10 text-text-muted"
+                  filterGroup === g ? "bg-accent/12 text-accent border-accent/30 font-semibold" : "border-white/10 text-text-muted"
                 }`}
               >
                 {g === "all" ? "All" : GROUP_LABEL[g]}

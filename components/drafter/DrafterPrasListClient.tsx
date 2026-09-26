@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Badge from "@/components/ui/Badge";
@@ -79,7 +79,13 @@ export default function DrafterPrasListClient() {
     setCustomerTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
   };
 
+  // Ref lock: see DrafterPraDraftClient.tsx's submittingCandidatesRef
+  // comment - `busy` state alone doesn't close a same-tick double-click.
+  const startPraRef = useRef(false);
+
   const startPra = async () => {
+    if (startPraRef.current) return;
+    startPraRef.current = true;
     setBusy(true);
     setMessage(null);
     const r = await drafterFetch<{ pra: PraSummary }>("/api/drafter/pras", {
@@ -94,8 +100,12 @@ export default function DrafterPrasListClient() {
         registerVersionId: acceptedRegisterVersionId || null,
       }),
     });
-    setBusy(false);
     if (!r.ok || !("pra" in r.data)) {
+      // Only re-arm the lock on failure - on success we navigate away via
+      // window.location.href, and re-enabling the button while that
+      // navigation is still pending would allow a second POST.
+      startPraRef.current = false;
+      setBusy(false);
       setMessage("error" in r.data ? r.data.error ?? "Could not start PRA" : "Could not start PRA");
       return;
     }

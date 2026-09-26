@@ -1,8 +1,9 @@
 import { chromium } from "playwright";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 
 const BASE = "http://localhost:3107";
-const TOKEN = "af12f1f7aaa74b4507ac8e698918b6ca9fc5c6166df14124e4c42ebb6a313d54";
+const TOKEN = "cfd1ec61e176b3b5acf1e82dadf767815b4cf9365f9b5fbf5a1713f80fd2fce3";
 const SHOT_DIR = "/tmp/pra-shots";
 mkdirSync(SHOT_DIR, { recursive: true });
 const issues = [];
@@ -283,7 +284,117 @@ async function main() {
   await shot(page, "14-pra-export-final");
   log("\nAfter export attempt:\n" + text.slice(-1500));
 
-  const praUrl = page.url();
+  const firstPraUrl = page.url();
+
+  // --- Calibration: failing run first (banner must stay), then a passing run (banner must clear) ---
+  await page.goto(`${BASE}/drafter/calibration`, { waitUntil: "networkidle" });
+  const passItemJson = JSON.stringify([
+    {
+      text: "The reviewer screens JUDGE-PASS every new relationship before onboarding and records the outcome.",
+      rationale: "This addresses the onboarding risk because it catches issues before exposure begins.",
+      sectionType: "cdd",
+      labels: {
+        mechanism_not_policy_restatement: "fail",
+        trigger_actor_action_outcome: "fail",
+        rationale_explains_risk: "fail",
+        scope_stated: "fail",
+        tone_measured: "fail",
+        correct_section: "fail",
+      },
+    },
+  ]);
+  await page.locator("textarea").last().fill(passItemJson);
+  await page.getByRole("button", { name: /import/i }).click();
+  await page.waitForTimeout(1000);
+  await page.getByRole("button", { name: /Run judge over the set/i }).click();
+  await page.waitForTimeout(4000);
+  text = await dumpText(page);
+  await shot(page, "15-calibration-failing-run");
+  log("\nCalibration after mislabelled (failing) run:\n" + text.slice(text.indexOf("Run history") - 200, text.indexOf("Run history") + 600));
+
+  // Check the PRA page banner is STILL showing "not yet calibrated"
+  await page.goto(firstPraUrl, { waitUntil: "networkidle" });
+  text = await dumpText(page);
+  log(`\nBanner present after FAILING calibration run: ${text.includes("Reviewer not yet calibrated")}`);
+
+  // Clear the mislabelled item before the passing run - averaging it in
+  // with a correct item would (correctly) still show <80% and prove
+  // nothing about a clean passing run. No DELETE endpoint exists for
+  // calibration items, so this uses a direct local-DB truncate (same
+  // pattern as the rest of this rehearsal's QA data resets).
+  execSync(
+    `psql "${process.env.DATABASE_URL || "postgres://localhost/fincrime_dev"}" -c "TRUNCATE drafter_calibration_items, drafter_calibration_runs CASCADE;"`,
+    { stdio: "ignore" }
+  );
+
+  // Now add a correctly-labelled item (all pass, matching the stub) and re-run
+  await page.goto(`${BASE}/drafter/calibration`, { waitUntil: "networkidle" });
+  const correctItemJson = JSON.stringify([
+    {
+      text: "The reviewer screens JUDGE-PASS every new relationship before onboarding and records the outcome.",
+      rationale: "This addresses the onboarding risk because it catches issues before exposure begins.",
+      sectionType: "cdd",
+      labels: {
+        mechanism_not_policy_restatement: "pass",
+        trigger_actor_action_outcome: "pass",
+        rationale_explains_risk: "pass",
+        scope_stated: "pass",
+        tone_measured: "pass",
+        correct_section: "pass",
+      },
+    },
+  ]);
+  await page.locator("textarea").last().fill(correctItemJson);
+  await page.getByRole("button", { name: /import/i }).click();
+  await page.waitForTimeout(1000);
+  await page.getByRole("button", { name: /Run judge over the set/i }).click();
+  await page.waitForTimeout(4000);
+  text = await dumpText(page);
+  await shot(page, "16-calibration-passing-run");
+  log("\nCalibration after correctly-labelled (passing) run:\n" + text.slice(text.indexOf("Run history") - 200, text.indexOf("Run history") + 600));
+
+  await page.goto(firstPraUrl, { waitUntil: "networkidle" });
+  text = await dumpText(page);
+  log(`\nBanner present after PASSING calibration run: ${text.includes("Reviewer not yet calibrated")} (expect false)`);
+
+  // --- Second PRA: reuse should pick up RQJPASSMK's approved agreed wording ---
+  await page.goto(`${BASE}/drafter/pras`, { waitUntil: "networkidle" });
+  await page.locator('input[placeholder="Correspondent banking"]').fill("Correspondent Banking Reuse Check");
+  await page.getByText("Legal person", { exact: true }).click();
+  await selectByOptionText(page.locator("select").nth(0), "Approved PRA template");
+  await selectByOptionText(page.locator("select").nth(1), "House style");
+  await page.getByRole("button", { name: "Start PRA" }).click();
+  await page.waitForURL(/\/drafter\/pras\/.+/, { timeout: 10000 });
+  await page.waitForTimeout(2000);
+  text = await dumpText(page);
+  await shot(page, "17-second-pra-candidates");
+  const rqjSection = text.slice(Math.max(0, text.indexOf("RQJPASSMK") - 400), text.indexOf("RQJPASSMK") + 100);
+  log("\nSecond PRA candidate list around RQJPASSMK:\n" + rqjSection);
+  log(`"used in" shown for RQJPASSMK: ${rqjSection.includes("used in")}`);
+  log(`"no agreed wording held yet" NOT shown for RQJPASSMK (should be true, since it now has agreed wording): ${!rqjSection.includes("no agreed wording held yet")}`);
+
+  // Select RQJPASSMK's candidate checkbox specifically and confirm, then draft it and check the text matches the approved wording verbatim
+  const rqjCheckbox = page.locator("li", { hasText: "RQJPASSMK" }).locator('input[type="checkbox"]').first();
+  if (await rqjCheckbox.count()) {
+    await rqjCheckbox.check({ force: true });
+    await page.getByRole("button", { name: "Confirm selection and build sections" }).click();
+    await page.waitForTimeout(3000);
+    await page.getByRole("button", { name: "Draft all remaining" }).click();
+    await page.waitForFunction(() => !document.body.innerText.includes("Working..."), { timeout: 60000 }).catch(() => note("Second PRA draft-all did not finish within 60s"));
+    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
+    text = await dumpText(page);
+    await shot(page, "18-second-pra-drafted");
+    const reusedText = "The reviewer screens RQJPASSMK every new correspondent relationship before onboarding and records the outcome";
+    log(`\nSecond PRA reused RQJPASSMK's approved wording verbatim (page text): ${text.includes(reusedText)}`);
+    const dbCheck = execSync(
+      `psql "${process.env.DATABASE_URL || "postgres://localhost/fincrime_dev"}" -tAc "select count(*) from drafter_enhancements e, drafter_controls c where c.id = ANY(e.control_ids) and c.req_ids && ARRAY['RQJPASSMK'] and e.control_text = 'The reviewer screens RQJPASSMK every new correspondent relationship before onboarding and records the outcome, since this addresses the onboarding risk before exposure begins.'"`
+    ).toString().trim();
+    log(`Enhancements with RQJPASSMK's exact approved wording (DB, expect >=2 - PRA 1 + PRA 2): ${dbCheck}`);
+  } else {
+    note("Could not find RQJPASSMK's checkbox on the second PRA's candidate list");
+  }
+
   await browser.close();
 
   // Viewport checks: mobile (390), wide (1920), ultrawide (3840x1080)
@@ -293,7 +404,7 @@ async function main() {
     await withCookie(ctx2);
     const p2 = await ctx2.newPage();
     p2.setDefaultTimeout(15000);
-    await p2.goto(praUrl, { waitUntil: "networkidle" });
+    await p2.goto(firstPraUrl, { waitUntil: "networkidle" });
     await p2.waitForTimeout(1000);
     const hasHorizScroll = await p2.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 2);
     log(`\n${vp.name}: horizontal overflow = ${hasHorizScroll}`);

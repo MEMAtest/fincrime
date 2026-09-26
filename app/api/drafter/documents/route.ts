@@ -9,6 +9,7 @@ import { listXlsxSheets } from "@/lib/drafter/parsers/xlsx";
 import { detectDocType } from "@/lib/drafter/doc-type-detect";
 import type { ParsedDocument } from "@/lib/drafter/blocks";
 import { readStreamBounded } from "@/lib/drafter/bounded-stream";
+import { guardZipBounds } from "@/lib/drafter/zip-guard";
 
 /**
  * 4MB cap, same rationale as the evidence upload cap (commit cf2e9ab): stays
@@ -177,6 +178,10 @@ export async function POST(request: NextRequest) {
     }
     const bytes = read.bytes;
     if (bytes.length === 0) return NextResponse.json({ error: "Uploaded file is empty" }, { status: 400 });
+    if (format === "docx" || format === "xlsx") {
+      const zipGuard = await guardZipBounds(bytes);
+      if (!zipGuard.ok) return NextResponse.json({ error: zipGuard.reason }, { status: 400 });
+    }
 
     const result = await finalizeDocument(bytes, body.filename, format, actor.email, { blobUrl: body.blobUrl, blobPathname: body.pathname });
     return NextResponse.json(result);
@@ -209,6 +214,10 @@ export async function POST(request: NextRequest) {
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
+  if (format === "docx" || format === "xlsx") {
+    const zipGuard = await guardZipBounds(bytes);
+    if (!zipGuard.ok) return NextResponse.json({ error: zipGuard.reason }, { status: 400 });
+  }
   const result = await finalizeDocument(bytes, file.name, format, actor.email, null);
   return NextResponse.json(result);
 }

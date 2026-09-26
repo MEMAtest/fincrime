@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
@@ -127,6 +127,14 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState<{ blocking: { enhancementId: string; reason: string }[] } | null>(null);
   const [calibrationBanner, setCalibrationBanner] = useState<string | null>(null);
+  const [submittingCandidates, setSubmittingCandidates] = useState(false);
+  // A ref lock, not just the `submittingCandidates` state: React state
+  // updates only take effect on the next render, so two clicks dispatched
+  // in the same tick (a fast double-click, or a scripted double-submit)
+  // can both read `submittingCandidates === false` before either re-render
+  // happens. The ref is set synchronously, inside the handler, before any
+  // await - it is checked first and closes that window.
+  const submittingCandidatesRef = useRef(false);
 
   const load = useCallback(async () => {
     const r = await drafterFetch<{ pra: Pra; sections: Section[]; enhancements: Enhancement[]; openItems: OpenItem[] }>(`/api/drafter/pras/${praId}`);
@@ -160,6 +168,18 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
   }, [praId, load]);
 
   const submitCandidates = async () => {
+    if (submittingCandidatesRef.current) return;
+    submittingCandidatesRef.current = true;
+    setSubmittingCandidates(true);
+    try {
+      await submitCandidatesInner();
+    } finally {
+      submittingCandidatesRef.current = false;
+      setSubmittingCandidates(false);
+    }
+  };
+
+  const submitCandidatesInner = async () => {
     const gaps = gapDescription.trim() && gapSection ? [{ description: gapDescription.trim(), sectionNumber: gapSection }] : [];
     const r = await drafterFetch<{ assignment: { assigned: number; unassigned: UnassignedControl[] } }>(`/api/drafter/pras/${praId}/candidates`, {
       method: "POST",
@@ -326,9 +346,11 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
                   <ul className="space-y-1">
                     {candidates[group].map((c) => (
                       <li key={c.id} className="text-sm flex items-start gap-2">
+                        <label className="flex items-start gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={selected.has(c.id)}
+                          aria-label={`Select candidate control: ${c.title}`}
                           onChange={(e) => {
                             const next = new Set(selected);
                             if (e.target.checked) next.add(c.id);
@@ -343,6 +365,7 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
                             <span className="text-amber-700"> - no agreed wording held yet, will draft as a placeholder</span>
                           )}
                         </span>
+                        </label>
                       </li>
                     ))}
                   </ul>
@@ -355,21 +378,31 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
               <div className="border-t border-border pt-3">
                 <h3 className="text-sm font-semibold text-foreground mb-2">Manual gap</h3>
                 <div className="flex gap-2">
-                  <input className="border rounded px-2 py-1 text-sm flex-1" placeholder="Gap description" value={gapDescription} onChange={(e) => setGapDescription(e.target.value)} />
-                  <select className="border rounded px-2 py-1 text-sm" value={gapSection} onChange={(e) => setGapSection(e.target.value)}>
+                  <label className="flex-1 flex flex-col gap-1">
+                    <span className="sr-only">Gap description</span>
+                    <input className="border rounded px-2 py-1 text-sm w-full" placeholder="Gap description" value={gapDescription} onChange={(e) => setGapDescription(e.target.value)} />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="sr-only">Gap section</span>
+                    <select className="border rounded px-2 py-1 text-sm" value={gapSection} onChange={(e) => setGapSection(e.target.value)}>
                     <option value="">Section...</option>
                     {sections.map((s) => (
                       <option key={s.id} value={s.section_number}>
                         {s.section_number} {s.title}
                       </option>
                     ))}
-                  </select>
+                    </select>
+                  </label>
                 </div>
               </div>
 
               {message && <p className="text-sm text-red-600">{message}</p>}
-              <button className="px-4 py-2 rounded bg-accent text-white text-sm" onClick={submitCandidates}>
-                Confirm selection and build sections
+              <button
+                className="px-4 py-2 rounded bg-accent text-white text-sm disabled:opacity-50"
+                disabled={submittingCandidates}
+                onClick={submitCandidates}
+              >
+                {submittingCandidates ? "Working..." : "Confirm selection and build sections"}
               </button>
             </div>
           )}

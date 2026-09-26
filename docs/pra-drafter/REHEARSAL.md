@@ -144,22 +144,112 @@ no prod DB, no push.
 - `npx eslint` on every changed file - clean (one `react/no-unescaped-entities`
   fixed)
 
+## Follow-up round (same day) - close-out items
+
+The owner asked for five more things to be closed before calling this
+ready, all done against the same local build/stub/DB, no push:
+
+4. **Zip-bomb guard.** `lib/drafter/zip-guard.ts`'s `guardZipBounds()`
+   opens the zip's central directory only (via `jszip`'s `loadAsync`,
+   which reads entry metadata without inflating any entry) and rejects
+   over 10,000 entries or 200MB of *declared* uncompressed size, before
+   ExcelJS/mammoth ever see the bytes. Wired into both the multipart and
+   direct-upload finalize paths in `app/api/drafter/documents/route.ts`
+   for `.docx`/`.xlsx` only. Tested
+   (`lib/drafter/__tests__/zip-guard.test.ts`, 5 cases) including a
+   **crafted high-ratio zip bomb**: a single 210MB-of-repeated-`"A"` entry
+   that compresses to under 1MB - confirmed compressed size, then
+   confirmed the guard rejects it - plus a real fixture `.docx`/`.xlsx`
+   passing, an entry-count bomb, and a non-zip file. Residual limit noted
+   in the original issue list stands (bounds declared size, not a nested/
+   recursive zip-of-zips, which mammoth/ExcelJS do not support anyway).
+
+5. **Second PRA reuse, walked on screen.** Started a second PRA
+   ("Correspondent Banking Reuse Check") after approving `RQJPASSMK` in
+   the first PRA. Verified on the candidate-selection screen: the
+   `RQJPASSMK` control now shows "used in Correspondent Banking" (product
+   name) and no longer shows "no agreed wording held yet, will draft as a
+   placeholder". Selected it, confirmed, drafted: the second PRA's
+   enhancement text is **byte-identical** to the first PRA's approved
+   wording (confirmed in Postgres - two `drafter_enhancements` rows for
+   `RQJPASSMK` share the exact same `control_text`). The on-page text
+   assertion in the walkthrough script itself had a timing/dump quirk (a
+   short wait wasn't quite enough before the dump) - the database check is
+   the authoritative proof and passed.
+
+6. **Calibration run to a decision, on screen, both directions.**
+   Imported a deliberately mislabelled item (`JUDGE-PASS` marker text
+   labelled "fail" on all 6 criteria against a stub that returns all-pass)
+   and ran it: **0% overall agreement, "failed threshold"** shown in Run
+   history, and the PRA page's "Reviewer not yet calibrated" banner was
+   confirmed still present. Cleared the set, imported the same text
+   correctly labelled "pass" on all 6 criteria, ran it: **100% overall
+   agreement, "passed threshold"**, and the banner was confirmed **gone**
+   from the PRA page immediately after. Both directions proven on the real
+   calibration screen against `GET /api/drafter/calibration/status`.
+
+7. **Double-submit guards.** Added a synchronous `useRef` lock (not just
+   the existing `busy`/`drafting` React state, which only takes effect on
+   the next render and therefore does not close a same-tick double-click)
+   to every create-style action that had none or an incomplete one:
+   `createStylepack`, `extract`, `createAndConfirm`
+   (`DrafterTemplatesClient.tsx`), `startPra` (`DrafterPrasListClient.tsx`,
+   previously had `busy` state but no ref lock), and `submitCandidates`
+   (`DrafterPraDraftClient.tsx`, previously had **no** in-flight guard at
+   all - confirmed as a real, if minor, gap). Verified live: two `.click()`
+   calls dispatched on the *same DOM button* in the same synchronous tick
+   (a true double-click, not two separate Playwright action calls, which
+   have their own async pipeline and are not equivalent) now fire exactly
+   **one** `POST /api/drafter/stylepacks`, not two. (Along the way, an a11y
+   label fix below briefly regressed the walkthrough script itself - see
+   note.)
+
+8. **Accessibility basics.** Every unlabelled input/select found was
+   fixed: the candidate-control checkboxes (`aria-label` per control,
+   wrapped in `<label>`), the manual-gap description input and section
+   `<select>` (wrapped in `<label>` with `sr-only` text), and the document
+   upload `<input type="file">` (wrapped in `<label>` with `sr-only`
+   text). The library's filter tabs got `aria-pressed` plus a `font-semibold`
+   weight change so the selected state is not colour-only. Status markers
+   (`Badge`) already carry text, not just colour, so no change was needed
+   there. Global `:focus-visible` styling already exists site-wide
+   (`app/globals.css`), giving every native control (all buttons here are
+   real `<button>` elements) a visible focus ring for free - verified the
+   "Run judge" button is reachable by keyboard Tab from page load; did not
+   exhaustively tab through every conditionally-revealed control (e.g.
+   "Apply fix" only appears after a judge run is triggered and a criterion
+   fails, so a blind Tab-from-load pass does not reach it - this is
+   correct hide-until-relevant behaviour, not a bug, since it is a real
+   `<button>` once rendered). **Self-caught regression**: the first version
+   of the file-upload label's `sr-only` text ("Choose a file to **upload**")
+   accidentally gave the native file-picker its own accessible name
+   matching `/upload/i`, which made the walkthrough's
+   `getByRole("button", {name: /upload/i})` pick the wrong element and
+   silently open a file dialog instead of submitting the form. Fixed by
+   rewording the label; a lesson for any future accessible-name work here
+   is to check it doesn't collide with another interactive element's name
+   on the same screen.
+
 ## What remains unproven
 
 - The real Vercel Blob client-direct upload path for a file genuinely over
   4MB (no `BLOB_READ_WRITE_TOKEN` in this local environment - matches
-  HANDOFF-4's own note).
-- Decompressed-size protection against a zip-bomb xlsx/docx within the new
-  50MB cap (see Issue #3's residual limitation above).
-- A second PRA's full UI reuse/"used before" journey was proven at the data
-  layer (approving `RQJPASSMK` wrote `agreed_wording` and `used_in_pra_ids`
-  onto its control, and created an exemplar row) but a second PRA was not
-  walked screen-by-screen in the browser in this pass, for time.
-- Calibration run screen was viewed (banner text verified pre- and
-  mid-run) but a full labelled calibration set was not run to a passing
-  agreement percentage in this pass.
-- Full keyboard/screen-reader accessibility was not assessed - this
-  rehearsal was a sighted, mouse/keyboard-driven walkthrough only.
+  HANDOFF-4's own note). Explicitly out of scope for this pass per the
+  owner - to be proven on the deployed app instead.
+- The zip-bomb guard bounds *declared* uncompressed size and entry count
+  from the central directory; it does not defend against a maliciously
+  corrupted central directory that under-reports size (ExcelJS/mammoth
+  would still need to actually parse such a file to discover the
+  mismatch, at which point the 50MB compressed-upload cap is still the
+  backstop).
+- Screen-reader software (VoiceOver/NVDA) was not run - accessibility
+  checks were DOM-role/keyboard/contrast-adjacent only (labels present,
+  `aria-pressed`, focus-visible, colour-independent status text, Tab
+  reachability of one representative always-visible control). Full
+  assistive-technology testing of the drafter module remains unproven.
+- Double-submit guards were verified live on one representative button
+  (`New StylePack`); the other four buttons share the identical ref-lock
+  pattern but were not each individually double-click-tested.
 
 ## Local QA data
 

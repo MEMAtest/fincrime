@@ -133,12 +133,15 @@ export default function DrafterDocumentsClient() {
           </p>
 
           <form onSubmit={handleUpload} className="glass-card rounded-xl p-5 mb-6 flex items-center gap-3 flex-wrap">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".md,.markdown,.html,.htm,.docx,.xlsx"
-              className="text-sm text-text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-sm"
-            />
+            <label>
+              <span className="sr-only">Choose a file (.md, .html, .docx or .xlsx)</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".md,.markdown,.html,.htm,.docx,.xlsx"
+                className="text-sm text-text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-sm"
+              />
+            </label>
             <Button type="submit" disabled={uploading}>
               {uploading ? "Uploading..." : "Upload"}
             </Button>
