@@ -74,7 +74,7 @@ export default function DrafterSettingsClient() {
   if (!settings) {
     return (
       <ToolFrame breadcrumb={[{ label: "Home", href: "/" }, { label: "PRA Drafter", href: "/drafter" }, { label: "Settings" }]}>
-        <main className="flex-1 max-w-3xl mx-auto px-4 py-8 text-sm text-text-muted">Loading...</main>
+        <main className="flex-1 max-w-5xl mx-auto px-4 py-8 text-sm text-text-muted">Loading...</main>
       </ToolFrame>
     );
   }
@@ -82,7 +82,7 @@ export default function DrafterSettingsClient() {
   return (
     <ToolFrame breadcrumb={[{ label: "Home", href: "/" }, { label: "PRA Drafter", href: "/drafter" }, { label: "Settings" }]}>
       <main className="flex-1">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-2xl font-bold text-foreground mb-1">Settings</h1>
           <p className="text-sm text-text-muted mb-6">
             Controlled lists, the default inclusion filter, contradiction rules, cost cap, per-role model prices and

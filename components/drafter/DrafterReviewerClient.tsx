@@ -59,7 +59,7 @@ export default function DrafterReviewerClient() {
   return (
     <ToolFrame breadcrumb={[{ label: "Home", href: "/drafter" }, { label: "PRA Drafter", href: "/drafter" }, { label: "Reviewer" }]}>
       <main className="flex-1">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
           <div>
             <h1 className="text-2xl font-bold text-foreground">Paste-in reviewer</h1>
             <p className="text-sm text-text-muted">Paste control text, its rationale and the section it targets to get the same lint + judge review a drafted enhancement gets. Nothing here is saved.</p>

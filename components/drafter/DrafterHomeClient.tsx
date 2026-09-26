@@ -47,7 +47,7 @@ export default function DrafterHomeClient() {
   return (
     <ToolFrame breadcrumb={[{ label: "Home", href: "/" }, { label: "PRA Drafter" }]}>
       <main className="flex-1">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-foreground">PRA Drafter</h1>
             <p className="text-sm text-text-muted mt-1 max-w-2xl">

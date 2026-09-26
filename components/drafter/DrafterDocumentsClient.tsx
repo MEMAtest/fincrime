@@ -74,15 +74,30 @@ export default function DrafterDocumentsClient() {
         // pass through this app's serverless function body, so there is no
         // 4MB ceiling here. onBeforeGenerateToken in the upload-token route
         // still gates this on the same drafter access check.
-        const blob = await upload(file.name, file, {
-          // `access` is required by this SDK's TypeScript type for the
-          // handleUploadUrl flow, but the actual access level is decided
-          // server-side by onBeforeGenerateToken (which always returns
-          // "private" - see app/api/drafter/documents/upload-token) and
-          // embedded in the signed token; this value is not sent or used.
-          access: "public",
-          handleUploadUrl: "/api/drafter/documents/upload-token",
-        });
+        // `access` IS sent with the upload and must match the token issued
+        // by the upload-token route ("private"); a mismatch is rejected by
+        // Blob without CORS headers, which surfaced as a CORS error and a
+        // button stuck on "Uploading...". The timeout stops the SDK's
+        // internal retries from hanging forever on any other failure.
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 5 * 60 * 1000);
+        let blob: Awaited<ReturnType<typeof upload>>;
+        try {
+          blob = await upload(file.name, file, {
+            access: "private",
+            handleUploadUrl: "/api/drafter/documents/upload-token",
+            multipart: true,
+            abortSignal: controller.signal,
+          });
+        } catch (error) {
+          throw new Error(
+            controller.signal.aborted
+              ? "The upload timed out. Check the connection and try again."
+              : `The upload failed: ${error instanceof Error ? error.message : "unknown error"}`
+          );
+        } finally {
+          window.clearTimeout(timeout);
+        }
         res = await fetch("/api/drafter/documents", {
           method: "POST",
           credentials: "include",
@@ -125,7 +140,7 @@ export default function DrafterDocumentsClient() {
   return (
     <ToolFrame breadcrumb={[{ label: "Home", href: "/" }, { label: "PRA Drafter", href: "/drafter" }, { label: "Documents" }]}>
       <main className="flex-1">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-2xl font-bold text-foreground mb-1">Documents</h1>
           <p className="text-sm text-text-muted mb-6 max-w-2xl">
             Upload .md, .html, .docx or .xlsx files. Every upload is stored unchanged, hashed and parsed. Confirm
