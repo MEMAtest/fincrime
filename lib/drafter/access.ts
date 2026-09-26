@@ -121,3 +121,13 @@ export async function requireDrafterActorPage(): Promise<DrafterActor> {
   }
   return actor as DrafterActor;
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Route id params that are not UUIDs are treated as not found. Without this
+ * a malformed id reaches Postgres and surfaces as a 500 instead of a 404.
+ */
+export function invalidDrafterIds(...ids: string[]): NextResponse | null {
+  return ids.every((id) => UUID_RE.test(id)) ? null : NextResponse.json({ error: "Not found" }, { status: 404 });
+}

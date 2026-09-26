@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { callDrafterModel, isRoleConfigured, roleDisabledReason, PROMPT_VERSIONS } from "@/lib/drafter/llm";
 import { enforceControlledTags, type SuggestedTagCandidate } from "@/lib/drafter/tagging";
 import { getControl, addSuggestedTag } from "@/lib/repo/drafter-controls";
@@ -24,6 +24,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
 
   if (!isRoleConfigured("writer")) {
     return NextResponse.json({ error: roleDisabledReason("writer") }, { status: 503 });

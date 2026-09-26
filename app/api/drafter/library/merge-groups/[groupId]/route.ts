@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { decideMergeGroup } from "@/lib/repo/drafter-controls";
 
 interface RouteContext {
@@ -11,6 +11,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { groupId } = await context.params;
+  const badId = invalidDrafterIds(groupId);
+  if (badId) return badId;
 
   let body: { action?: string };
   try {

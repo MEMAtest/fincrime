@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { validateRegisterRows, type ColumnMappingEntry, type RegisterRowInput } from "@/lib/drafter/validation";
 import { getDrafterSetting } from "@/lib/repo/drafter-settings";
 import {
@@ -21,6 +21,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { importId } = await context.params;
+  const badId = invalidDrafterIds(importId);
+  if (badId) return badId;
   const mapping = await getColumnMapping(importId);
   return NextResponse.json({ mapping });
 }
@@ -37,6 +39,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   if ("response" in gate) return gate.response;
   const { actor } = gate;
   const { importId } = await context.params;
+  const badId = invalidDrafterIds(importId);
+  if (badId) return badId;
 
   const registerImport = await getRegisterImport(importId);
   if (!registerImport) return NextResponse.json({ error: "Not found" }, { status: 404 });

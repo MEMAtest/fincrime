@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { getPra, listSectionsForPra, listEnhancementsForPra, listOpenItemsForPra, deletePra } from "@/lib/repo/drafter-pras";
 
 interface RouteContext {
@@ -11,6 +11,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
 
   const pra = await getPra(id);
   if (!pra) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -29,6 +31,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
 
   const deleted = await deletePra(id, gate.actor.email);
   if (!deleted) return NextResponse.json({ error: "Not found" }, { status: 404 });

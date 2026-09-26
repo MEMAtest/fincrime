@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { confirmDrafterDocumentType, getDrafterDocument, deleteDrafterDocument } from "@/lib/repo/drafter-documents";
 import { deleteEvidenceFileBestEffort } from "@/lib/storage/blob";
 
@@ -11,6 +11,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
   const document = await getDrafterDocument(id);
   if (!document) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ document });
@@ -28,6 +30,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
 
   const document = await getDrafterDocument(id);
   if (!document) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -64,6 +68,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
 
   const result = await deleteDrafterDocument(id, gate.actor.email);
   if (!result.deleted && !result.blockedReason) return NextResponse.json({ error: "Not found" }, { status: 404 });

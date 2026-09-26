@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { saveEditedStylepackVersion } from "@/lib/repo/drafter-stylepacks";
 import type { BannedPhrase } from "@/lib/drafter/lint";
 import { getDrafterDocument } from "@/lib/repo/drafter-documents";
@@ -15,6 +15,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if ("response" in gate) return gate.response;
   const { actor } = gate;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
 
   const body = await request.json().catch(() => null);
   const rules = body?.rules as string[] | undefined;

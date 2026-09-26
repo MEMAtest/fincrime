@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { checkMissingColumns } from "@/lib/drafter/validation";
 import {
   getRegisterImport,
@@ -19,6 +19,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { importId } = await context.params;
+  const badId = invalidDrafterIds(importId);
+  if (badId) return badId;
 
   const registerImport = await getRegisterImport(importId);
   if (!registerImport) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -42,6 +44,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { importId } = await context.params;
+  const badId = invalidDrafterIds(importId);
+  if (badId) return badId;
 
   const result = await deleteRegisterImport(importId, gate.actor.email);
   if (!result.deleted && !result.blockedReason) return NextResponse.json({ error: "Not found" }, { status: 404 });

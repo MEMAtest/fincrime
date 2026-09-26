@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { getRegisterRow, addValidationOverride, markRegisterRowResolved, listValidationOverrides } from "@/lib/repo/drafter-register";
 
 interface RouteContext {
@@ -20,6 +20,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if ("response" in gate) return gate.response;
   const { actor } = gate;
   const { rowId } = await context.params;
+  const badId = invalidDrafterIds(rowId);
+  if (badId) return badId;
 
   const row = await getRegisterRow(rowId);
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });

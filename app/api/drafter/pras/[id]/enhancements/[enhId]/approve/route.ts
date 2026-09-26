@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { getEnhancement, getPra, markControlUsedInPra } from "@/lib/repo/drafter-pras";
 import { setAgreedWording } from "@/lib/repo/drafter-controls";
 import { createExemplar } from "@/lib/repo/drafter-stylepacks";
@@ -24,6 +24,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if ("response" in gate) return gate.response;
   const { actor } = gate;
   const { id: praId, enhId } = await context.params;
+  const badId = invalidDrafterIds(praId, enhId);
+  if (badId) return badId;
 
   const enhancement = await getEnhancement(enhId);
   if (!enhancement) return NextResponse.json({ error: "Not found" }, { status: 404 });

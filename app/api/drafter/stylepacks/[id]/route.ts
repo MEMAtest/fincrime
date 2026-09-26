@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { deleteStylepack } from "@/lib/repo/drafter-stylepacks";
 
 interface RouteContext {
@@ -15,6 +15,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
 
   const result = await deleteStylepack(id, gate.actor.email);
   if (!result.deleted && !result.blockedReason) return NextResponse.json({ error: "Not found" }, { status: 404 });

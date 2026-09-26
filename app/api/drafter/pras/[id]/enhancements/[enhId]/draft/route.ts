@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { draftOneEnhancement } from "@/lib/drafter/draft-enhancement";
 
 interface RouteContext {
@@ -17,6 +17,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if ("response" in gate) return gate.response;
   const { actor } = gate;
   const { enhId } = await context.params;
+  const badId = invalidDrafterIds(enhId);
+  if (badId) return badId;
 
   const result = await draftOneEnhancement(enhId, actor.email);
   if (!result.ok) return NextResponse.json({ error: result.reason }, { status: 422 });

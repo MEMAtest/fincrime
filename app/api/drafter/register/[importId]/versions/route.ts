@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { listRegisterVersions, listRegisterRows, acceptRegisterVersion, getRegisterVersion, getColumnMapping } from "@/lib/repo/drafter-register";
 import { buildControlsFromRegisterVersion } from "@/lib/repo/drafter-controls";
 
@@ -11,6 +11,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { importId } = await context.params;
+  const badId = invalidDrafterIds(importId);
+  if (badId) return badId;
   const versions = await listRegisterVersions(importId);
   return NextResponse.json({ versions });
 }
@@ -28,6 +30,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if ("response" in gate) return gate.response;
   const { actor } = gate;
   const { importId } = await context.params;
+  const badId = invalidDrafterIds(importId);
+  if (badId) return badId;
 
   let body: { versionId?: string; action?: string };
   try {

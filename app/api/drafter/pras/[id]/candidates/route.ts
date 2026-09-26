@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { listCandidateControls, getPra, assignControlsAndCreateEnhancements, addManualGap, getControlSourceFields } from "@/lib/repo/drafter-pras";
 import { getTemplateVersion } from "@/lib/repo/drafter-templates";
 
@@ -12,6 +12,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
   const pra = await getPra(id);
   if (!pra) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -43,6 +45,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if ("response" in gate) return gate.response;
   const { actor } = gate;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
 
   const pra = await getPra(id);
   if (!pra) return NextResponse.json({ error: "Not found" }, { status: 404 });

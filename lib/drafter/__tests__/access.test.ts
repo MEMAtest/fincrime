@@ -37,6 +37,13 @@ describe("drafter API routes always use the access guard", () => {
     const contents = readFileSync(file, "utf8");
     expect(contents).toMatch(/requireDrafterActorApi/);
   });
+
+  it.each(routeFiles.filter((f) => f.includes("[")))("%s rejects non-UUID id params", (file) => {
+    const contents = readFileSync(file, "utf8");
+    const paramReads = contents.match(/await context\.params/g)?.length ?? 0;
+    const guards = contents.match(/invalidDrafterIds\(/g)?.length ?? 0;
+    expect(guards).toBeGreaterThanOrEqual(paramReads);
+  });
 });
 
 describe("access key and drafter cookie", () => {
@@ -87,5 +94,14 @@ describe("access key and drafter cookie", () => {
     expect(cleanLabel("")).toBe("Drafter user");
     expect(cleanLabel(42)).toBe("Drafter user");
     expect(cleanLabel("x".repeat(100)).length).toBe(60);
+  });
+});
+
+describe("invalidDrafterIds", () => {
+  it("passes UUIDs and 404s anything else", async () => {
+    const { invalidDrafterIds } = await import("../access");
+    expect(invalidDrafterIds("3f2b8c1e-9d4a-4b6f-8e2d-1a2b3c4d5e6f")).toBeNull();
+    expect(invalidDrafterIds("undefined")?.status).toBe(404);
+    expect(invalidDrafterIds("3f2b8c1e-9d4a-4b6f-8e2d-1a2b3c4d5e6f", "1")?.status).toBe(404);
   });
 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireDrafterActorApi } from "@/lib/drafter/access";
+import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
 import { saveEditedTemplateVersion } from "@/lib/repo/drafter-templates";
 import type { SkeletonFieldLabels, SkeletonSection } from "@/lib/drafter/skeleton";
 
@@ -13,6 +13,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
   if ("response" in gate) return gate.response;
   const { actor } = gate;
   const { id } = await context.params;
+  const badId = invalidDrafterIds(id);
+  if (badId) return badId;
 
   const body = await request.json().catch(() => null);
   const sections = body?.sections as SkeletonSection[] | undefined;
