@@ -11,6 +11,15 @@ export type AuthStep =
   | { waitForUrl: string }
   | { waitForSelector: string };
 
+export interface SetupRequest {
+  method?: string;
+  path: string;
+  body?: unknown;
+  headers?: Record<string, string>;
+  /** env var name → dot path into the JSON response, e.g. { "QA_TOKEN": "data.token" } */
+  capture?: Record<string, string>;
+}
+
 export interface QaConfig {
   name?: string;
   /** Test an already-running app instead of launching one from the repo. */
@@ -37,6 +46,11 @@ export interface QaConfig {
   /** Extra headers sent on same-origin requests only (never leaked to third parties). */
   headers: Record<string, string>;
   auth?: { storageState?: string; steps?: AuthStep[] };
+  /**
+   * HTTP calls made once the app is up, e.g. to mint a test session or workspace. Values captured from
+   * the JSON response become environment variables, usable as ${NAME} in headers and auth steps.
+   */
+  setup: SetupRequest[];
   /** Natural-language user journeys for the AI explorer. */
   journeys: string[];
   api: { enabled: boolean; endpoints: EndpointSpec[] };
@@ -93,6 +107,7 @@ export function defaultConfig(): QaConfig {
     concurrency: 3,
     viewports: ["desktop", "tablet", "mobile"],
     headers: {},
+    setup: [],
     journeys: [],
     api: { enabled: true, endpoints: [] },
     checks: {

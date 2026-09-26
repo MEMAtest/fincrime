@@ -1,17 +1,28 @@
 {
   "name": "FinCrime Control Lab",
-  "maxPages": 60,
+  "maxPages": 45,
   "routes": {
     "exclude": ["/account/reset-password"]
   },
+  "setup": [
+    {
+      "method": "POST",
+      "path": "/api/workspace/bootstrap",
+      "body": { "name": "qabot test workspace" },
+      "capture": { "QA_WORKSPACE_ID": "id", "QA_WORKSPACE_TOKEN": "token" }
+    }
+  ],
+  "headers": {
+    "x-workspace-id": "${QA_WORKSPACE_ID}",
+    "x-workspace-token": "${QA_WORKSPACE_TOKEN}"
+  },
   "journeys": [
-    "Use TypologyIQ: pick a firm type, product, customer type and risk theme, view results, open one typology's detail page",
-    "Use the Screening Control Designer end to end and check the results page makes sense for the inputs",
-    "Start a new product risk assessment (/assess/product-risk/new) and work through as many of the 8 steps as possible, including going back a step and refreshing mid-flow",
-    "Try to download a PDF from a free tool: check the email gate validates bad emails",
-    "Create an incident and a control test in the workspace, then check they appear on /workspace and /govern/dashboard"
+    "Use TypologyIQ: pick a firm type, product, customer type and risk theme, view results, then open one typology's detail page. Check the results make sense for the inputs.",
+    "Start a new product risk assessment (/assess/product-risk/new) and work through as many of the 8 steps as you can, including going back a step and refreshing mid-flow. Check nothing you entered is lost.",
+    "Try to download a PDF from a free tool and check the email gate: invalid emails should be rejected with a clear message.",
+    "Create an incident (/assure/incidents/new), then check it appears on /workspace and in the incidents list with the details you entered."
   ],
   "ignore": ["seo-open-graph"],
   "failOn": "high",
-  "ai": { "uxReviewPages": 8, "explorerSteps": 60 }
+  "ai": { "uxReviewPages": 6, "explorerSteps": 30 }
 }

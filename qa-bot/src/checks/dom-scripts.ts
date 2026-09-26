@@ -203,6 +203,8 @@ export function auditLayout(opts: { mobile: boolean }): LayoutAudit {
     const cy = r.top + r.height / 2;
     const hit = document.elementFromPoint(cx, cy);
     if (!hit || hit === el || el.contains(hit) || hit.contains(el)) continue;
+    // Framework dev overlays (Next.js indicator, Vite/webpack error overlays) aren't part of the app.
+    if (hit.closest("nextjs-portal, vite-error-overlay, #webpack-dev-server-client-overlay, [data-nextjs-toast]")) continue;
     const lbl = (el as HTMLInputElement).labels?.[0];
     if (lbl && (lbl === hit || lbl.contains(hit))) continue;
     out.obscured.push({ selector: selectorOf(el), text: label(el), coveredBy: selectorOf(hit) });

@@ -11,7 +11,7 @@ import { probeApis } from "./checks/api-probe.js";
 import { runBrowserSuite, type SuiteResult } from "./checks/browser-suite.js";
 import { runCodeChecks } from "./checks/code.js";
 import { checkLinks } from "./checks/links.js";
-import { loadConfig, mergeConfig, type DeepPartial, type QaConfig } from "./config.js";
+import { loadConfig, mergeConfig, type DeepPartial, type QaConfig, type SetupRequest } from "./config.js";
 import { discoverEndpoints } from "./discover/api.js";
 import { discoverRoutes } from "./discover/routes.js";
 import { enrichFilesFromSelectors } from "./discover/source-map.js";
@@ -21,7 +21,7 @@ import { renderMarkdown } from "./report/markdown.js";
 import { detectStack } from "./target/detect.js";
 import { extractServerErrors, launchApp, type LaunchedApp } from "./target/launch.js";
 import type { AiSummary, ApiProbeResult, Category, CodeCheckResult, EndpointSpec, RouteInfo, RunReport, StackInfo } from "./types.js";
-import { ensureDir, isLocalHost, log, mapLimit, relPath, truncate } from "./util.js";
+import { ensureDir, interpolateEnv, isLocalHost, log, mapLimit, relPath, truncate } from "./util.js";
 
 export const VERSION = "0.1.0";
 
@@ -107,6 +107,19 @@ export async function run(opts: RunOptions): Promise<RunOutcome> {
   const ai = aiWanted ? selectAiBackend(cfg, outDir, warnings) : undefined;
   if (ai) log.info(`AI: ${ai.name === "claude-code" ? `Claude Code (${ai.model}) on your Claude login, no API key` : `Anthropic API (${ai.model})`}`);
   const aiSummary: AiSummary | undefined = ai ? { model: ai.model, backend: ai.name, usage: ai.usage, errors: ai.errors } : undefined;
+
+  if (baseUrl && cfg.setup.length) {
+    log.step(`Running ${cfg.setup.length} setup request${cfg.setup.length === 1 ? "" : "s"}`);
+    for (const req of cfg.setup) {
+      try {
+        const captured = await runSetupRequest(baseUrl, req);
+        log.info(`${req.method ?? "GET"} ${req.path} → captured ${captured.join(", ") || "nothing"}`);
+      } catch (e) {
+        warnings.push(`Setup request ${req.method ?? "GET"} ${req.path} failed: ${(e as Error).message}`);
+        log.warn(`Setup ${req.path} failed: ${(e as Error).message}`);
+      }
+    }
+  }
 
   let suite: SuiteResult | undefined;
   let apiResults: ApiProbeResult[] = [];
@@ -287,6 +300,27 @@ export async function run(opts: RunOptions): Promise<RunOutcome> {
 
   const failing = findings.filter((f) => !f.aiNote && meetsThreshold(f.severity, cfg.failOn));
   return { report, outDir, exitCode: failing.length ? 1 : 0 };
+}
+
+export async function runSetupRequest(baseUrl: string, req: SetupRequest): Promise<string[]> {
+  const headers = Object.fromEntries(Object.entries(req.headers ?? {}).map(([k, v]) => [k, interpolateEnv(v)]));
+  const res = await fetch(new URL(interpolateEnv(req.path), baseUrl), {
+    method: req.method ?? "GET",
+    headers: { ...(req.body !== undefined ? { "content-type": "application/json" } : {}), ...headers },
+    body: req.body !== undefined ? JSON.stringify(req.body) : undefined,
+    signal: AbortSignal.timeout(120_000),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${truncate(text, 200)}`);
+  const json = text ? JSON.parse(text) : {};
+  const captured: string[] = [];
+  for (const [name, dotPath] of Object.entries(req.capture ?? {})) {
+    const value = dotPath.split(".").reduce<unknown>((v, k) => (v && typeof v === "object" ? (v as Record<string, unknown>)[k] : undefined), json);
+    if (value === undefined || value === null) throw new Error(`response has no "${dotPath}"`);
+    process.env[name] = String(value);
+    captured.push(name);
+  }
+  return captured;
 }
 
 /**

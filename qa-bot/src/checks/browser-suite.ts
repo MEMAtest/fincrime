@@ -736,7 +736,7 @@ async function interactionCheck(page: Page, url: string, c: PageCtx, sig: Signal
       res = await click(cand.id);
     }
     if (!res.ok) {
-      const blocker = res.interceptedBy;
+      const blocker = res.interceptedBy && /^(nextjs-portal|vite-error-overlay)\b/i.test(res.interceptedBy) ? undefined : res.interceptedBy;
       const selfDisabled = blocker
         ? await loc
             .first()

@@ -80,6 +80,7 @@ describe("findings", () => {
 describe("signal classification", () => {
   it("drops dev noise and escalates crashes", () => {
     expect(consoleFinding(ctx, "error", "[HMR] connected")).toBeUndefined();
+    expect(consoleFinding(ctx, "warning", "[.WebGL-0x1eb4]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall")).toBeUndefined();
     expect(consoleFinding(ctx, "error", "Failed to load resource: 404")).toBeUndefined();
     expect(consoleFinding(ctx, "error", "Hydration failed because the server rendered HTML didn't match the client")?.severity).toBe("high");
     expect(consoleFinding(ctx, "warning", "Each child in a list should have a unique \"key\" prop")?.severity).toBe("low");
@@ -143,5 +144,32 @@ describe("selector → source mapping", () => {
     const { distinctiveTokens } = await import("../src/discover/source-map.js");
     expect(distinctiveTokens("div.nav-shell:nth-of-type(4) > nav.nav > div.nav-cta.flex.items-center")).toEqual({ classes: ["nav-shell", "nav-cta"], ids: [] });
     expect(distinctiveTokens("#pricing-table > div.p-4").ids).toEqual(["pricing-table"]);
+  });
+});
+
+describe("setup requests", () => {
+  it("captures values from a JSON response into env vars for headers", async () => {
+    const http = await import("node:http");
+    const { runSetupRequest } = await import("../src/run.js");
+    const { interpolateEnv } = await import("../src/util.js");
+    const server = http.createServer((req, res) => {
+      let body = "";
+      req.on("data", (d) => (body += d));
+      req.on("end", () => {
+        res.writeHead(201, { "content-type": "application/json" });
+        res.end(JSON.stringify({ workspace: { id: "ws_1", token: `t-${JSON.parse(body).name}` } }));
+      });
+    });
+    await new Promise<void>((r) => server.listen(0, "127.0.0.1", () => r()));
+    const port = (server.address() as { port: number }).port;
+    const got = await runSetupRequest(`http://127.0.0.1:${port}`, {
+      method: "POST",
+      path: "/api/bootstrap",
+      body: { name: "qa" },
+      capture: { QA_T_ID: "workspace.id", QA_T_TOKEN: "workspace.token" },
+    });
+    server.close();
+    expect(got).toEqual(["QA_T_ID", "QA_T_TOKEN"]);
+    expect(interpolateEnv("${QA_T_ID}:${QA_T_TOKEN}")).toBe("ws_1:t-qa");
   });
 });

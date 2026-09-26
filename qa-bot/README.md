@@ -84,6 +84,10 @@ Anything unusual goes in `qabot.config.json` (see `qabot init`).
     "Run TypologyIQ for an EMI with cross-border payments and open a typology",
     "Start a product risk assessment and get to step 3"
   ],
+  "setup": [
+    { "method": "POST", "path": "/api/workspace/bootstrap", "body": { "name": "qabot" },
+      "capture": { "QA_WORKSPACE_ID": "id", "QA_WORKSPACE_TOKEN": "token" } }
+  ],
   "headers": { "x-workspace-id": "${QA_WORKSPACE_ID}", "x-workspace-token": "${QA_WORKSPACE_TOKEN}" },
   "auth": { "steps": [
     { "goto": "/login" },
@@ -98,7 +102,7 @@ Anything unusual goes in `qabot.config.json` (see `qabot init`).
 }
 ```
 
-`${VAR}` values come from the environment, so secrets never live in the file. Extra headers are only sent to the site's own origin.
+`${VAR}` values come from the environment, so secrets never live in the file. `setup` requests run once the app is up (e.g. to mint a test workspace, session or API token) and `capture` copies fields from the JSON response into such variables. Extra headers are only sent to the site's own origin.
 
 ## Safety
 

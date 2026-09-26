@@ -21,7 +21,7 @@ const CONSOLE_NOISE = [
   /^Failed to load resource/i, // reported from the network listener instead
   /third-party cookie/i,
   /DevTools failed to load source map/i,
-  /GroupMarkerNotSet|fallback to software WebGL|SwiftShader/i, // headless Chromium GPU notices, not the app
+  /GroupMarkerNotSet|fallback to software WebGL|SwiftShader|GL Driver Message|\[\.WebGL-0x/i, // headless Chromium GPU notices, not the app
 ];
 
 const ESCALATE_CONSOLE = /(Hydration failed|Uncaught|ChunkLoadError|Maximum update depth|Minified React error|Cannot read properties of (undefined|null)|is not a function|is not defined)/i;
