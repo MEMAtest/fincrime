@@ -65,5 +65,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     actor.email
   );
 
-  return NextResponse.json({ version: accepted, controlsBuilt: buildResult.created });
+  return NextResponse.json({
+    version: accepted,
+    controlsBuilt: buildResult.created,
+    controlsUpdated: buildResult.updated,
+  });
 }

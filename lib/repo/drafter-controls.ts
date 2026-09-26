@@ -32,20 +32,33 @@ export interface ControlTagRow {
 }
 
 /**
- * Builds one control per accepted, non-blocked register row (v1 keeps the
- * mapping 1:1; merges happen afterwards via drafter_merge_groups, per
- * SPEC.md - a control is not pre-merged at build time). Blocked rows that
- * have not been resolved/overridden never reach the library, per SPEC.md
- * "blocking issues must be resolved or overridden ... before rows enter the
- * library".
+ * Builds/updates one control per accepted, non-blocked register row.
+ * Merges by matching backoffice control happen afterwards via
+ * drafter_merge_groups, per SPEC.md - a control is not pre-merged at build
+ * time. Blocked rows that have not been resolved/overridden never reach the
+ * library, per SPEC.md "blocking issues must be resolved or overridden ...
+ * before rows enter the library".
+ *
+ * Fix for the prod duplicate-controls bug (a 10-row register accepted
+ * twice produced 20 controls, and the same REQ reached a PRA as two
+ * separate enhancements): the library holds exactly ONE current control
+ * per req_id. When a row's req_id already has a current control (from an
+ * earlier accepted version of this or any other register import), that
+ * control is UPDATED IN PLACE - its id, and therefore every candidate /
+ * drafted enhancement that already points at it, is preserved - instead of
+ * a second control being inserted. The pre-update snapshot is kept in
+ * drafter_control_history so the previous version's data is not lost. Rows
+ * with no req_id can't be deduplicated this way and always insert a new
+ * control, same as before.
  */
 export async function buildControlsFromRegisterVersion(
   registerVersionId: string,
   rows: { id: string; req_id: string | null; fields: Record<string, RegisterCell>; is_blocked: boolean }[],
   mapping: ColumnMappingEntry[],
   actor: string
-): Promise<{ created: number; skippedBlocked: number }> {
+): Promise<{ created: number; updated: number; skippedBlocked: number }> {
   let created = 0;
+  let updated = 0;
   let skippedBlocked = 0;
 
   const fieldKeyToValue = (fields: Record<string, RegisterCell>) => {
@@ -72,13 +85,44 @@ export async function buildControlsFromRegisterVersion(
           ? `Control for ${row.req_id}`
           : "Untitled control";
 
-      const controlRows = await queryWithClient<{ id: string }>(
-        client,
-        `INSERT INTO drafter_controls (title, req_ids, register_row_ids, backoffice_control, coverage)
-         VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-        [title, row.req_id ? [row.req_id] : [], [row.id], codeTags.backoffice_control ?? null, coverage]
-      );
-      const controlId = controlRows[0].id;
+      let controlId: string;
+      let existing: ControlRow | null = null;
+      if (row.req_id) {
+        const existingRows = await queryWithClient<ControlRow>(
+          client,
+          `SELECT * FROM drafter_controls WHERE $1 = ANY(req_ids) ORDER BY created_at ASC LIMIT 1`,
+          [row.req_id]
+        );
+        existing = existingRows[0] ?? null;
+      }
+
+      if (existing) {
+        await queryWithClient(
+          client,
+          `INSERT INTO drafter_control_history (control_id, snapshot, superseded_by_register_version_id)
+           VALUES ($1, $2, $3)`,
+          [existing.id, JSON.stringify(existing), registerVersionId]
+        );
+        await queryWithClient(
+          client,
+          `UPDATE drafter_controls
+           SET title = $2, register_row_ids = $3, backoffice_control = $4, coverage = $5, updated_at = now()
+           WHERE id = $1`,
+          [existing.id, title, [row.id], codeTags.backoffice_control ?? null, coverage]
+        );
+        await queryWithClient(client, `DELETE FROM drafter_control_tags WHERE control_id = $1 AND origin = 'code'`, [existing.id]);
+        controlId = existing.id;
+        updated++;
+      } else {
+        const controlRows = await queryWithClient<{ id: string }>(
+          client,
+          `INSERT INTO drafter_controls (title, req_ids, register_row_ids, backoffice_control, coverage)
+           VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+          [title, row.req_id ? [row.req_id] : [], [row.id], codeTags.backoffice_control ?? null, coverage]
+        );
+        controlId = controlRows[0].id;
+        created++;
+      }
 
       const codeTagEntries: [string, string][] = [
         ["backoffice_control", codeTags.backoffice_control],
@@ -97,16 +141,16 @@ export async function buildControlsFromRegisterVersion(
           [controlId, tagType, value]
         );
       }
-      created++;
     }
   });
 
   await writeDrafterAudit(actor, "library.controls.build", "drafter_register_version", registerVersionId, {
     created,
+    updated,
     skippedBlocked,
   });
 
-  return { created, skippedBlocked };
+  return { created, updated, skippedBlocked };
 }
 
 function coverageGroupToDbValue(group: CoverageGroup): "yes" | "partial" | "no" | "unassessed" {
