@@ -12,6 +12,10 @@ import { fileURLToPath } from "node:url";
  * as a value) need real alias resolution.
  */
 export default defineConfig({
+  test: {
+    // qa-bot/ is a standalone package with its own test runner.
+    exclude: ["**/node_modules/**", "qa-bot/**"],
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL(".", import.meta.url)),

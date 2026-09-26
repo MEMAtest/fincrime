@@ -1,0 +1,71 @@
+# Copy to .github/workflows/qabot.yml in the repo you want to test.
+# Runs qabot against the Vercel preview for every PR (read-only safe mode),
+# posts the Markdown summary as a PR comment and uploads the full HTML report.
+name: qabot
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  qa:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # qabot lives in qa-bot/ here; if you move it to its own repo, check that out instead.
+      - name: Install qabot
+        working-directory: qa-bot
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run build
+
+      - name: Run qabot against the preview
+        id: qabot
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TARGET_URL: ${{ github.event.deployment_status.environment_url }}
+          # If the preview is protected, add a Vercel automation-bypass header:
+          # --header "x-vercel-protection-bypass: $VERCEL_BYPASS_TOKEN"
+        run: |
+          node qa-bot/dist/cli.js run . \
+            --url "$TARGET_URL" \
+            --no-code --explore-steps 25 --fail-on high \
+            --out qabot-report
+        continue-on-error: true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qabot-report
+          path: qabot-report
+
+      - name: Comment on the PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('qabot-report/report.md', 'utf8') +
+              `\n\n[Full HTML report](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner, repo: context.repo.repo, commit_sha: context.payload.deployment.sha });
+            for (const pr of prs.data) {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pr.number, body });
+            }
+
+      - name: Fail on high-severity findings
+        if: steps.qabot.outcome == 'failure'
+        run: exit 1

@@ -1,0 +1,10 @@
+body { font-family: system-ui, sans-serif; margin: 0; }
+.site-header { display: flex; gap: 24px; padding: 16px 24px; background: #111; }
+.site-header a { color: #fff; }
+main { padding: 24px; }
+.faint { color: #c8c8c8; }
+.btn { background: #3355ff; color: #fff; border: 0; padding: 10px 18px; border-radius: 6px; outline: none; }
+.btn:focus { outline: none; }
+.wide-banner { width: 1000px; background: #ffe066; padding: 8px; }
+.tiny { display: inline-block; width: 14px; height: 14px; font-size: 10px; }
+.site-header a:focus { outline: none; }

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About Acme</title>
+  <meta name="description" content="About the Acme widget company.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header"><a href="/" class="logo">Acme</a></header>
+  <main>
+    <h1>About us</h1>
+    <h1>Our story</h1>
+    <p>Founded in 1999. Last updated: <span id="updated"></span></p>
+    <p>Read our <a href="/careers.html">careers page</a>.</p>
+  </main>
+  <script>
+    document.getElementById('updated').textContent = new Date('not a date').toString();
+    fetch('/api/team.json').then(function (r) { if (!r.ok) console.error('Team API failed with status ' + r.status); });
+  </script>
+</body>
+</html>

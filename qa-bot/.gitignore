@@ -1,0 +1,4 @@
+node_modules/
+dist/
+qabot-report/
+.qabot/auth-state.json

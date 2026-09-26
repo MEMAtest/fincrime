@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone QA bot with its own toolchain.
+    "qa-bot/**",
   ]),
 ]);
 
