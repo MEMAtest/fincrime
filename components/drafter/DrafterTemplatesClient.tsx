@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface DocumentSummary {
   id: string;
@@ -48,12 +49,23 @@ interface StylepackWithVersions {
   versions: { id: string; version: number }[];
 }
 
+interface ExemplarSummary {
+  id: string;
+  stylepack_version_id: string | null;
+  section_type: string;
+  control_text: string;
+  source: "template" | "user_approved";
+}
+
+type DeleteTarget = { kind: "template" | "stylepack" | "exemplar"; id: string; label: string };
+
 export default function DrafterTemplatesClient() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [styleBriefDocuments, setStyleBriefDocuments] = useState<DocumentSummary[]>([]);
   const [selectedStyleBriefId, setSelectedStyleBriefId] = useState<string>("");
   const [templates, setTemplates] = useState<TemplateWithVersions[]>([]);
   const [stylepacks, setStylepacks] = useState<StylepackWithVersions[]>([]);
+  const [exemplars, setExemplars] = useState<ExemplarSummary[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string>("");
   const [sections, setSections] = useState<SkeletonSection[] | null>(null);
   const [fieldLabels, setFieldLabels] = useState<FieldLabels | null>(null);
@@ -61,6 +73,9 @@ export default function DrafterTemplatesClient() {
   const [acceptedKeys, setAcceptedKeys] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   // See DrafterPraDraftClient.tsx's submittingCandidatesRef comment: a ref
   // lock closes the same-tick double-click window that the `busy` state
   // alone cannot (its re-render lands one tick too late). createStylepack,
@@ -82,6 +97,29 @@ export default function DrafterTemplatesClient() {
     drafterFetch<{ stylepacks: StylepackWithVersions[] }>("/api/drafter/stylepacks").then((r) => {
       if (r.ok && "stylepacks" in r.data) setStylepacks(r.data.stylepacks);
     });
+    drafterFetch<{ exemplars: ExemplarSummary[] }>("/api/drafter/exemplars").then((r) => {
+      if (r.ok && "exemplars" in r.data) setExemplars(r.data.exemplars);
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    const url =
+      deleteTarget.kind === "template"
+        ? `/api/drafter/templates/${deleteTarget.id}`
+        : deleteTarget.kind === "stylepack"
+          ? `/api/drafter/stylepacks/${deleteTarget.id}`
+          : `/api/drafter/exemplars/${deleteTarget.id}`;
+    const r = await drafterFetch(url, { method: "DELETE" });
+    setDeleteBusy(false);
+    if (!r.ok) {
+      setDeleteError("error" in r.data ? r.data.error ?? "Could not delete this." : "Could not delete this.");
+      return;
+    }
+    setDeleteTarget(null);
+    reload();
   };
 
   const createStylepack = async () => {
@@ -193,13 +231,22 @@ export default function DrafterTemplatesClient() {
             ) : (
               <ul className="space-y-2">
                 {templates.map((t) => (
-                  <li key={t.template.id} className="text-sm flex items-center gap-2">
+                  <li key={t.template.id} className="text-sm flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{t.template.name}</span>
                     {t.versions.map((v) => (
                       <Badge key={v.id} variant={v.confirmed ? "success" : "default"}>
                         v{v.version} {v.confirmed ? "confirmed" : "draft"}
                       </Badge>
                     ))}
+                    <button
+                      className="text-xs px-3 py-1.5 rounded border border-red-300 text-red-700"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget({ kind: "template", id: t.template.id, label: t.template.name });
+                      }}
+                    >
+                      Delete
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -228,13 +275,50 @@ export default function DrafterTemplatesClient() {
             ) : (
               <ul className="space-y-1 text-sm">
                 {stylepacks.map((s) => (
-                  <li key={s.stylepack.id} className="flex items-center gap-2">
+                  <li key={s.stylepack.id} className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{s.stylepack.name}</span>
                     {s.versions.map((v) => (
                       <Badge key={v.id} variant="info">
                         v{v.version}
                       </Badge>
                     ))}
+                    <button
+                      className="text-xs px-3 py-1.5 rounded border border-red-300 text-red-700"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget({ kind: "stylepack", id: s.stylepack.id, label: s.stylepack.name });
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="glass-card rounded-2xl p-6 space-y-3">
+            <h2 className="text-lg font-semibold text-foreground">Exemplars</h2>
+            {exemplars.length === 0 ? (
+              <p className="text-sm text-text-muted">No exemplars yet.</p>
+            ) : (
+              <ul className="space-y-2">
+                {exemplars.map((e) => (
+                  <li key={e.id} className="text-sm border border-border rounded p-3 flex items-start justify-between gap-3">
+                    <div>
+                      <span className="font-medium">{e.section_type}</span>{" "}
+                      <Badge variant={e.source === "template" ? "default" : "success"}>{e.source}</Badge>
+                      <p className="text-text-muted mt-1">{e.control_text}</p>
+                    </div>
+                    <button
+                      className="text-xs px-3 py-1.5 rounded border border-red-300 text-red-700 whitespace-nowrap"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget({ kind: "exemplar", id: e.id, label: `${e.section_type} exemplar` });
+                      }}
+                    >
+                      Delete
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -377,6 +461,27 @@ export default function DrafterTemplatesClient() {
                 Confirm as template
               </button>
             </div>
+          )}
+
+          {deleteTarget && (
+            <ConfirmDialog
+              title={
+                deleteTarget.kind === "template"
+                  ? "Delete this template?"
+                  : deleteTarget.kind === "stylepack"
+                    ? "Delete this StylePack?"
+                    : "Delete this exemplar?"
+              }
+              description={
+                deleteTarget.kind === "exemplar"
+                  ? `"${deleteTarget.label}" will be permanently removed and will no longer be used to guide drafting. This cannot be undone.`
+                  : `"${deleteTarget.label}" and all its versions will be permanently removed. Refused if any PRA is still pinned to a version of it. This cannot be undone.`
+              }
+              busy={deleteBusy}
+              error={deleteError}
+              onConfirm={confirmDelete}
+              onCancel={() => setDeleteTarget(null)}
+            />
           )}
         </div>
       </main>

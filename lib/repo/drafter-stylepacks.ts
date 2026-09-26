@@ -1,4 +1,4 @@
-import { query } from "@/lib/db";
+import { query, withTransaction, queryWithClient } from "@/lib/db";
 import { writeDrafterAudit } from "./drafter-audit";
 import type { BannedPhrase } from "@/lib/drafter/lint";
 
@@ -122,6 +122,56 @@ export async function saveEditedStylepackVersion(input: {
   return rows[0];
 }
 
+/**
+ * Deletes a StylePack and all its versions - follow-up to prod walkthrough
+ * item 5 (see lib/repo/drafter-templates.ts deleteTemplate for the matching
+ * pattern). Refused if any PRA is pinned to one of its versions
+ * (drafter_pras.stylepack_version_id is NOT NULL - no release, only a
+ * block). Any exemplar tagged with one of the deleted versions is released
+ * (stylepack_version_id set to NULL, not deleted - an exemplar outlives the
+ * StylePack it was tagged under, same as it outlives a PRA - see
+ * drafter-pras.ts deletePra). Deleting the versions also frees their style
+ * brief documents so a subsequent document delete can succeed.
+ */
+export async function deleteStylepack(
+  stylepackId: string,
+  actor: string
+): Promise<{ deleted: boolean; blockedReason?: string }> {
+  const stylepackRows = await query<StylepackRow>(`SELECT * FROM drafter_stylepacks WHERE id = $1`, [stylepackId]);
+  const stylepack = stylepackRows[0];
+  if (!stylepack) return { deleted: false };
+
+  const versions = await listStylepackVersions(stylepackId);
+  const versionIds = versions.map((v) => v.id);
+  if (versionIds.length > 0) {
+    const referencing = await query<{ id: string; product: string }>(
+      `SELECT id, product FROM drafter_pras WHERE stylepack_version_id = ANY($1::uuid[])`,
+      [versionIds]
+    );
+    if (referencing.length > 0) {
+      return {
+        deleted: false,
+        blockedReason: `This StylePack is used by ${referencing.length} PRA(s) (${referencing
+          .map((r) => r.product)
+          .join(", ")}) and cannot be deleted. Delete those PRA(s) first, or leave the StylePack in place.`,
+      };
+    }
+  }
+
+  await withTransaction(async (client) => {
+    if (versionIds.length > 0) {
+      await queryWithClient(client, `UPDATE drafter_exemplars SET stylepack_version_id = NULL WHERE stylepack_version_id = ANY($1::uuid[])`, [
+        versionIds,
+      ]);
+    }
+    await queryWithClient(client, `DELETE FROM drafter_stylepack_versions WHERE stylepack_id = $1`, [stylepackId]);
+    await queryWithClient(client, `DELETE FROM drafter_stylepacks WHERE id = $1`, [stylepackId]);
+  });
+
+  await writeDrafterAudit(actor, "stylepack.delete", "drafter_stylepack", stylepackId, { name: stylepack.name });
+  return { deleted: true };
+}
+
 export interface ExemplarRow {
   id: string;
   stylepack_version_id: string | null;
@@ -176,4 +226,18 @@ export async function getExemplarsForSectionType(sectionType: string, limit = 3)
   if (matched.length > 0) return { exemplars: matched, usedFallback: false };
   const fallback = await query<ExemplarRow>(`SELECT * FROM drafter_exemplars ORDER BY created_at DESC LIMIT $1`, [limit]);
   return { exemplars: fallback, usedFallback: true };
+}
+
+/**
+ * Deletes an Exemplar. Always allowed - nothing else has a FK on
+ * drafter_exemplars (it only references outward: a StylePack version, a
+ * source document, a source PRA), so removing it just drops it from
+ * whichever StylePack version's exemplar list it was tagged under.
+ */
+export async function deleteExemplar(id: string, actor: string): Promise<boolean> {
+  const rows = await query<ExemplarRow>(`DELETE FROM drafter_exemplars WHERE id = $1 RETURNING *`, [id]);
+  const exemplar = rows[0];
+  if (!exemplar) return false;
+  await writeDrafterAudit(actor, "exemplar.delete", "drafter_exemplar", id, { sectionType: exemplar.section_type });
+  return true;
 }

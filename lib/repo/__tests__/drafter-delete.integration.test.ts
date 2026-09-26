@@ -3,6 +3,8 @@ import { query } from "@/lib/db";
 import { deletePra } from "../drafter-pras";
 import { deleteRegisterImport } from "../drafter-register";
 import { deleteDrafterDocument } from "../drafter-documents";
+import { deleteTemplate } from "../drafter-templates";
+import { deleteStylepack, deleteExemplar, createExemplar } from "../drafter-stylepacks";
 
 /**
  * Prod walkthrough item 5: delete actions must cascade correctly (a PRA)
@@ -19,8 +21,10 @@ const cleanupTemplateIds: string[] = [];
 const cleanupStylepackVersionIds: string[] = [];
 const cleanupStylepackIds: string[] = [];
 const cleanupPraIds: string[] = [];
+const cleanupExemplarIds: string[] = [];
 
 afterAll(async () => {
+  await query(`DELETE FROM drafter_exemplars WHERE id = ANY($1::uuid[])`, [cleanupExemplarIds]);
   for (const id of cleanupPraIds) {
     await query(`DELETE FROM drafter_enhancements WHERE pra_id = $1`, [id]);
     await query(`DELETE FROM drafter_sections WHERE pra_id = $1`, [id]);
@@ -206,5 +210,162 @@ describe("delete actions (prod walkthrough item 5)", () => {
     expect(result.deleted).toBe(true);
     expect((await query(`SELECT id FROM drafter_documents WHERE id = $1`, [docId])).length).toBe(0);
     cleanupDocIds.splice(cleanupDocIds.indexOf(docId), 1);
+  });
+
+  it("deleteTemplate refuses with an explanation when a PRA is pinned to one of its versions", async () => {
+    const { templateVersionId, stylepackVersionId } = await makeTemplateAndStylepack();
+    const templateRows = await query<{ template_id: string }>(`SELECT template_id FROM drafter_template_versions WHERE id = $1`, [templateVersionId]);
+    const templateId = templateRows[0].template_id;
+    const praRows = await query<{ id: string }>(
+      `INSERT INTO drafter_pras (product, template_version_id, stylepack_version_id, created_by) VALUES ('Template-pinned product',$1,$2,$3) RETURNING id`,
+      [templateVersionId, stylepackVersionId, ACTOR]
+    );
+    cleanupPraIds.push(praRows[0].id);
+
+    const result = await deleteTemplate(templateId, ACTOR);
+    expect(result.deleted).toBe(false);
+    expect(result.blockedReason).toMatch(/Template-pinned product/);
+    expect((await query(`SELECT id FROM drafter_templates WHERE id = $1`, [templateId])).length).toBe(1);
+  });
+
+  it("deleteTemplate deletes the template and all its versions, and releases its source document", async () => {
+    const docId = await makeDocument("template-source");
+    const templateRows = await query<{ id: string }>(`INSERT INTO drafter_templates (source_document_id, name) VALUES ($1,'Delete test template 2') RETURNING id`, [docId]);
+    const templateId = templateRows[0].id;
+    const versionRows = await query<{ id: string }>(
+      `INSERT INTO drafter_template_versions (template_id, version, sections, field_labels, confirmed, created_by) VALUES ($1,1,'[]','{}',true,$2) RETURNING id`,
+      [templateId, ACTOR]
+    );
+
+    const result = await deleteTemplate(templateId, ACTOR);
+    expect(result.deleted).toBe(true);
+    expect((await query(`SELECT id FROM drafter_templates WHERE id = $1`, [templateId])).length).toBe(0);
+    expect((await query(`SELECT id FROM drafter_template_versions WHERE id = $1`, [versionRows[0].id])).length).toBe(0);
+
+    // Document delete now succeeds - the template that referenced it is gone.
+    const docResult = await deleteDrafterDocument(docId, ACTOR);
+    expect(docResult.deleted).toBe(true);
+    cleanupDocIds.splice(cleanupDocIds.indexOf(docId), 1);
+  });
+
+  it("deleteStylepack refuses with an explanation when a PRA is pinned to one of its versions", async () => {
+    const { templateVersionId, stylepackVersionId } = await makeTemplateAndStylepack();
+    const stylepackRows = await query<{ stylepack_id: string }>(`SELECT stylepack_id FROM drafter_stylepack_versions WHERE id = $1`, [stylepackVersionId]);
+    const stylepackId = stylepackRows[0].stylepack_id;
+    const praRows = await query<{ id: string }>(
+      `INSERT INTO drafter_pras (product, template_version_id, stylepack_version_id, created_by) VALUES ('Stylepack-pinned product',$1,$2,$3) RETURNING id`,
+      [templateVersionId, stylepackVersionId, ACTOR]
+    );
+    cleanupPraIds.push(praRows[0].id);
+
+    const result = await deleteStylepack(stylepackId, ACTOR);
+    expect(result.deleted).toBe(false);
+    expect(result.blockedReason).toMatch(/Stylepack-pinned product/);
+    expect((await query(`SELECT id FROM drafter_stylepacks WHERE id = $1`, [stylepackId])).length).toBe(1);
+  });
+
+  it("deleteStylepack deletes the stylepack and all its versions, releases its style brief document, and releases (not deletes) its exemplars", async () => {
+    const briefDocId = await makeDocument("style-brief");
+    const stylepackRows = await query<{ id: string }>(`INSERT INTO drafter_stylepacks (name) VALUES ('Delete test stylepack 2') RETURNING id`);
+    const stylepackId = stylepackRows[0].id;
+    const versionRows = await query<{ id: string }>(
+      `INSERT INTO drafter_stylepack_versions (stylepack_id, version, rules, style_brief_document_id, created_by) VALUES ($1,1,'[]',$2,$3) RETURNING id`,
+      [stylepackId, briefDocId, ACTOR]
+    );
+    const stylepackVersionId = versionRows[0].id;
+
+    const exemplar = await createExemplar({
+      stylepackVersionId,
+      sectionType: "onboarding",
+      controlText: "text",
+      rationale: "rationale",
+      source: "user_approved",
+      sourceDocumentId: null,
+      sourcePraId: null,
+      actor: ACTOR,
+    });
+    cleanupExemplarIds.push(exemplar.id);
+
+    const result = await deleteStylepack(stylepackId, ACTOR);
+    expect(result.deleted).toBe(true);
+    expect((await query(`SELECT id FROM drafter_stylepacks WHERE id = $1`, [stylepackId])).length).toBe(0);
+    expect((await query(`SELECT id FROM drafter_stylepack_versions WHERE id = $1`, [stylepackVersionId])).length).toBe(0);
+
+    // Exemplar is released, not deleted.
+    const [releasedExemplar] = await query<{ stylepack_version_id: string | null }>(`SELECT stylepack_version_id FROM drafter_exemplars WHERE id = $1`, [exemplar.id]);
+    expect(releasedExemplar.stylepack_version_id).toBeNull();
+
+    // Document delete now succeeds - the stylepack version that referenced it is gone.
+    const docResult = await deleteDrafterDocument(briefDocId, ACTOR);
+    expect(docResult.deleted).toBe(true);
+    cleanupDocIds.splice(cleanupDocIds.indexOf(briefDocId), 1);
+  });
+
+  it("deleteExemplar always deletes the row", async () => {
+    const exemplar = await createExemplar({
+      stylepackVersionId: null,
+      sectionType: "exit",
+      controlText: "text",
+      rationale: "rationale",
+      source: "user_approved",
+      sourceDocumentId: null,
+      sourcePraId: null,
+      actor: ACTOR,
+    });
+
+    expect(await deleteExemplar(exemplar.id, ACTOR)).toBe(true);
+    expect((await query(`SELECT id FROM drafter_exemplars WHERE id = $1`, [exemplar.id])).length).toBe(0);
+    // Deleting again (or an unknown id) is a clean no-op, never a throw.
+    expect(await deleteExemplar(exemplar.id, ACTOR)).toBe(false);
+  });
+
+  it("full sequence: template -> stylepack -> exemplars -> documents leaves no rows", async () => {
+    const templateDocId = await makeDocument("seq-template");
+    const briefDocId = await makeDocument("seq-brief");
+    const exemplarDocId = await makeDocument("seq-exemplar");
+
+    const templateRows = await query<{ id: string }>(`INSERT INTO drafter_templates (source_document_id, name) VALUES ($1,'Sequence template') RETURNING id`, [templateDocId]);
+    const templateId = templateRows[0].id;
+    await query(
+      `INSERT INTO drafter_template_versions (template_id, version, sections, field_labels, confirmed, created_by) VALUES ($1,1,'[]','{}',true,$2)`,
+      [templateId, ACTOR]
+    );
+
+    const stylepackRows = await query<{ id: string }>(`INSERT INTO drafter_stylepacks (name) VALUES ('Sequence stylepack') RETURNING id`);
+    const stylepackId = stylepackRows[0].id;
+    const stylepackVersionRows = await query<{ id: string }>(
+      `INSERT INTO drafter_stylepack_versions (stylepack_id, version, rules, style_brief_document_id, created_by) VALUES ($1,1,'[]',$2,$3) RETURNING id`,
+      [stylepackId, briefDocId, ACTOR]
+    );
+    const stylepackVersionId = stylepackVersionRows[0].id;
+
+    const exemplar = await createExemplar({
+      stylepackVersionId,
+      sectionType: "ongoing_monitoring",
+      controlText: "text",
+      rationale: "rationale",
+      source: "template",
+      sourceDocumentId: exemplarDocId,
+      sourcePraId: null,
+      actor: ACTOR,
+    });
+
+    // 1. Template -> deleted, no PRA pinned to it.
+    expect((await deleteTemplate(templateId, ACTOR)).deleted).toBe(true);
+    // 2. StylePack -> deleted, no PRA pinned to it.
+    expect((await deleteStylepack(stylepackId, ACTOR)).deleted).toBe(true);
+    // 3. Exemplars -> deleted directly (they only outlived the stylepack, released above).
+    expect(await deleteExemplar(exemplar.id, ACTOR)).toBe(true);
+    // 4. Documents -> now unreferenced by anything, all three delete cleanly.
+    expect((await deleteDrafterDocument(templateDocId, ACTOR)).deleted).toBe(true);
+    expect((await deleteDrafterDocument(briefDocId, ACTOR)).deleted).toBe(true);
+    expect((await deleteDrafterDocument(exemplarDocId, ACTOR)).deleted).toBe(true);
+
+    expect((await query(`SELECT id FROM drafter_templates WHERE id = $1`, [templateId])).length).toBe(0);
+    expect((await query(`SELECT id FROM drafter_stylepacks WHERE id = $1`, [stylepackId])).length).toBe(0);
+    expect((await query(`SELECT id FROM drafter_exemplars WHERE id = $1`, [exemplar.id])).length).toBe(0);
+    expect((await query(`SELECT id FROM drafter_documents WHERE id = ANY($1::uuid[])`, [[templateDocId, briefDocId, exemplarDocId]])).length).toBe(0);
+
+    for (const id of [templateDocId, briefDocId, exemplarDocId]) cleanupDocIds.splice(cleanupDocIds.indexOf(id), 1);
   });
 });

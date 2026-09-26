@@ -10,6 +10,7 @@ import { STATUS_LABELS } from "@/lib/drafter/review-status";
 import ModelStatusBanner from "./ModelStatusBanner";
 import ConfirmDialog from "./ConfirmDialog";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface Pra {
   id: string;
@@ -145,7 +146,7 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
   const [unassigned, setUnassigned] = useState<UnassignedControl[]>([]);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState<{ blocking: { enhancementId: string; reason: string }[] } | null>(null);
-  const [calibrationBanner, setCalibrationBanner] = useState<string | null>(null);
+  const [showCalibrationBanner, setShowCalibrationBanner] = useState(false);
   const [selectedEnhId, setSelectedEnhId] = useState<string | null>(null);
   const [reviewContainer, setReviewContainer] = useState<HTMLDivElement | null>(null);
   const [submittingCandidates, setSubmittingCandidates] = useState(false);
@@ -179,11 +180,12 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
     drafterFetch<{ grouped: CandidatesGrouped }>(`/api/drafter/pras/${praId}/candidates`).then((r) => {
       if (r.ok && "grouped" in r.data) setCandidates(r.data.grouped);
     });
-    drafterFetch<{ modelName: string; promptVersion: string; calibrated: boolean }>(`/api/drafter/calibration/status`).then((r) => {
-      if (r.ok && "calibrated" in r.data && !r.data.calibrated) {
-        setCalibrationBanner(
-          `Reviewer not yet calibrated: no passing calibration run for judge model "${r.data.modelName}" / prompt "${r.data.promptVersion}". Judge results should be treated as provisional. See /drafter/calibration.`
-        );
+    drafterFetch<{ calibrated: boolean; judgeConfigured: boolean }>(`/api/drafter/calibration/status`).then((r) => {
+      // Hidden entirely when no judge model is configured - ModelStatusBanner
+      // already covers that case, and showing model names/prompt versions
+      // here as well was jargon repeated on top of jargon.
+      if (r.ok && "calibrated" in r.data && !r.data.calibrated && r.data.judgeConfigured) {
+        setShowCalibrationBanner(true);
       }
     });
   }, [praId, load]);
@@ -365,7 +367,7 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
             </div>
             <div className="flex items-center gap-2">
               <Badge>{pra.status.replace(/_/g, " ")}</Badge>
-              <button className="text-xs px-3 py-1.5 rounded border border-red-300 text-red-700" onClick={() => setShowDeleteDialog(true)}>
+              <button className="text-xs px-3 py-1.5 rounded bg-red-700 text-white" onClick={() => setShowDeleteDialog(true)}>
                 Delete PRA
               </button>
             </div>
@@ -384,8 +386,13 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
 
           <ModelStatusBanner />
 
-          {calibrationBanner && (
-            <div className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-xs text-amber-800">{calibrationBanner}</div>
+          {showCalibrationBanner && (
+            <div className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-xs text-amber-800">
+              The automated reviewer has not passed calibration yet, so treat its results as provisional.{" "}
+              <Link href="/drafter/calibration" className="underline font-medium">
+                Run calibration
+              </Link>
+            </div>
           )}
 
           {!hasEnhancements && candidates && (

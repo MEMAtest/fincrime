@@ -1,4 +1,4 @@
-import { query } from "@/lib/db";
+import { query, withTransaction, queryWithClient } from "@/lib/db";
 import { writeDrafterAudit } from "./drafter-audit";
 import type { SkeletonFieldLabels, SkeletonSection } from "@/lib/drafter/skeleton";
 
@@ -89,6 +89,50 @@ export async function saveEditedTemplateVersion(input: {
   await query(`UPDATE drafter_templates SET current_version = $2 WHERE id = $1`, [input.templateId, nextVersion]);
   await writeDrafterAudit(input.actor, "template.edit_version", "drafter_template", input.templateId, { version: nextVersion });
   return rows[0];
+}
+
+/**
+ * Deletes a Template and all its versions - follow-up to prod walkthrough
+ * item 5 (see lib/repo/drafter-documents.ts deleteDrafterDocument,
+ * lib/repo/drafter-register.ts deleteRegisterImport). Refused with an
+ * explanation if any PRA is pinned to one of its versions
+ * (drafter_pras.template_version_id is NOT NULL - there is no "release"
+ * for a PRA, only a block). Deleting the template also frees its source
+ * document (drafter_templates.source_document_id) since the referencing
+ * row itself is gone, so a subsequent document delete can succeed.
+ */
+export async function deleteTemplate(
+  templateId: string,
+  actor: string
+): Promise<{ deleted: boolean; blockedReason?: string }> {
+  const templateRows = await query<TemplateRow>(`SELECT * FROM drafter_templates WHERE id = $1`, [templateId]);
+  const template = templateRows[0];
+  if (!template) return { deleted: false };
+
+  const versions = await listTemplateVersions(templateId);
+  const versionIds = versions.map((v) => v.id);
+  if (versionIds.length > 0) {
+    const referencing = await query<{ id: string; product: string }>(
+      `SELECT id, product FROM drafter_pras WHERE template_version_id = ANY($1::uuid[])`,
+      [versionIds]
+    );
+    if (referencing.length > 0) {
+      return {
+        deleted: false,
+        blockedReason: `This template is used by ${referencing.length} PRA(s) (${referencing
+          .map((r) => r.product)
+          .join(", ")}) and cannot be deleted. Delete those PRA(s) first, or leave the template in place.`,
+      };
+    }
+  }
+
+  await withTransaction(async (client) => {
+    await queryWithClient(client, `DELETE FROM drafter_template_versions WHERE template_id = $1`, [templateId]);
+    await queryWithClient(client, `DELETE FROM drafter_templates WHERE id = $1`, [templateId]);
+  });
+
+  await writeDrafterAudit(actor, "template.delete", "drafter_template", templateId, { name: template.name });
+  return { deleted: true };
 }
 
 export async function confirmTemplateVersion(id: string, actor: string): Promise<TemplateVersionRow | null> {
