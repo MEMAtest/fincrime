@@ -12,7 +12,7 @@ These override or clarify `SPEC.md` (the product spec). Read both before touchin
 
 ## Private
 The module is private. It must not be discoverable or usable by the public.
-- Access requires a **signed-in account session** (cookie, see `lib/auth/*`,
+- Access requires a **signed-in account session with a VERIFIED email** (cookie, see `lib/auth/*`,
   `lib/repo/sessions.ts`) whose email is in the env var `PRA_DRAFTER_ALLOWED_EMAILS`
   (comma-separated, case-insensitive, trimmed). Unset/empty = nobody has access.
 - The anonymous workspace token path must NEVER grant access.

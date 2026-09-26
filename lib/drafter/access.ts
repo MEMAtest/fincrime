@@ -50,6 +50,11 @@ export async function resolveDrafterActor(token: string | null): Promise<Drafter
 
   if (!allowed.has(user.email.trim().toLowerCase())) return null;
 
+  // Signup does not prove mailbox ownership, so an unverified account could
+  // claim an allowlisted address before its owner registers. Only a verified
+  // email counts.
+  if (!user.email_verified_at) return null;
+
   return { userId: user.id, email: user.email };
 }
 
