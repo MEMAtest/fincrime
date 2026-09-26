@@ -8,7 +8,7 @@ import { startMockAnthropic, type MockServer } from "./mock-anthropic.js";
 
 const FIXTURE = path.resolve(import.meta.dirname, "../fixtures/buggy-site");
 
-describe("qabot against the seeded buggy site", () => {
+describe("qabot against the seeded buggy site (Anthropic API backend)", () => {
   let mock: MockServer;
   let outcome: RunOutcome;
   const env = { ...process.env };
@@ -22,7 +22,7 @@ describe("qabot against the seeded buggy site", () => {
       overrides: {
         out: fs.mkdtempSync(path.join(os.tmpdir(), "qabot-e2e-")),
         checks: { externalLinks: false, visual: false },
-        ai: { uxReviewPages: 1, explorerSteps: 8 },
+        ai: { provider: "api", model: "claude-opus-5", uxReviewPages: 1, explorerSteps: 8 },
       },
     });
   }, 180_000);

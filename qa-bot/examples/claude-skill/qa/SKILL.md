@@ -5,7 +5,7 @@ description: Run the qabot QA sweep on this repo (UI, UX, accessibility, API, co
 
 # QA sweep with qabot
 
-Copy this folder to `.claude/skills/qa/` in any repo. It expects qabot to be installed (`npm link` in `qa-bot/`), so `qabot` is on PATH.
+Copy this folder to `.claude/skills/qa/` in any repo. It expects qabot to be installed (clone MEMAtest/qabot, `npm install && npm run build && npm link`), so `qabot` is on PATH.
 
 ## 1. Run it
 
@@ -14,7 +14,7 @@ qabot run . --out qabot-report/latest --fail-on none $ARGUMENTS
 ```
 
 - Add `--url http://localhost:3000` if the dev server is already running.
-- Add `--no-ai` for a fast deterministic pass; leave AI on for the UX review and explorer when `ANTHROPIC_API_KEY` is set.
+- Add `--no-ai` for a fast deterministic pass. With AI on, qabot uses your logged-in Claude Code, so no API key is needed.
 - Journeys, auth and dynamic-route params live in `qabot.config.json` (`qabot init .` creates one).
 
 ## 2. Read the results

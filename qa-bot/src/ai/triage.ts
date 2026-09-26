@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { FindingSink } from "../findings.js";
 import type { AiSummary, Finding, RouteInfo, StackInfo } from "../types.js";
 import { log, truncate } from "../util.js";
-import { AiClient, describeAiError } from "./client.js";
+import { describeAiError, type AiBackend } from "./backend.js";
 
 const TriageSchema = z.object({
   executive_summary: z.string().describe("3-6 sentences for a product owner: overall quality, biggest risks, readiness"),
@@ -27,7 +27,7 @@ Your job: separate signal from noise, group findings that share a root cause, ra
 Be decisive and specific. Flag a finding as a likely false positive only when the evidence clearly supports it (e.g. a dev-server-only artefact, a third-party widget outside the team's control, a check that misread an intentional design).`;
 
 export async function runTriage(
-  ai: AiClient,
+  ai: AiBackend,
   opts: {
     sink: FindingSink;
     findings: Finding[];
@@ -59,11 +59,7 @@ Findings (id | severity | category | source | title | occurrences @ first page |
 ${lines.join("\n")}`;
   try {
     log.info("AI triage: prioritising findings");
-    const t = await ai.structured({
-      system: [{ type: "text", text: SYSTEM }],
-      content: [{ type: "text", text }],
-      schema: TriageSchema,
-    });
+    const t = await ai.structured({ system: SYSTEM, text, schema: TriageSchema });
     const known = new Set(opts.findings.map((f) => f.id));
     for (const fp of t.likely_false_positives) {
       const f = opts.sink.get(fp.finding_id);

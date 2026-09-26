@@ -129,7 +129,10 @@ export interface AiSummary {
   missingCoverage?: string[];
   uxScores?: { url: string; score: number; purpose: string; strengths: string[] }[];
   explorer?: { summary?: string; journeysCovered?: string[]; coverageGaps?: string[]; steps: ExplorerStep[] };
-  usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; requests: number };
+  /** "claude-code" runs on the user's Claude subscription; "anthropic-api" bills an API key. */
+  backend: "claude-code" | "anthropic-api";
+  /** costUsd is Claude Code's list-price estimate; on a subscription nothing extra is billed. */
+  usage: { inputTokens: number; outputTokens: number; cacheReadTokens: number; requests: number; costUsd?: number };
   errors: string[];
 }
 

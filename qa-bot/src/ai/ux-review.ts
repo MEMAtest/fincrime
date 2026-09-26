@@ -4,7 +4,7 @@ import type { PageInfo } from "../checks/dom-scripts.js";
 import type { FindingSink } from "../findings.js";
 import type { Category, Finding } from "../types.js";
 import { log, mapLimit, truncate } from "../util.js";
-import { AiClient, describeAiError, imageBlock } from "./client.js";
+import { describeAiError, type AiBackend, type ImageInput } from "./backend.js";
 
 const UxReviewSchema = z.object({
   page_purpose: z.string().describe("One sentence: what this page is for and who uses it"),
@@ -66,44 +66,32 @@ export interface UxPageInput {
   known: Finding[];
 }
 
-export async function runUxReview(ai: AiClient, pages: UxPageInput[], outDir: string, sink: FindingSink) {
+export async function runUxReview(ai: AiBackend, pages: UxPageInput[], outDir: string, sink: FindingSink) {
   const scores: { url: string; score: number; purpose: string; strengths: string[] }[] = [];
   await mapLimit(pages, 2, async (p) => {
     if (!p.desktop.length) return;
     log.info(`AI UX review: ${new URL(p.url).pathname}`);
-    const content: Parameters<AiClient["structured"]>[0]["content"] = [];
     const known = p.known
       .filter((f) => f.occurrences.some((o) => o.url === p.url))
       .slice(0, 25)
       .map((f) => `- [${f.severity}] ${f.title}`)
       .join("\n");
-    content.push({
-      type: "text",
-      text: [
-        `Page: ${p.url}`,
-        p.info ? `Title: ${p.info.title || "(none)"}` : "",
-        p.info?.headings.length ? `Headings:\n${p.info.headings.slice(0, 20).join("\n")}` : "",
-        p.info?.buttons.length ? `Buttons: ${p.info.buttons.slice(0, 25).join(" | ")}` : "",
-        `Already detected by automated checks (do not repeat):\n${known || "- none"}`,
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
-    });
-    p.desktop.forEach((f, i) => {
-      content.push({ type: "text", text: `Desktop (1440px wide), slice ${i + 1} of ${p.desktop.length}:` });
-      content.push(imageBlock(path.join(outDir, f)));
-    });
-    p.mobile.forEach((f, i) => {
-      content.push({ type: "text", text: `Mobile (390px wide, iPhone), slice ${i + 1} of ${p.mobile.length}:` });
-      content.push(imageBlock(path.join(outDir, f)));
-    });
-    content.push({ type: "text", text: "Review this page and return your findings." });
+    const text = [
+      `Page: ${p.url}`,
+      p.info ? `Title: ${p.info.title || "(none)"}` : "",
+      p.info?.headings.length ? `Headings:\n${p.info.headings.slice(0, 20).join("\n")}` : "",
+      p.info?.buttons.length ? `Buttons: ${p.info.buttons.slice(0, 25).join(" | ")}` : "",
+      `Already detected by automated checks (do not repeat):\n${known || "- none"}`,
+      "Review this page from the screenshots and return your findings.",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const images: ImageInput[] = [
+      ...p.desktop.map((f, i) => ({ path: path.join(outDir, f), label: `Desktop (1440px wide), slice ${i + 1} of ${p.desktop.length}` })),
+      ...p.mobile.map((f, i) => ({ path: path.join(outDir, f), label: `Mobile (390px wide, iPhone), slice ${i + 1} of ${p.mobile.length}` })),
+    ];
     try {
-      const review = await ai.structured({
-        system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
-        content,
-        schema: UxReviewSchema,
-      });
+      const review = await ai.structured({ system: SYSTEM, text, images, schema: UxReviewSchema });
       scores.push({ url: p.url, score: Math.max(0, Math.min(100, Math.round(review.overall_score))), purpose: review.page_purpose, strengths: review.strengths.slice(0, 3) });
       for (const f of review.findings) {
         const shot = f.viewport === "mobile" ? p.mobile[0] : p.desktop[0];

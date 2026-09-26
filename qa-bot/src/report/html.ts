@@ -288,7 +288,13 @@ ${explorer}
   ${r.target.stack ? `<dt>Stack</dt><dd>${esc(r.target.stack.framework)} / ${esc(r.target.stack.kind)}${r.target.stack.packageManager ? ` / ${esc(r.target.stack.packageManager)}` : ""}</dd>` : ""}
   <dt>Viewports</dt><dd>${r.settings.viewports.join(", ")}</dd>
   <dt>Mutating probes</dt><dd>${r.settings.allowMutations ? "on (local target)" : "off (safe mode)"}</dd>
-  <dt>AI</dt><dd>${r.settings.ai ? `${esc(ai?.model ?? "")}: ${ai?.usage.requests ?? 0} requests, ${(ai?.usage.inputTokens ?? 0).toLocaleString()} input / ${(ai?.usage.outputTokens ?? 0).toLocaleString()} output tokens, ${(ai?.usage.cacheReadTokens ?? 0).toLocaleString()} cached` : "off"}</dd>
+  <dt>AI</dt><dd>${
+    r.settings.ai && ai
+      ? `${ai.backend === "claude-code" ? "Claude Code on your Claude login (no API key)" : "Anthropic API"}, model ${esc(ai.model)}: ${ai.usage.requests} model turns, ${ai.usage.inputTokens.toLocaleString()} input / ${ai.usage.outputTokens.toLocaleString()} output tokens, ${ai.usage.cacheReadTokens.toLocaleString()} cached${
+          ai.usage.costUsd ? ` (≈ $${ai.usage.costUsd.toFixed(2)} at list prices${ai.backend === "claude-code" ? "; counts toward your plan's usage limits, not billed separately" : ""})` : ""
+        }`
+      : "off"
+  }</dd>
   <dt>Routes found in code</dt><dd>${r.routes.length}</dd>
 </dl>
 ${r.warnings.length || ai?.errors.length ? `<h3>Warnings</h3><ul class="warns">${[...r.warnings, ...(ai?.errors ?? [])].map((w) => `<li>${esc(w)}</li>`).join("")}</ul>` : ""}

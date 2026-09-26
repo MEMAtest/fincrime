@@ -3,21 +3,26 @@ import os from "node:os";
 import path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import type {
+  BetaContentBlockParam,
   BetaMessage,
   BetaMessageParam,
-  BetaToolUnion,
   BetaTextBlockParam,
+  BetaToolUnion,
 } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type { z } from "zod";
 import type { AiSummary } from "../types.js";
+import type { AiBackend, ExplorerOptions, ExplorerResult, ImageInput } from "./backend.js";
+import { runApiExplorer } from "./explorer.js";
 
 /** Server-side refusal fallback: the API re-runs a declined request on a fallback model automatically. */
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 
+export const DEFAULT_API_MODEL = "claude-sonnet-5";
+
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
-export function aiCredentialsAvailable(): boolean {
+export function apiCredentialsAvailable(): boolean {
   if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_PROFILE) return true;
   if (process.env.ANTHROPIC_FEDERATION_RULE_ID) return true;
   return fs.existsSync(path.join(os.homedir(), ".config", "anthropic"));
@@ -25,8 +30,9 @@ export function aiCredentialsAvailable(): boolean {
 
 export class RefusalError extends Error {}
 
-/** Thin wrapper over the Messages API that tracks usage and applies model-appropriate defaults. */
-export class AiClient {
+/** Claude via the Messages API (pay per token). Explorer uses the native computer-use toolset. */
+export class AnthropicApiBackend implements AiBackend {
+  readonly name = "anthropic-api" as const;
   readonly client: Anthropic;
   readonly usage: AiSummary["usage"] = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, requests: 0 };
   readonly errors: string[] = [];
@@ -59,13 +65,7 @@ export class AiClient {
     this.usage.cacheReadTokens += msg.usage.cache_read_input_tokens ?? 0;
   }
 
-  async create(params: {
-    system: BetaTextBlockParam[];
-    messages: BetaMessageParam[];
-    tools?: BetaToolUnion[];
-    maxTokens?: number;
-  }): Promise<BetaMessage> {
-    const base = this.modelParams();
+  async create(params: { system: BetaTextBlockParam[]; messages: BetaMessageParam[]; tools?: BetaToolUnion[]; maxTokens?: number }): Promise<BetaMessage> {
     const msg = await this.client.beta.messages.create({
       model: this.model,
       max_tokens: params.maxTokens ?? 16_000,
@@ -75,25 +75,24 @@ export class AiClient {
       output_config: this.outputConfig(),
       // Automatic prompt caching: the growing conversation prefix is re-read at cache prices each turn.
       cache_control: { type: "ephemeral" },
-      ...base,
+      ...this.modelParams(),
     });
     this.track(msg);
     return msg;
   }
 
-  /** One-shot request with a structured (schema-validated) JSON response. */
-  async structured<S extends z.ZodType>(params: {
-    system: BetaTextBlockParam[];
-    content: BetaMessageParam["content"];
-    schema: S;
-    maxTokens?: number;
-  }): Promise<z.infer<S>> {
+  async structured<S extends z.ZodType>(p: { system: string; text: string; images?: ImageInput[]; schema: S }): Promise<z.infer<S>> {
+    const content: BetaContentBlockParam[] = [{ type: "text", text: p.text }];
+    for (const img of p.images ?? []) {
+      content.push({ type: "text", text: `${img.label}:` });
+      content.push(imageBlock(img.path));
+    }
     const msg = await this.client.beta.messages.parse({
       model: this.model,
-      max_tokens: params.maxTokens ?? 16_000,
-      system: params.system,
-      messages: [{ role: "user", content: params.content }],
-      output_config: { ...this.outputConfig(), format: betaZodOutputFormat(params.schema) },
+      max_tokens: 16_000,
+      system: [{ type: "text", text: p.system, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content }],
+      output_config: { ...this.outputConfig(), format: betaZodOutputFormat(p.schema) },
       ...this.modelParams(),
     });
     this.track(msg);
@@ -103,6 +102,10 @@ export class AiClient {
     if (msg.stop_reason === "max_tokens") throw new Error("Response hit max_tokens before completing the JSON");
     if (!msg.parsed_output) throw new Error("Model response did not match the expected schema");
     return msg.parsed_output as z.infer<S>;
+  }
+
+  explore(o: ExplorerOptions): Promise<ExplorerResult> {
+    return runApiExplorer(this, o);
   }
 }
 

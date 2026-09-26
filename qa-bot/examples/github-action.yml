@@ -1,6 +1,10 @@
 # Copy to .github/workflows/qabot.yml in the repo you want to test.
 # Runs qabot against the Vercel preview for every PR (read-only safe mode),
 # posts the Markdown summary as a PR comment and uploads the full HTML report.
+#
+# Secrets:
+#   QABOT_REPO_TOKEN         fine-grained token with read access to MEMAtest/qabot (it's private)
+#   CLAUDE_CODE_OAUTH_TOKEN  from `claude setup-token`: runs the AI layer on your Claude subscription, no API key
 name: qabot
 
 on:
@@ -14,33 +18,39 @@ jobs:
   qa:
     if: github.event.deployment_status.state == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.deployment.sha }}
 
+      - uses: actions/checkout@v4
+        with:
+          repository: MEMAtest/qabot
+          token: ${{ secrets.QABOT_REPO_TOKEN }}
+          path: .qabot-tool
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      # qabot lives in qa-bot/ here; if you move it to its own repo, check that out instead.
-      - name: Install qabot
-        working-directory: qa-bot
+      - name: Install qabot and Claude Code
+        working-directory: .qabot-tool
         run: |
           npm ci
           npx playwright install --with-deps chromium
           npm run build
+          npm install -g @anthropic-ai/claude-code
 
       - name: Run qabot against the preview
         id: qabot
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           TARGET_URL: ${{ github.event.deployment_status.environment_url }}
           # If the preview is protected, add a Vercel automation-bypass header:
           # --header "x-vercel-protection-bypass: $VERCEL_BYPASS_TOKEN"
         run: |
-          node qa-bot/dist/cli.js run . \
+          node .qabot-tool/dist/cli.js run . \
             --url "$TARGET_URL" \
             --no-code --explore-steps 25 --fail-on high \
             --out qabot-report

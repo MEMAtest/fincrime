@@ -28,7 +28,7 @@ const TYPES: Record<string, string> = {
 };
 
 /** Tiny static file server for plain HTML/CSS/JS repos. */
-export function startStaticServer(root: string, port: number): Promise<{ close(): Promise<void> }> {
+export function startStaticServer(root: string, port: number): Promise<{ port: number; close(): Promise<void> }> {
   const resolvedRoot = path.resolve(root);
   const server = http.createServer((req, res) => {
     const urlPath = decodeURIComponent((req.url ?? "/").split("?")[0]);
@@ -51,9 +51,15 @@ export function startStaticServer(root: string, port: number): Promise<{ close()
     res.end("<!doctype html><title>404 Not Found</title><h1>404 Not Found</h1>");
   });
   return new Promise((resolve, reject) => {
-    server.on("error", reject);
-    server.listen(port, "127.0.0.1", () =>
-      resolve({ close: () => new Promise<void>((r) => server.close(() => r())) }),
-    );
+    const done = () => {
+      const addr = server.address();
+      resolve({ port: typeof addr === "object" && addr ? addr.port : port, close: () => new Promise<void>((r) => server.close(() => r())) });
+    };
+    server.once("error", (e: NodeJS.ErrnoException) => {
+      // Another process grabbed the port between probing and binding: take any free port instead.
+      if (e.code === "EADDRINUSE") server.listen(0, "127.0.0.1", done);
+      else reject(e);
+    });
+    server.listen(port, "127.0.0.1", done);
   });
 }

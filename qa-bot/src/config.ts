@@ -59,6 +59,9 @@ export interface QaConfig {
   ignore: string[];
   ai: {
     enabled: boolean;
+    /** auto = Claude Code if the `claude` CLI is installed (no API key), else the API if a key is set. */
+    provider: "auto" | "claude-code" | "api";
+    /** Empty = backend default: "sonnet" for Claude Code, claude-sonnet-5 for the API. */
     model: string;
     effort: "low" | "medium" | "high" | "xhigh" | "max";
     uxReviewPages: number;
@@ -80,8 +83,6 @@ export interface QaConfig {
   headed: boolean;
   ignorePaths: string[];
 }
-
-export const DEFAULT_MODEL = "claude-opus-5";
 
 export function defaultConfig(): QaConfig {
   return {
@@ -110,7 +111,8 @@ export function defaultConfig(): QaConfig {
     ignore: [],
     ai: {
       enabled: true,
-      model: DEFAULT_MODEL,
+      provider: "auto",
+      model: "",
       effort: "high",
       uxReviewPages: 6,
       explorer: true,

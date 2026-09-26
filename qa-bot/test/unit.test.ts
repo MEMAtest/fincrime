@@ -71,7 +71,7 @@ describe("findings", () => {
   it("deep-merges config overrides", () => {
     const cfg = mergeConfig(defaultConfig(), { ai: { explorerSteps: 5 }, checks: { a11y: false } });
     expect(cfg.ai.explorerSteps).toBe(5);
-    expect(cfg.ai.model).toBe("claude-opus-5");
+    expect(cfg.ai.provider).toBe("auto");
     expect(cfg.checks.a11y).toBe(false);
     expect(cfg.checks.layout).toBe(true);
   });

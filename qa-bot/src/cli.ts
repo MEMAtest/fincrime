@@ -39,10 +39,12 @@ Options
       --update-baseline      Save screenshots as the new visual baseline
       --ignore <rule>        Suppress a rule id (glob) or title substring (repeatable)
 
-  AI (needs ANTHROPIC_API_KEY)
+  AI (no API key needed: uses your logged-in Claude Code if installed)
       --no-ai                Deterministic checks only
-      --model <id>           Claude model (default claude-opus-5)
-      --effort <level>       low | medium | high | xhigh | max (default high)
+      --ai-backend <name>    auto (default) | claude-code | api
+      --model <id>           Model: for claude-code an alias like sonnet/opus/haiku (default sonnet);
+                             for api a model id (default claude-sonnet-5)
+      --effort <level>       low | medium | high | xhigh | max (API backend; default high)
       --ux-pages <n>         Pages to send to the AI UX review (default 6)
       --explore-steps <n>    Turn budget for the computer-use explorer (default 40; 0 disables)
 
@@ -78,6 +80,7 @@ function parse(argv: string[]) {
       "update-baseline": { type: "boolean" },
       ignore: { type: "string", multiple: true },
       "no-ai": { type: "boolean" },
+      "ai-backend": { type: "string" },
       model: { type: "string" },
       effort: { type: "string" },
       "ux-pages": { type: "string" },
@@ -148,6 +151,10 @@ function toOverrides(v: Values): DeepPartial<QaConfig> {
   if (v["update-baseline"]) o.visual = { update: true };
   if (v.ignore?.length) o.ignore = v.ignore;
   if (v["no-ai"]) ai.enabled = false;
+  if (v["ai-backend"]) {
+    if (!["auto", "claude-code", "api"].includes(v["ai-backend"])) throw new Error("--ai-backend must be auto, claude-code or api");
+    ai.provider = v["ai-backend"] as QaConfig["ai"]["provider"];
+  }
   if (v.model) ai.model = v.model;
   if (v.effort) {
     if (!["low", "medium", "high", "xhigh", "max"].includes(v.effort)) throw new Error("--effort must be low|medium|high|xhigh|max");
@@ -219,7 +226,7 @@ function cmdInit(target: string) {
     auth: { steps: [] },
     ignore: [],
     failOn: d.failOn,
-    ai: { model: d.ai.model, uxReviewPages: d.ai.uxReviewPages, explorerSteps: d.ai.explorerSteps },
+    ai: { provider: d.ai.provider, uxReviewPages: d.ai.uxReviewPages, explorerSteps: d.ai.explorerSteps },
   };
   const file = path.join(repo, "qabot.config.json");
   fs.writeFileSync(file, JSON.stringify(starter, null, 2) + "\n");

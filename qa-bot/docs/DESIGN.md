@@ -28,10 +28,11 @@ config (journeys, auth, test data).
    └───────────────────────────────────────────────────────────────────────────────┘     │
             ▼                                                                            │
    ┌──────────────────── AI layer (Claude, optional) ──────────────────────────────┐     │
+   │ backend: Claude Code CLI (no key)  |  Anthropic API (key)                     │     │
    │ UX review: screenshots (desktop slices + mobile slices) + page context        │     │
    │   → structured findings (schema-validated JSON)                               │     │
-   │ Explorer: computer_toolset_20260801 over a Playwright page + custom tools     │     │
-   │   (navigate, page_signals, page_text, report_issue, finish)                   │     │
+   │ Explorer: one BrowserHarness (Playwright page + safety rails) exposed as      │     │
+   │   an MCP server to Claude Code, or as computer_toolset_20260801 to the API    │     │
    │ Triage: root-cause grouping, false-positive flags, fix-first list, verdict    │     │
    └───────────────────────────────────────────────────────────────────────────────┘     │
             ▼                                                                            │
@@ -51,8 +52,10 @@ Key decisions:
   `route.ts`. Element selectors are also matched back to the components and stylesheets that define
   their class names (e.g. a header overflow points at `components/layout/Header.tsx`). That is what makes
   findings actionable, and what an auto-fix step needs.
-- **Browser-level computer use, not OS-level.** The explorer uses Claude's computer-use toolset, but
-  the "screen" is a Playwright page. That's more reliable and much safer than letting it drive your
+- **No API key by default.** The AI layer runs through the user's own Claude Code login in headless
+  mode, so it costs nothing extra on a subscription. The Anthropic API is an opt-in backend.
+- **Browser-level computer use, not OS-level.** The explorer drives a Playwright page, either through
+  qabot's MCP tools (Claude Code backend) or Claude's native computer-use toolset (API backend). That's more reliable and much safer than letting it drive your
   whole Mac: it can't open other apps, it can't leave the site under test (navigation off-origin is
   reverted), and in safe mode its POST/PUT/PATCH/DELETE requests are blocked at the network layer.
   It also gets superpowers a human tester doesn't have: `page_signals` shows it the JS exceptions and
@@ -80,7 +83,7 @@ Key decisions:
 | Mode | What it looks like | Status |
 |---|---|---|
 | **CLI on your Mac** | `qabot run ~/code/app --open`. Uses Playwright's Chromium or your installed Chrome. `--headed` to watch it work. | ✅ built |
-| **CI on every PR** | GitHub Action against the Vercel preview URL (read-only) or against the app built in CI (full fuzzing). Posts `report.md` as a PR comment, uploads the HTML report, fails the check on high/critical findings. | ✅ example in `examples/github-action.yml` |
+| **CI on every PR** | GitHub Action against the Vercel preview URL (read-only) or against the app built in CI (full fuzzing). Posts `report.md` as a PR comment, uploads the HTML report, fails the check on high/critical findings. AI runs on your subscription via `CLAUDE_CODE_OAUTH_TOKEN`. | ✅ example in `examples/github-action.yml` |
 | **Scheduled monitoring** | Nightly safe-mode run against production, alert on new findings (compare `report.json` finding ids with the previous run). | config only: cron + a diff step |
 | **Claude Code integration** | A `/qa` skill: run qabot, read `report.json`, fix the top findings in the codebase, re-run to verify. This closes the loop from *finding* bugs to *fixing* them. | ✅ `examples/claude-skill/qa` |
 | **Desktop app / dashboard** | A small web UI (or Tauri/Electron shell) listing projects, run history, trends, and a "run now" button; the CLI stays the engine. | roadmap |
@@ -120,12 +123,24 @@ HTML report plus the CLI covers it.
     computer-use sandbox (a VM with VNC) or a mobile emulator. That needs a separate executor; the rest
     of the pipeline (findings, triage, reports) is reusable.
 
-## Costs
+## AI backends and cost
 
-The deterministic layer is free. With Claude (default `claude-opus-5`, prompt caching on) a full run
-with 6 UX-reviewed pages, a 40-turn explorer session and triage is roughly a few dollars (an estimate:
-the explorer dominates, and it scales with `explorerSteps`). Tune with `--ux-pages`,
-`--explore-steps`, `--effort`, or `--no-ai` for quick loops.
+The deterministic layer is free. The AI layer is pluggable (`--ai-backend`):
+
+| Backend | Needs | Marginal cost per full run* | Notes |
+|---|---|---|---|
+| **Claude Code** (`claude-code`, default when installed) | Claude Code logged in (Pro/Max/Team), or `CLAUDE_CODE_OAUTH_TOKEN` in CI | **$0**, counts toward plan usage limits | Headless `claude -p`; explorer drives qabot's MCP browser server. Recommended. |
+| Anthropic API, Sonnet 5 (`api`, default model) | `ANTHROPIC_API_KEY` | roughly $2-3 | Native computer-use toolset. Cheapest model that supports it. |
+| Anthropic API, Haiku 4.5 | `ANTHROPIC_API_KEY` | well under $0.50 for review + triage | Fine for UX review and triage; not supported by the computer-use toolset, so no explorer. |
+| Anthropic API, Opus 5 | `ANTHROPIC_API_KEY` | roughly $6-8 | Best judgement; use for release sign-off runs. |
+| Local open model (Ollama) | a GPU-capable Mac | $0 | Not implemented. Vision UX review is possible with Qwen-VL-class models, but browser agents on small local models are unreliable today. |
+
+\*One measurement, extrapolated: on the seeded demo site, 1 UX-reviewed page + an 8-turn explorer + triage
+with Sonnet via Claude Code came to $0.39 at list prices (Claude Code's own estimate; nothing billed on a
+subscription). A full run (6 pages, 40-turn explorer) scales that to roughly $2-3 for Sonnet-class
+pricing; Opus is ~2.5x Sonnet's per-token price. Every report prints the real token usage and estimate.
+
+Tuning knobs: `--ux-pages`, `--explore-steps`, `--model`, `--effort` (API), or `--no-ai` for quick loops.
 
 ## Known limits (v0.1)
 

@@ -10,24 +10,39 @@ qabot run ~/code/my-app --url http://localhost:3000   # use a dev server you alr
 
 It works in two layers:
 
-1. **Deterministic checks** (free, fast, repeatable, no API key needed): a crawler, Playwright in three viewports, axe-core, API fuzzing, the repo's own lint/typecheck/tests, dependency audit and secret scan.
-2. **Claude on top** (optional, `ANTHROPIC_API_KEY`):
+1. **Deterministic checks** (free, fast, repeatable): a crawler, Playwright in three viewports, axe-core, API fuzzing, the repo's own lint/typecheck/tests, dependency audit and secret scan.
+2. **Claude on top** (optional, **no API key needed**):
    - a vision **UX review** of every key page (desktop + mobile screenshots)
-   - a **computer-use explorer** that drives the browser like a human tester through your real user journeys and files bugs with repro steps and screenshots
+   - an **explorer** that drives the browser like a human tester through your real user journeys and files bugs with repro steps and screenshots
    - a **triage** pass that groups findings by root cause, flags false positives, points at source files and makes a ship/fix/block call.
 
 ## Install
 
 ```bash
-cd qa-bot
+git clone https://github.com/MEMAtest/qabot && cd qabot
 npm install
 npx playwright install chromium      # once per machine
 npm run build
 npm link                             # puts `qabot` on your PATH
-export ANTHROPIC_API_KEY=sk-ant-...  # optional, enables the AI layer
 ```
 
 Requires Node 20+. On macOS it also works with your installed Google Chrome if Playwright's Chromium isn't installed.
+
+## AI without an API key
+
+By default (`--ai-backend auto`) qabot uses **your installed, logged-in Claude Code** (`claude` CLI) in headless mode, so the AI layer runs on your existing Claude subscription with no API key and no separate bill:
+
+- UX review and triage run as `claude -p` calls with a JSON schema; Claude opens the screenshots with its Read tool.
+- The explorer gets the browser through a small local MCP server that qabot starts (screenshot, click, click_text, fill, type, scroll, navigate, page_signals, report_issue, finish). Claude Code's own tools (Bash, file edits, web) are switched off for these runs.
+- Default model is `sonnet` (fast, light on plan limits). Use `--model opus` for the deepest review, `--model haiku` for the cheapest.
+- Runs count toward your plan's usage limits. The report shows an at-list-price estimate so you can see what it would have cost on the API.
+- If `ANTHROPIC_API_KEY` is set in your shell, Claude Code bills that key instead of your subscription, so unset it.
+
+In CI, run `claude setup-token` once and store the token as the `CLAUDE_CODE_OAUTH_TOKEN` secret (see `examples/github-action.yml`).
+
+Prefer pay-per-use? `--ai-backend api` calls the Anthropic API directly (needs `ANTHROPIC_API_KEY`) and uses Claude's native computer-use toolset for the explorer. Default model there is `claude-sonnet-5`.
+
+> Subscription use is for running qabot yourself or in your own team's CI. If qabot were ever offered as a product to other people, Anthropic's terms require API-key authentication for that.
 
 ## What it checks
 
@@ -79,7 +94,7 @@ Anything unusual goes in `qabot.config.json` (see `qabot init`).
   ] },
   "ignore": ["seo-open-graph", "axe:region"],
   "failOn": "high",
-  "ai": { "model": "claude-opus-5", "uxReviewPages": 6, "explorerSteps": 40 }
+  "ai": { "provider": "auto", "model": "sonnet", "uxReviewPages": 6, "explorerSteps": 40 }
 }
 ```
 
@@ -112,6 +127,6 @@ npm test            # unit tests + an end-to-end run against fixtures/buggy-site
 npm run dev -- run fixtures/buggy-site --no-ai
 ```
 
-`fixtures/buggy-site` is a small site with seeded bugs; the e2e test asserts qabot catches them. `test/mock-anthropic.ts` is a scripted Messages API that validates the computer-use protocol (tool results, `toolset_name`, screenshots), so the AI loop is tested without spending tokens.
+`fixtures/buggy-site` is a small site with seeded bugs; the e2e test asserts qabot catches them. `test/fake-claude.mjs` stands in for the `claude` CLI (it drives qabot's MCP browser server as a real MCP client), and `test/mock-anthropic.ts` is a scripted Messages API that validates the computer-use protocol, so both AI backends are tested without spending anything.
 
 See [docs/DESIGN.md](docs/DESIGN.md) for the architecture and roadmap.

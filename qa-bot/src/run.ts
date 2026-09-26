@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Browser } from "playwright";
-import { AiClient, aiCredentialsAvailable } from "./ai/client.js";
-import { runExplorer } from "./ai/explorer.js";
+import { AnthropicApiBackend, apiCredentialsAvailable, DEFAULT_API_MODEL } from "./ai/api-backend.js";
+import type { AiBackend } from "./ai/backend.js";
+import { ClaudeCodeBackend, claudeCodeAvailable, DEFAULT_CLAUDE_CODE_MODEL } from "./ai/claude-code.js";
 import { runTriage } from "./ai/triage.js";
 import { runUxReview } from "./ai/ux-review.js";
 import { launchBrowser, prepareAuth } from "./browser.js";
@@ -103,12 +104,9 @@ export async function run(opts: RunOptions): Promise<RunOutcome> {
   if (isDevServer) notes.push("Tested against a development server: performance numbers are pessimistic and some warnings are dev-only.");
 
   const aiWanted = cfg.ai.enabled && (cfg.ai.uxReviewPages > 0 || cfg.ai.explorer || cfg.ai.triage);
-  let ai: AiClient | undefined;
-  if (aiWanted) {
-    if (aiCredentialsAvailable()) ai = new AiClient(cfg.ai.model, cfg.ai.effort);
-    else warnings.push("AI checks skipped: set ANTHROPIC_API_KEY (or run `ant auth login`) to enable the UX review, explorer and triage.");
-  }
-  const aiSummary: AiSummary | undefined = ai ? { model: ai.model, usage: ai.usage, errors: ai.errors } : undefined;
+  const ai = aiWanted ? selectAiBackend(cfg, outDir, warnings) : undefined;
+  if (ai) log.info(`AI: ${ai.name === "claude-code" ? `Claude Code (${ai.model}) on your Claude login, no API key` : `Anthropic API (${ai.model})`}`);
+  const aiSummary: AiSummary | undefined = ai ? { model: ai.model, backend: ai.name, usage: ai.usage, errors: ai.errors } : undefined;
 
   let suite: SuiteResult | undefined;
   let apiResults: ApiProbeResult[] = [];
@@ -196,8 +194,7 @@ export async function run(opts: RunOptions): Promise<RunOutcome> {
       if (ai && cfg.ai.explorer && cfg.ai.explorerSteps > 0) {
         log.step(`AI exploratory testing (computer use, up to ${cfg.ai.explorerSteps} turns)`);
         const siteMap = [...new Set([...suite.crawled.map((c) => c.path), ...skippedRoutes.map((r) => `${r.path} (dynamic)`)])];
-        aiSummary!.explorer = await runExplorer({
-          ai,
+        aiSummary!.explorer = await ai.explore({
           browser,
           baseUrl,
           cfg,
@@ -290,6 +287,32 @@ export async function run(opts: RunOptions): Promise<RunOutcome> {
 
   const failing = findings.filter((f) => !f.aiNote && meetsThreshold(f.severity, cfg.failOn));
   return { report, outDir, exitCode: failing.length ? 1 : 0 };
+}
+
+/**
+ * Pick the AI backend. "auto" prefers the local Claude Code CLI (runs on the user's Claude login, no API key),
+ * then falls back to the Anthropic API when a key is configured.
+ */
+function selectAiBackend(cfg: QaConfig, outDir: string, warnings: string[]): AiBackend | undefined {
+  const want = cfg.ai.provider;
+  if (want === "claude-code" || want === "auto") {
+    const cc = claudeCodeAvailable();
+    if (cc.ok) {
+      if (process.env.ANTHROPIC_API_KEY) {
+        warnings.push("ANTHROPIC_API_KEY is set, so Claude Code bills that key instead of your subscription. Unset it to run on your Claude login.");
+      }
+      return new ClaudeCodeBackend(cfg.ai.model || DEFAULT_CLAUDE_CODE_MODEL, outDir);
+    }
+    if (want === "claude-code") {
+      warnings.push("AI checks skipped: the `claude` CLI was not found. Install Claude Code (https://claude.com/claude-code) and log in, or use --ai-backend api.");
+      return undefined;
+    }
+  }
+  if (apiCredentialsAvailable()) return new AnthropicApiBackend(cfg.ai.model || DEFAULT_API_MODEL, cfg.ai.effort);
+  warnings.push(
+    "AI checks skipped: install and log in to Claude Code (no API key needed), or set ANTHROPIC_API_KEY, to enable the UX review, explorer and triage.",
+  );
+  return undefined;
 }
 
 export function summaryLine(r: RunReport): string {

@@ -26,9 +26,9 @@ export async function launchApp(repo: string, stack: StackInfo, cfg: QaConfig): 
   if (!cfg.start.command && stack.kind === "static") {
     const root = stack.staticRoot ?? repo;
     const srv = await startStaticServer(root, port);
-    log.info(`Serving static files from ${path.relative(process.cwd(), root) || "."} on port ${port}`);
+    log.info(`Serving static files from ${path.relative(process.cwd(), root) || "."} on port ${srv.port}`);
     return {
-      baseUrl: `http://127.0.0.1:${port}`,
+      baseUrl: `http://127.0.0.1:${srv.port}`,
       command: "(built-in static server)",
       logs: () => [],
       logCursor: () => 0,
