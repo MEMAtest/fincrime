@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import path from "node:path";
 import { query } from "@/lib/db";
 import { draftOneEnhancement } from "../draft-enhancement";
+import { setAgreedWording } from "@/lib/repo/drafter-controls";
 
 /**
  * End-to-end test of the writer pipeline (prompt -> stub model -> fact
@@ -160,7 +161,10 @@ describe("draftOneEnhancement (real DB + stub writer fixtures)", () => {
     const id = await makeEnhancement("GOOD");
     const result = await draftOneEnhancement(id, ACTOR);
     expect(result.ok).toBe(true);
-    expect(result.enhancement?.review_result?.status).toBe("pass");
+    // Lint-clean, but SPEC.md/coder 4's fix: never "pass" until a judge has
+    // actually run - a lint-only clean draft is "not_reviewed", not "pass".
+    expect(result.enhancement?.review_result?.status).toBe("not_reviewed");
+    expect(result.enhancement?.review_result?.lint).toEqual([]);
     expect(result.enhancement?.control_text).not.toMatch(/[—–]/);
   });
 
@@ -235,7 +239,7 @@ describe("draftOneEnhancement (real DB + stub writer fixtures)", () => {
     expect(result.enhancement?.model_name).toBeNull();
   });
 
-  it("reuse coverage never makes a model call and uses the control's title as reused wording when no agreed wording is set", async () => {
+  it("reuse coverage never makes a model call and drafts a placeholder + open item when no agreed wording is held (Scope B fix: never falls back to the obligation description)", async () => {
     const controlRows = await query<{ id: string }>(
       `INSERT INTO drafter_controls (title, req_ids, backoffice_control, coverage) VALUES ('Reuse control','{}','Correspondent Banking Due Diligence','yes') RETURNING id`
     );
@@ -251,6 +255,15 @@ describe("draftOneEnhancement (real DB + stub writer fixtures)", () => {
     const result = await draftOneEnhancement(enhancementRows[0].id, ACTOR);
     expect(result.ok).toBe(true);
     expect(result.enhancement?.model_name).toBeNull();
-    expect(result.enhancement?.control_text).toContain("Current control assesses correspondent respondents");
+    expect(result.enhancement?.control_text).toBe("[Agreed wording not held for this control]");
+    const openItems = await query<{ description: string }>(`SELECT description FROM drafter_open_items WHERE enhancement_id = $1`, [enhancementRows[0].id]);
+    expect(openItems.some((i) => i.description.includes("agreed wording"))).toBe(true);
+
+    // Now set agreed wording on the control directly and re-draft: reuse
+    // should carry that real text forward.
+    await setAgreedWording(controlRows[0].id, "The team screens every correspondent respondent before onboarding.", ACTOR);
+    const second = await draftOneEnhancement(enhancementRows[0].id, ACTOR);
+    expect(second.ok).toBe(true);
+    expect(second.enhancement?.control_text).toBe("The team screens every correspondent respondent before onboarding.");
   });
 });

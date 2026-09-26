@@ -17,6 +17,8 @@ export interface StylepackVersionRow {
   banned_phrases: BannedPhrase[];
   tense_rule: string | null;
   length_limits: { min_words: number; max_words: number };
+  style_brief_document_id: string | null;
+  style_brief_text: string | null;
   created_by: string;
   created_at: string;
 }
@@ -43,14 +45,25 @@ export async function createStylepack(input: {
   bannedPhrases: BannedPhrase[];
   tenseRule: string;
   lengthLimits: { min_words: number; max_words: number };
+  styleBriefDocumentId?: string | null;
+  styleBriefText?: string | null;
   actor: string;
 }): Promise<{ stylepack: StylepackRow; version: StylepackVersionRow }> {
   const stylepackRows = await query<StylepackRow>(`INSERT INTO drafter_stylepacks (name) VALUES ($1) RETURNING *`, [input.name]);
   const stylepack = stylepackRows[0];
   const versionRows = await query<StylepackVersionRow>(
-    `INSERT INTO drafter_stylepack_versions (stylepack_id, version, rules, banned_phrases, tense_rule, length_limits, created_by)
-     VALUES ($1,1,$2,$3,$4,$5,$6) RETURNING *`,
-    [stylepack.id, JSON.stringify(input.rules), JSON.stringify(input.bannedPhrases), input.tenseRule, JSON.stringify(input.lengthLimits), input.actor]
+    `INSERT INTO drafter_stylepack_versions (stylepack_id, version, rules, banned_phrases, tense_rule, length_limits, style_brief_document_id, style_brief_text, created_by)
+     VALUES ($1,1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    [
+      stylepack.id,
+      JSON.stringify(input.rules),
+      JSON.stringify(input.bannedPhrases),
+      input.tenseRule,
+      JSON.stringify(input.lengthLimits),
+      input.styleBriefDocumentId ?? null,
+      input.styleBriefText ?? null,
+      input.actor,
+    ]
   );
   await writeDrafterAudit(input.actor, "stylepack.create", "drafter_stylepack", stylepack.id, { name: input.name });
   return { stylepack, version: versionRows[0] };
@@ -81,6 +94,8 @@ export async function saveEditedStylepackVersion(input: {
   bannedPhrases: BannedPhrase[];
   tenseRule: string;
   lengthLimits: { min_words: number; max_words: number };
+  styleBriefDocumentId?: string | null;
+  styleBriefText?: string | null;
   actor: string;
 }): Promise<StylepackVersionRow> {
   const maxRows = await query<{ max: number }>(`SELECT COALESCE(MAX(version), 0) AS max FROM drafter_stylepack_versions WHERE stylepack_id = $1`, [
@@ -88,8 +103,8 @@ export async function saveEditedStylepackVersion(input: {
   ]);
   const nextVersion = (maxRows[0]?.max ?? 0) + 1;
   const rows = await query<StylepackVersionRow>(
-    `INSERT INTO drafter_stylepack_versions (stylepack_id, version, rules, banned_phrases, tense_rule, length_limits, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    `INSERT INTO drafter_stylepack_versions (stylepack_id, version, rules, banned_phrases, tense_rule, length_limits, style_brief_document_id, style_brief_text, created_by)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
     [
       input.stylepackId,
       nextVersion,
@@ -97,6 +112,8 @@ export async function saveEditedStylepackVersion(input: {
       JSON.stringify(input.bannedPhrases),
       input.tenseRule,
       JSON.stringify(input.lengthLimits),
+      input.styleBriefDocumentId ?? null,
+      input.styleBriefText ?? null,
       input.actor,
     ]
   );

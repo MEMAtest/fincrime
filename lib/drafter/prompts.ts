@@ -36,6 +36,8 @@ export interface WriterPromptInput {
   productDescription: string;
   sectionTitle: string;
   draftInputs: WriterDraftInputs;
+  /** The StylePack version's attached style brief text, when one was uploaded (BUILD-DECISIONS/migration 014). Null when none is attached. */
+  styleBrief?: string | null;
 }
 
 export interface BuiltWriterPrompt {
@@ -66,6 +68,7 @@ export function buildWriterPrompt(input: WriterPromptInput): BuiltWriterPrompt {
     "You write exactly two fields: control_text and rationale. You never decide whether a control is needed, and you never invent a fact - only use numbers, roles, thresholds and system names given to you below.",
     "Style rules:",
     ...input.styleRules.map((r, i) => `${i + 1}. ${r}`),
+    input.styleBrief?.trim() ? `House style brief (form and tone only - never a source of facts):\n${input.styleBrief.trim()}` : "",
     `Control text word count: ${input.wordLimits.min} to ${input.wordLimits.max} words.`,
     input.bannedPhrases.length
       ? `Avoid these phrases (with a plain replacement): ${input.bannedPhrases.map((b) => `"${b.phrase}" -> "${b.replacement}"`).join(", ")}.`

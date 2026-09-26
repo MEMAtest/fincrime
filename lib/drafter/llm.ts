@@ -64,6 +64,12 @@ export function isRoleConfigured(role: DrafterModelRole): boolean {
  * A clear, user-facing reason a role's model step is unavailable. UI should
  * show this rather than attempting the call and surfacing a raw error.
  */
+/** The model name that WOULD be used for a role right now (stub name in stub mode), for calibration-banner lookups that don't want to make a call. */
+export function currentModelName(role: "writer" | "judge"): string {
+  if (isStubMode()) return "stub";
+  return configForRole(role)?.model ?? "unconfigured";
+}
+
 export function roleDisabledReason(role: DrafterModelRole): string | null {
   if (isRoleConfigured(role)) return null;
   const envNames =

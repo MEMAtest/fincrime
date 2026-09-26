@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireDrafterActorApi } from "@/lib/drafter/access";
 import { getEnhancement, getPra, updateEnhancementDraft, recordEnhancementEdit } from "@/lib/repo/drafter-pras";
 import { getStylepackVersion } from "@/lib/repo/drafter-stylepacks";
-import { lintEnhancement, lintStatus } from "@/lib/drafter/lint";
+import { lintEnhancement } from "@/lib/drafter/lint";
+import { combineStatus, type JudgeInvalid } from "@/lib/drafter/review-status";
+import type { JudgeResult } from "@/lib/drafter/judge";
+import { maybeAdvancePraStatus } from "@/lib/drafter/pra-status";
 
 interface RouteContext {
   params: Promise<{ id: string; enhId: string }>;
@@ -60,13 +63,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     wordLimits: { min: stylepackVersion.length_limits.min_words, max: stylepackVersion.length_limits.max_words },
     bannedPhrases: stylepackVersion.banned_phrases,
   });
-  const status = lintStatus(lintIssues);
+  // Saving a manual edit re-runs lint immediately and marks any existing
+  // judge result STALE (SPEC.md "Page viewer and editing": "Saving re-runs
+  // lint immediately, marks the judge result stale, judge re-run on
+  // request") - the previous judge output is kept for reference but never
+  // counted as current.
+  const existingJudge = (enhancement.review_result?.judge ?? null) as JudgeResult | JudgeInvalid | null;
+  const judgeStale = Boolean(existingJudge);
+  const status = combineStatus({ lintIssues, judge: existingJudge, judgeStale });
 
   const updated = await updateEnhancementDraft(enhId, {
     controlText,
     rationale,
-    reviewResult: { lint: lintIssues, status },
+    reviewResult: { lint: lintIssues, judge: existingJudge, judgeStale, status },
   });
+  await maybeAdvancePraStatus(pra.id);
 
   return NextResponse.json({ enhancement: updated });
 }

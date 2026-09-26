@@ -50,6 +50,8 @@ interface StylepackWithVersions {
 
 export default function DrafterTemplatesClient() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [styleBriefDocuments, setStyleBriefDocuments] = useState<DocumentSummary[]>([]);
+  const [selectedStyleBriefId, setSelectedStyleBriefId] = useState<string>("");
   const [templates, setTemplates] = useState<TemplateWithVersions[]>([]);
   const [stylepacks, setStylepacks] = useState<StylepackWithVersions[]>([]);
   const [selectedDocId, setSelectedDocId] = useState<string>("");
@@ -62,7 +64,10 @@ export default function DrafterTemplatesClient() {
 
   const reload = () => {
     drafterFetch<{ documents: DocumentSummary[] }>("/api/drafter/documents").then((r) => {
-      if (r.ok && "documents" in r.data) setDocuments(r.data.documents.filter((d) => d.confirmed_doc_type === "pra"));
+      if (r.ok && "documents" in r.data) {
+        setDocuments(r.data.documents.filter((d) => d.confirmed_doc_type === "pra"));
+        setStyleBriefDocuments(r.data.documents.filter((d) => d.confirmed_doc_type === "style_brief"));
+      }
     });
     drafterFetch<{ templates: TemplateWithVersions[] }>("/api/drafter/templates").then((r) => {
       if (r.ok && "templates" in r.data) setTemplates(r.data.templates);
@@ -74,7 +79,10 @@ export default function DrafterTemplatesClient() {
 
   const createStylepack = async () => {
     setBusy(true);
-    const r = await drafterFetch("/api/drafter/stylepacks", { method: "POST", body: JSON.stringify({ name: "House style" }) });
+    const r = await drafterFetch("/api/drafter/stylepacks", {
+      method: "POST",
+      body: JSON.stringify({ name: "House style", styleBriefDocumentId: selectedStyleBriefId || null }),
+    });
     setBusy(false);
     if (r.ok) {
       setMessage("StylePack created, seeded from the SPEC style rules and settings.");
@@ -177,11 +185,21 @@ export default function DrafterTemplatesClient() {
           </div>
 
           <div className="glass-card rounded-2xl p-6 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <h2 className="text-lg font-semibold text-foreground">StylePacks</h2>
-              <button className="px-3 py-1.5 rounded bg-accent text-white text-sm disabled:opacity-50" disabled={busy} onClick={createStylepack}>
-                New StylePack (seeded)
-              </button>
+              <div className="flex items-center gap-2">
+                <select className="border rounded px-2 py-1 text-sm" value={selectedStyleBriefId} onChange={(e) => setSelectedStyleBriefId(e.target.value)}>
+                  <option value="">No style brief document</option>
+                  {styleBriefDocuments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.filename ?? d.id}
+                    </option>
+                  ))}
+                </select>
+                <button className="px-3 py-1.5 rounded bg-accent text-white text-sm disabled:opacity-50" disabled={busy} onClick={createStylepack}>
+                  New StylePack (seeded)
+                </button>
+              </div>
             </div>
             {stylepacks.length === 0 ? (
               <p className="text-sm text-text-muted">No StylePack yet - create one seeded from the house style rules and banned phrases.</p>
@@ -264,6 +282,13 @@ export default function DrafterTemplatesClient() {
                         value={s.backofficeControlMap ?? ""}
                         onChange={(e) => updateSection(i, "backofficeControlMap", e.target.value)}
                       />
+                      {!s.backofficeControlMap?.trim() && (
+                        <span className="text-xs text-amber-700">
+                          No back office control mapped to this section (this happens when the approved PRA had no enhancement here). Any
+                          control tagged with this back office control will come back &quot;unassigned&quot; when drafting a PRA - it will be
+                          listed, never silently dropped - but the fix is to set the map here first.
+                        </span>
+                      )}
                     </label>
                     <label className="flex flex-col gap-1 text-sm">
                       <span className="text-xs text-text-muted">Standard opening wording</span>

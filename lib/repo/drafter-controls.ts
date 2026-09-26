@@ -116,6 +116,23 @@ function coverageGroupToDbValue(group: CoverageGroup): "yes" | "partial" | "no" 
   return "unassessed";
 }
 
+/**
+ * Sets a control's agreed wording (Scope B fix #7: reuse must never fall
+ * back to the obligation description - a requirement is not control
+ * wording). Called either directly on the library control, or from
+ * approving an enhancement (SPEC.md "Exemplar promotion": "Approving an
+ * enhancement also writes the control's agreed_wording + used_in").
+ */
+export async function setAgreedWording(controlId: string, agreedWording: string, actor: string): Promise<ControlRow | null> {
+  const rows = await query<ControlRow>(
+    `UPDATE drafter_controls SET agreed_wording = $2, updated_at = now() WHERE id = $1 RETURNING *`,
+    [controlId, agreedWording]
+  );
+  const row = rows[0] ?? null;
+  if (row) await writeDrafterAudit(actor, "library.control.set_agreed_wording", "drafter_control", controlId, {});
+  return row;
+}
+
 export async function listControls(): Promise<ControlRow[]> {
   return query<ControlRow>(`SELECT * FROM drafter_controls ORDER BY created_at DESC`);
 }

@@ -10,7 +10,8 @@
 import { callDrafterModel, isUnderCostCap, PROMPT_VERSIONS } from "./llm";
 import { buildWriterPrompt, draftInputsAreEmpty, type WriterDraftInputs } from "./prompts";
 import { applyFactBoundary, type FactBoundaryFlag, type FactBoundaryPlaceholder } from "./fact-boundary";
-import { lintEnhancement, lintStatus } from "./lint";
+import { lintEnhancement } from "./lint";
+import { combineStatus } from "./review-status";
 import {
   getEnhancement,
   getPra,
@@ -25,6 +26,7 @@ import {
 import { getControl } from "@/lib/repo/drafter-controls";
 import { getStylepackVersion, getExemplarsForSectionType } from "@/lib/repo/drafter-stylepacks";
 import { writeDrafterAudit } from "@/lib/repo/drafter-audit";
+import { maybeAdvancePraStatus } from "./pra-status";
 
 export interface DraftResult {
   ok: boolean;
@@ -61,12 +63,24 @@ export async function draftOneEnhancement(enhancementId: string, actor: string):
   let costPence = 0;
 
   if (control?.coverage === "yes") {
-    // Reuse: agreed wording, NEVER a model call (SPEC.md "Reuse, adapt or new").
-    const reused = control.agreed_wording?.trim() || sourceFields.obligation_description?.trim() || null;
+    // Reuse: agreed wording, NEVER a model call (SPEC.md "Reuse, adapt or
+    // new"). Scope B fix: an obligation description is a regulatory
+    // requirement, not control WORDING - falling back to it produced text
+    // that read as an obligation, not an enhancement. When no agreed
+    // wording is held, this is a placeholder + open item, and the user
+    // approves/enters agreed wording on the library control instead (see
+    // POST /api/drafter/library/controls/[id]/agreed-wording).
+    const reused = control.agreed_wording?.trim() || null;
+    const NO_AGREED_WORDING_TEXT = "[Agreed wording not held for this control]";
     if (!reused) {
-      controlText = PLACEHOLDER_NO_INPUT_TEXT;
+      controlText = NO_AGREED_WORDING_TEXT;
       rationale = "";
-      placeholders = [{ original: PLACEHOLDER_NO_INPUT_TEXT, reason: "Marked reuse, but no agreed wording or obligation description was found to reuse." }];
+      placeholders = [
+        {
+          original: NO_AGREED_WORDING_TEXT,
+          reason: "Marked reuse, but no agreed wording is held for this control. Enter and approve agreed wording on the library control, then re-draft.",
+        },
+      ];
     } else {
       controlText = reused;
       rationale =
@@ -101,6 +115,7 @@ export async function draftOneEnhancement(enhancementId: string, actor: string):
         productDescription: pra.description ?? "",
         sectionTitle: `${section.section_number} ${section.title}`,
         draftInputs,
+        styleBrief: stylepackVersion.style_brief_text ?? null,
       });
 
       const call = await callDrafterModel({
@@ -146,13 +161,15 @@ export async function draftOneEnhancement(enhancementId: string, actor: string):
     wordLimits: { min: stylepackVersion.length_limits.min_words, max: stylepackVersion.length_limits.max_words },
     bannedPhrases: stylepackVersion.banned_phrases,
   });
-  const status = lintStatus(lintIssues);
+  // A (re)draft always invalidates any previous judge result - the text
+  // just changed, so a stale "pass" must never be shown.
+  const status = combineStatus({ lintIssues, judge: null, judgeStale: false });
 
   const updated = await updateEnhancementDraft(enhancement.id, {
     controlText,
     rationale,
     placeholders,
-    reviewResult: { lint: lintIssues, status },
+    reviewResult: { lint: lintIssues, judge: null, judgeStale: false, status },
     modelName: modelName ?? undefined,
     promptVersion: promptVersion ?? undefined,
   });
@@ -179,6 +196,7 @@ export async function draftOneEnhancement(enhancementId: string, actor: string):
   if (controlId) await markControlUsedInPra(controlId, pra.id);
   if (costPence > 0) await updatePraSpend(pra.id, costPence);
   await writeDrafterAudit(actor, "enhancement.draft", "drafter_enhancement", enhancement.id, { status, modelName });
+  await maybeAdvancePraStatus(pra.id);
 
   return { ok: true, enhancement: updated };
 }

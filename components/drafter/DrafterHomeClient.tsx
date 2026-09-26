@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FileText, Table, Library, Settings, ArrowRight } from "lucide-react";
+import { FileText, Table, Library, Settings, ArrowRight, CheckCircle2, Gauge } from "lucide-react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
@@ -128,6 +128,8 @@ export default function DrafterHomeClient() {
             <NavLink href="/drafter/templates" label="Templates" icon={FileText} />
             <NavLink href="/drafter/pras" label="PRA drafts" icon={Table} />
             <NavLink href="/drafter/settings" label="Settings" icon={Settings} />
+            <NavLink href="/drafter/reviewer" label="Reviewer" icon={CheckCircle2} />
+            <NavLink href="/drafter/calibration" label="Calibration" icon={Gauge} />
           </div>
         </div>
       </main>

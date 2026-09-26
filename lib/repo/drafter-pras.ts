@@ -15,7 +15,7 @@ export interface DrafterPraRow {
   template_version_id: string;
   stylepack_version_id: string;
   register_version_id: string | null;
-  status: "draft" | "drafting" | "in_review" | "exported";
+  status: "draft" | "drafting" | "drafted" | "in_review" | "ready_to_export" | "exported";
   cost_cap_pence: number | null;
   spend_pence: number;
   created_by: string;
@@ -84,7 +84,13 @@ export interface DrafterEnhancementRow {
   backoffice_control_label: string | null;
   evidence_refs: EvidenceRef[];
   placeholders: { original: string; reason: string }[];
-  review_result: { lint: LintIssue[]; status: "pass" | "minor" | "critical" | "not_reviewed"; error?: string } | null;
+  review_result: {
+    lint: LintIssue[];
+    status: "pass" | "minor" | "critical" | "not_reviewed";
+    error?: string;
+    judge?: unknown;
+    judgeStale?: boolean;
+  } | null;
   is_gap: boolean;
   model_name: string | null;
   prompt_version: string | null;
@@ -122,7 +128,20 @@ export async function getSectionById(id: string): Promise<DrafterSectionRow | nu
 }
 
 export async function updatePraSpend(praId: string, addPence: number): Promise<void> {
-  await query(`UPDATE drafter_pras SET spend_pence = spend_pence + $2, status = 'drafting', updated_at = now() WHERE id = $1`, [praId, addPence]);
+  // Note: status is advanced separately by lib/drafter/pra-status.ts's
+  // maybeAdvancePraStatus, called after every draft/judge call - it used to
+  // be tied only to a non-zero spend here (HANDOFF-3 "Known limits" #3),
+  // which meant a PRA drafted entirely via reuse/placeholder/stub calls
+  // never left "draft". Spend tracking and status are independent now.
+  await query(`UPDATE drafter_pras SET spend_pence = spend_pence + $2, updated_at = now() WHERE id = $1`, [praId, addPence]);
+}
+
+export async function setPraStatus(praId: string, status: DrafterPraRow["status"]): Promise<DrafterPraRow> {
+  const rows = await query<DrafterPraRow>(
+    `UPDATE drafter_pras SET status = $2, updated_at = now() WHERE id = $1 RETURNING *`,
+    [praId, status]
+  );
+  return rows[0];
 }
 
 export async function listEnhancementsForPra(praId: string): Promise<DrafterEnhancementRow[]> {
@@ -240,7 +259,7 @@ export async function updateEnhancementDraft(
     controlText?: string;
     rationale?: string;
     placeholders?: { original: string; reason: string }[];
-    reviewResult?: { lint: LintIssue[]; status: string; error?: string };
+    reviewResult?: DrafterEnhancementRow["review_result"];
     modelName?: string;
     promptVersion?: string;
   }
@@ -264,6 +283,23 @@ export async function updateEnhancementDraft(
       fields.modelName ?? null,
       fields.promptVersion ?? null,
     ]
+  );
+  return rows[0];
+}
+
+/**
+ * Updates an enhancement's full review_result (lint + judge + combined
+ * status) as one JSON blob (HANDOFF-3: "you'll add a `judge` key alongside
+ * `lint` in that same JSON blob rather than a new column"). Used by the
+ * judge runner and by the PATCH route when marking a judge result stale.
+ */
+export async function updateEnhancementReview(
+  id: string,
+  fields: { reviewResult: DrafterEnhancementRow["review_result"] }
+): Promise<DrafterEnhancementRow> {
+  const rows = await query<DrafterEnhancementRow>(
+    `UPDATE drafter_enhancements SET review_result = $2, updated_at = now() WHERE id = $1 RETURNING *`,
+    [id, JSON.stringify(fields.reviewResult)]
   );
   return rows[0];
 }

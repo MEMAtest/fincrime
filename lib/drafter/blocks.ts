@@ -47,6 +47,19 @@ export interface ParsedDocument {
 
 export const FORMULA_ERROR_VALUES = ["#REF!", "#N/A", "#VALUE!", "#DIV/0!", "#NAME?", "#NULL!", "#NUM!"] as const;
 
+/** Flattens a parsed document's blocks to plain text, in source order (used e.g. to pull a style brief's text out for the writer prompt). */
+export function blocksToPlainText(doc: ParsedDocument): string {
+  return doc.blocks
+    .map((b) => {
+      if (b.type === "heading" || b.type === "paragraph") return b.text;
+      if (b.type === "list") return b.items.join("\n");
+      if (b.type === "table") return b.rows.map((row) => row.map((c) => c.text).join(" | ")).join("\n");
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export function detectFormulaError(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const trimmed = raw.trim();

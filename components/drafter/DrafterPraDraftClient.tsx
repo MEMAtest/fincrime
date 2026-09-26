@@ -29,17 +29,46 @@ interface LintIssue {
   message: string;
 }
 
+interface JudgeCriterionResult {
+  quote: string;
+  pass: boolean;
+  reason: string;
+  suggestedRewrite: string | null;
+}
+
+interface JudgeResult {
+  criteria: Record<string, JudgeCriterionResult>;
+  overall: "pass" | "fail";
+  modelName: string;
+  promptVersion: string;
+}
+
+interface JudgeInvalid {
+  error: string;
+  invalid: true;
+}
+
+interface ReviewResult {
+  lint: LintIssue[];
+  status: string;
+  error?: string;
+  judge?: JudgeResult | JudgeInvalid | null;
+  judgeStale?: boolean;
+}
+
 interface Enhancement {
   id: string;
   section_id: string;
   sort_order: number;
+  control_ids: string[];
   control_text: string | null;
   rationale: string | null;
   backoffice_control_label: string | null;
   evidence_refs: { label: string; value: string }[];
   placeholders: { original: string; reason: string }[];
-  review_result: { lint: LintIssue[]; status: string; error?: string } | null;
+  review_result: ReviewResult | null;
   is_gap: boolean;
+  model_name: string | null;
 }
 
 interface OpenItem {
@@ -65,12 +94,21 @@ interface CandidatesGrouped {
   unassessed: CandidateControl[];
 }
 
+interface UnassignedControl {
+  controlId: string;
+  reason: string;
+}
+
 const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default"> = {
   pass: "success",
   minor: "warning",
   critical: "danger",
   not_reviewed: "default",
 };
+
+function isJudgeInvalid(judge: JudgeResult | JudgeInvalid | null | undefined): judge is JudgeInvalid {
+  return Boolean(judge && "invalid" in judge && judge.invalid);
+}
 
 export default function DrafterPraDraftClient({ praId }: { praId: string }) {
   const [pra, setPra] = useState<Pra | null>(null);
@@ -84,6 +122,10 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
   const [drafting, setDrafting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [unassigned, setUnassigned] = useState<UnassignedControl[]>([]);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState<{ blocking: { enhancementId: string; reason: string }[] } | null>(null);
+  const [calibrationBanner, setCalibrationBanner] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const r = await drafterFetch<{ pra: Pra; sections: Section[]; enhancements: Enhancement[]; openItems: OpenItem[] }>(`/api/drafter/pras/${praId}`);
@@ -96,27 +138,28 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
   }, [praId]);
 
   useEffect(() => {
-    drafterFetch<{ pra: Pra; sections: Section[]; enhancements: Enhancement[]; openItems: OpenItem[] }>(`/api/drafter/pras/${praId}`).then((r) => {
-      if (r.ok && "pra" in r.data) {
-        setPra(r.data.pra);
-        setSections(r.data.sections);
-        setEnhancements(r.data.enhancements);
-        setOpenItems(r.data.openItems);
-      }
-    });
+    load();
     drafterFetch<{ grouped: CandidatesGrouped }>(`/api/drafter/pras/${praId}/candidates`).then((r) => {
       if (r.ok && "grouped" in r.data) setCandidates(r.data.grouped);
     });
-  }, [praId]);
+    drafterFetch<{ modelName: string; promptVersion: string; calibrated: boolean }>(`/api/drafter/calibration/status`).then((r) => {
+      if (r.ok && "calibrated" in r.data && !r.data.calibrated) {
+        setCalibrationBanner(
+          `Reviewer not yet calibrated: no passing calibration run for judge model "${r.data.modelName}" / prompt "${r.data.promptVersion}". Judge results should be treated as provisional. See /drafter/calibration.`
+        );
+      }
+    });
+  }, [praId, load]);
 
   const submitCandidates = async () => {
     const gaps = gapDescription.trim() && gapSection ? [{ description: gapDescription.trim(), sectionNumber: gapSection }] : [];
-    const r = await drafterFetch(`/api/drafter/pras/${praId}/candidates`, {
+    const r = await drafterFetch<{ assignment: { assigned: number; unassigned: UnassignedControl[] } }>(`/api/drafter/pras/${praId}/candidates`, {
       method: "POST",
       body: JSON.stringify({ selectedControlIds: Array.from(selected), gaps }),
     });
     if (r.ok) {
       setMessage(null);
+      if ("assignment" in r.data) setUnassigned(r.data.assignment.unassigned);
       await load();
     } else {
       setMessage("Could not assign the selected controls.");
@@ -146,7 +189,30 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
       setProgress({ done: i + 1, total: pending.length });
     }
     setDrafting(false);
-    await load(); // refresh spend/open items
+    await load();
+  };
+
+  const judgeOne = async (enhId: string) => {
+    const r = await drafterFetch<{ enhancement: Enhancement }>(`/api/drafter/pras/${praId}/enhancements/${enhId}/judge`, { method: "POST" });
+    if ("enhancement" in r.data && r.data.enhancement) {
+      const updated = r.data.enhancement;
+      setEnhancements((prev) => prev.map((e) => (e.id === enhId ? updated : e)));
+    }
+    if (!r.ok) setMessage("error" in r.data ? r.data.error ?? "Judge run failed" : "Judge run failed");
+    await load();
+    return r;
+  };
+
+  const judgeAllDrafted = async () => {
+    const pending = enhancements.filter((e) => !e.is_gap && e.control_text && (!e.review_result?.judge || e.review_result.judgeStale));
+    if (pending.length === 0) return;
+    setDrafting(true);
+    setProgress({ done: 0, total: pending.length });
+    for (let i = 0; i < pending.length; i++) {
+      await judgeOne(pending[i].id);
+      setProgress({ done: i + 1, total: pending.length });
+    }
+    setDrafting(false);
   };
 
   const saveEdit = async (enhId: string, controlText: string, rationale: string) => {
@@ -158,6 +224,49 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
       const updated = r.data.enhancement;
       setEnhancements((prev) => prev.map((e) => (e.id === enhId ? updated : e)));
     }
+    await load();
+  };
+
+  const approveOne = async (enhId: string, promoteAsExemplar: boolean) => {
+    const r = await drafterFetch(`/api/drafter/pras/${praId}/enhancements/${enhId}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ promoteAsExemplar }),
+    });
+    if (!r.ok) setMessage("error" in r.data ? r.data.error ?? "Could not approve" : "Could not approve");
+    else setMessage(promoteAsExemplar ? "Approved and promoted as an exemplar." : "Approved - agreed wording saved to the library control.");
+  };
+
+  const runExport = async (overrideReason?: string) => {
+    setExportBusy(true);
+    setExportError(null);
+    const res = await fetch(`/api/drafter/pras/${praId}/export`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ overrideReason: overrideReason ?? "" }),
+    });
+    if (res.status === 409) {
+      const body = await res.json();
+      setExportError(body);
+      setExportBusy(false);
+      return;
+    }
+    if (!res.ok) {
+      setMessage("Export failed.");
+      setExportBusy(false);
+      return;
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const filenameMatch = /filename="([^"]+)"/.exec(disposition);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filenameMatch?.[1] ?? "pra-draft.docx";
+    a.click();
+    URL.revokeObjectURL(url);
+    setExportBusy(false);
+    await load();
   };
 
   if (!pra) {
@@ -179,8 +288,12 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
               <h1 className="text-2xl font-bold text-foreground">{pra.product}</h1>
               <p className="text-sm text-text-muted">{pra.description}</p>
             </div>
-            <Badge>{pra.status}</Badge>
+            <Badge>{pra.status.replace(/_/g, " ")}</Badge>
           </div>
+
+          {calibrationBanner && (
+            <div className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-xs text-amber-800">{calibrationBanner}</div>
+          )}
 
           {!hasEnhancements && candidates && (
             <div className="glass-card rounded-2xl p-6 space-y-4">
@@ -202,8 +315,11 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
                           }}
                         />
                         <span>
-                          {c.title} - <span className="text-text-muted">{c.backofficeControl ?? "no back office control tag"}</span>
+                          {c.title} - <span className="text-text-muted">{c.backofficeControl ?? "no back office control tag - will not be assigned to a section, see the template's section map"}</span>
                           {c.usedIn.length > 0 && <span className="text-text-muted"> - used in {c.usedIn.map((u) => u.product).join(", ")}</span>}
+                          {group === "reuse" && !c.agreedWording && (
+                            <span className="text-amber-700"> - no agreed wording held yet, will draft as a placeholder</span>
+                          )}
                         </span>
                       </li>
                     ))}
@@ -236,19 +352,52 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
             </div>
           )}
 
+          {unassigned.length > 0 && (
+            <div className="rounded-lg border border-red-400 bg-red-50 p-3 text-xs text-red-800 space-y-1">
+              <p className="font-semibold">{unassigned.length} selected control(s) were NOT assigned to any section - they are never silently dropped:</p>
+              <ul className="list-disc pl-4">
+                {unassigned.map((u) => (
+                  <li key={u.controlId}>
+                    Control {u.controlId}: {u.reason} - fix the section&apos;s back office control map on the Template review screen, then re-select this control.
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {hasEnhancements && (
             <>
-              <div className="glass-card rounded-2xl p-4 flex items-center justify-between">
+              <div className="glass-card rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
                 <div className="text-sm text-text-muted">
-                  Spend so far: {pra.spend_pence}
+                  Token spend so far: {pra.spend_pence}
                   {pra.cost_cap_pence ? ` / cap ${pra.cost_cap_pence}` : ""} (smallest unit of the configured writer/judge currency)
-                  {progress && ` - drafted ${progress.done}/${progress.total}`}
+                  {progress && ` - ${progress.done}/${progress.total}`}
                 </div>
-                <button className="px-4 py-2 rounded bg-accent text-white text-sm disabled:opacity-50" disabled={drafting} onClick={draftAllRemaining}>
-                  {drafting ? "Drafting..." : "Draft all remaining"}
-                </button>
+                <div className="flex gap-2">
+                  <button className="px-3 py-2 rounded bg-accent text-white text-sm disabled:opacity-50" disabled={drafting} onClick={draftAllRemaining}>
+                    {drafting ? "Working..." : "Draft all remaining"}
+                  </button>
+                  <button className="px-3 py-2 rounded border border-border text-sm disabled:opacity-50" disabled={drafting} onClick={judgeAllDrafted}>
+                    Judge all drafted
+                  </button>
+                  <button className="px-3 py-2 rounded border border-border text-sm disabled:opacity-50" disabled={exportBusy} onClick={() => runExport()}>
+                    {exportBusy ? "Exporting..." : "Export to Word"}
+                  </button>
+                </div>
               </div>
               {message && <p className="text-sm text-red-600">{message}</p>}
+
+              {exportError && (
+                <div className="rounded-lg border border-red-400 bg-red-50 p-4 text-sm text-red-800 space-y-2">
+                  <p className="font-semibold">Export blocked - {exportError.blocking.length} unresolved reviewer issue(s):</p>
+                  <ul className="list-disc pl-4 text-xs">
+                    {exportError.blocking.map((b, i) => (
+                      <li key={i}>{b.reason} (enhancement {b.enhancementId})</li>
+                    ))}
+                  </ul>
+                  <ExportOverride onOverride={(reason) => runExport(reason)} />
+                </div>
+              )}
 
               {sections.map((section) => {
                 const sectionEnhancements = enhancements.filter((e) => e.section_id === section.id);
@@ -261,7 +410,15 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
                       <p className="text-sm text-text-muted italic">No control enhancements apply to this section for the current product.</p>
                     ) : (
                       sectionEnhancements.map((e) => (
-                        <EnhancementCard key={e.id} enhancement={e} onDraft={() => draftOne(e.id)} onSave={saveEdit} />
+                        <EnhancementCard
+                          key={e.id}
+                          praId={praId}
+                          enhancement={e}
+                          onDraft={() => draftOne(e.id)}
+                          onJudge={() => judgeOne(e.id)}
+                          onSave={saveEdit}
+                          onApprove={approveOne}
+                        />
                       ))
                     )}
                   </div>
@@ -291,18 +448,47 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
   );
 }
 
+function ExportOverride({ onOverride }: { onOverride: (reason: string) => void }) {
+  const [reason, setReason] = useState("");
+  return (
+    <div className="flex gap-2 items-center">
+      <input
+        className="border rounded px-2 py-1 text-sm flex-1"
+        placeholder="Reason for exporting with unresolved issues (logged with your account)"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+      />
+      <button
+        className="text-xs px-3 py-1 rounded bg-red-700 text-white disabled:opacity-50"
+        disabled={!reason.trim()}
+        onClick={() => onOverride(reason.trim())}
+      >
+        Override and export anyway
+      </button>
+    </div>
+  );
+}
+
 function EnhancementCard({
+  praId,
   enhancement,
   onDraft,
+  onJudge,
   onSave,
+  onApprove,
 }: {
+  praId: string;
   enhancement: Enhancement;
   onDraft: () => Promise<unknown>;
+  onJudge: () => Promise<unknown>;
   onSave: (id: string, controlText: string, rationale: string) => Promise<void>;
+  onApprove: (id: string, promoteAsExemplar: boolean) => Promise<void>;
 }) {
   const [controlText, setControlText] = useState(enhancement.control_text ?? "");
   const [rationale, setRationale] = useState(enhancement.rationale ?? "");
   const [busy, setBusy] = useState(false);
+  const [showSource, setShowSource] = useState(false);
+  const [source, setSource] = useState<{ controls: { control: { title: string } | null; sourceFields: Record<string, string> }[] } | null>(null);
   // Resets the editable fields whenever the server-side draft changes (e.g.
   // after "Draft this enhancement" succeeds) - done during render rather
   // than in an effect, per https://react.dev/learn/you-might-not-need-an-effect.
@@ -316,27 +502,73 @@ function EnhancementCard({
   }
 
   const status = enhancement.review_result?.status ?? "not_reviewed";
+  const judge = enhancement.review_result?.judge;
+  const judgeStale = Boolean(enhancement.review_result?.judgeStale);
+
+  const applyFix = (quote: string, suggestion: string, field: "control_text" | "rationale") => {
+    const current = field === "control_text" ? controlText : rationale;
+    if (!current.includes(quote)) return;
+    const next = current.replace(quote, suggestion);
+    if (field === "control_text") setControlText(next);
+    else setRationale(next);
+  };
+
+  const toggleSource = async () => {
+    if (!showSource && !source) {
+      const r = await drafterFetch<{ controls: { control: { title: string } | null; sourceFields: Record<string, string> }[] }>(
+        `/api/drafter/pras/${praId}/enhancements/${enhancement.id}/source`
+      );
+      if (r.ok && "controls" in r.data) setSource(r.data);
+    }
+    setShowSource((s) => !s);
+  };
 
   return (
     <div className="border border-border rounded-lg p-4 space-y-2">
-      <div className="flex items-center justify-between">
-        <Badge variant={STATUS_VARIANT[status] ?? "default"}>{status.replace("_", " ")}</Badge>
-        {enhancement.is_gap ? (
-          <Badge variant="warning">Manual gap - placeholder</Badge>
-        ) : !enhancement.control_text ? (
-          <button
-            className="text-xs px-3 py-1 rounded bg-accent text-white disabled:opacity-50"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              await onDraft();
-              setBusy(false);
-            }}
-          >
-            Draft this enhancement
-          </button>
-        ) : null}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Badge variant={STATUS_VARIANT[status] ?? "default"}>{status.replace(/_/g, " ")}</Badge>
+          {judgeStale && <Badge variant="warning">judge result stale - text changed since</Badge>}
+          {enhancement.model_name && <span className="text-xs text-text-muted">model: {enhancement.model_name}</span>}
+        </div>
+        <div className="flex gap-2">
+          {enhancement.is_gap ? (
+            <Badge variant="warning">Manual gap - placeholder</Badge>
+          ) : (
+            <>
+              {!enhancement.control_text ? (
+                <button
+                  className="text-xs px-3 py-1 rounded bg-accent text-white disabled:opacity-50"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    await onDraft();
+                    setBusy(false);
+                  }}
+                >
+                  Draft this enhancement
+                </button>
+              ) : (
+                <button
+                  className="text-xs px-3 py-1 rounded border border-border disabled:opacity-50"
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    await onJudge();
+                    setBusy(false);
+                  }}
+                >
+                  Run judge
+                </button>
+              )}
+              <button className="text-xs px-3 py-1 rounded border border-border" onClick={toggleSource}>
+                Source
+              </button>
+            </>
+          )}
+        </div>
       </div>
+
       <label className="flex flex-col gap-1 text-sm">
         <span className="text-xs text-text-muted">Control enhancement</span>
         <textarea className="border rounded px-2 py-1" rows={3} value={controlText} onChange={(e) => setControlText(e.target.value)} disabled={enhancement.is_gap} />
@@ -348,11 +580,29 @@ function EnhancementCard({
         </label>
       )}
       <div className="text-xs text-text-muted">
-        <span className="font-medium">Backoffice control impacted:</span> {enhancement.backoffice_control_label ?? "(none)"}
+        <span className="font-medium">Backoffice control impacted (read-only):</span> {enhancement.backoffice_control_label ?? "(none)"}
       </div>
       <div className="text-xs text-text-muted">
-        <span className="font-medium">Evidence of delivery:</span> {enhancement.evidence_refs.map((ev) => ev.value).join(", ") || "(none)"}
+        <span className="font-medium">Evidence of delivery (read-only):</span> {enhancement.evidence_refs.map((ev) => ev.value).join(", ") || "(none)"}
       </div>
+
+      {showSource && source && (
+        <div className="rounded border border-border bg-surface-alt p-3 text-xs space-y-2">
+          {source.controls.map((c, i) => (
+            <div key={i}>
+              <p className="font-semibold">{c.control?.title ?? "Control"}</p>
+              <ul className="pl-3 list-disc">
+                {Object.entries(c.sourceFields).map(([k, v]) => (
+                  <li key={k}>
+                    <span className="text-text-muted">{k}:</span> {v}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+
       {enhancement.review_result?.lint && enhancement.review_result.lint.length > 0 && (
         <ul className="text-xs text-amber-700 space-y-0.5">
           {enhancement.review_result.lint.map((issue, i) => (
@@ -363,10 +613,49 @@ function EnhancementCard({
         </ul>
       )}
       {enhancement.review_result?.error && <p className="text-xs text-red-600">Model error: {enhancement.review_result.error}</p>}
+
+      {judge && !isJudgeInvalid(judge) && (
+        <div className="rounded border border-border p-3 space-y-2">
+          <p className="text-xs font-semibold">Judge review ({judge.overall}, {judge.modelName})</p>
+          {Object.entries(judge.criteria).map(([key, c]) => (
+            <div key={key} className="text-xs border-t border-border pt-1 first:border-t-0 first:pt-0">
+              <p>
+                <Badge variant={c.pass ? "success" : "danger"}>{c.pass ? "pass" : "fail"}</Badge> <span className="font-medium">{key.replace(/_/g, " ")}</span>
+              </p>
+              <p className="text-text-muted italic">&quot;{c.quote}&quot;</p>
+              <p>{c.reason}</p>
+              {!c.pass && c.suggestedRewrite && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-text-muted">Suggested: {c.suggestedRewrite}</span>
+                  <button
+                    className="px-2 py-0.5 rounded border border-border"
+                    onClick={() => applyFix(c.quote, c.suggestedRewrite!, controlText.includes(c.quote) ? "control_text" : "rationale")}
+                  >
+                    Apply fix
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {judge && isJudgeInvalid(judge) && <p className="text-xs text-red-600">Judge result invalid: {judge.error}</p>}
+
       {!enhancement.is_gap && (
-        <button className="text-xs px-3 py-1 rounded border border-border" onClick={() => onSave(enhancement.id, controlText, rationale)}>
-          Save
-        </button>
+        <div className="flex gap-2">
+          <button
+            className="text-xs px-3 py-1 rounded border border-border"
+            onClick={() => onSave(enhancement.id, controlText, rationale)}
+          >
+            Save
+          </button>
+          <button className="text-xs px-3 py-1 rounded border border-border" onClick={() => onApprove(enhancement.id, false)}>
+            Approve (save agreed wording)
+          </button>
+          <button className="text-xs px-3 py-1 rounded border border-border" onClick={() => onApprove(enhancement.id, true)}>
+            Approve + promote as exemplar
+          </button>
+        </div>
       )}
     </div>
   );
