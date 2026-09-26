@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
 import { applyFix as applyFixText, fieldForQuote } from "@/lib/drafter/apply-fix";
 import { STATUS_LABELS } from "@/lib/drafter/review-status";
+import { formatUsdFromStoredUnits } from "@/lib/drafter/money";
 import ModelStatusBanner from "./ModelStatusBanner";
 import ConfirmDialog from "./ConfirmDialog";
 import { useRouter } from "next/navigation";
@@ -119,9 +120,11 @@ function statusLabel(status: string): string {
   return STATUS_LABELS[status as keyof typeof STATUS_LABELS] ?? status.replace(/_/g, " ");
 }
 
-function formatUsd(pence: number | null | undefined): string {
-  return `$${((pence ?? 0) / 100).toFixed(2)}`;
-}
+// pra.spend_pence / pra.cost_cap_pence are both stored in the fine-grained
+// "stored units" documented in lib/drafter/money.ts (1/10,000 of a USD
+// cent), not whole cents - dividing by 100 previously rounded a real
+// per-call spend down to "$0.00" even after many calls.
+const formatUsd = formatUsdFromStoredUnits;
 
 function isJudgeInvalid(judge: JudgeResult | JudgeInvalid | null | undefined): judge is JudgeInvalid {
   return Boolean(judge && "invalid" in judge && judge.invalid);
@@ -280,16 +283,29 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
     setDrafting(false);
   };
 
-  const saveEdit = async (enhId: string, controlText: string, rationale: string) => {
+  /**
+   * Returns whether the save actually persisted, so the card can tell the
+   * user "Save failed - your edit is still unsaved" rather than silently
+   * keeping the unsaved text on screen with no indication anything is
+   * wrong (the bug behind "Apply fix updated the UI, Save clicked, but
+   * after reload it reverted" - a failed PATCH was previously swallowed
+   * here and `load()` ran regardless, refetching the still-old server
+   * value while the untouched local textarea state masked the mismatch
+   * until a hard reload remounted the component from scratch).
+   */
+  const saveEdit = async (enhId: string, controlText: string, rationale: string, editType: "manual" | "apply_fix"): Promise<boolean> => {
     const r = await drafterFetch<{ enhancement: Enhancement }>(`/api/drafter/pras/${praId}/enhancements/${enhId}`, {
       method: "PATCH",
-      body: JSON.stringify({ controlText, rationale }),
+      body: JSON.stringify({ controlText, rationale, editType }),
     });
     if (r.ok && "enhancement" in r.data) {
       const updated = r.data.enhancement;
       setEnhancements((prev) => prev.map((e) => (e.id === enhId ? updated : e)));
+      await load();
+      return true;
     }
-    await load();
+    setMessage("error" in r.data ? r.data.error ?? "Save failed - your edit was not saved." : "Save failed - your edit was not saved.");
+    return false;
   };
 
   const approveOne = async (enhId: string, promoteAsExemplar: boolean) => {
@@ -642,14 +658,22 @@ function EnhancementCard({
   onSelect: () => void;
   onDraft: () => Promise<unknown>;
   onJudge: () => Promise<unknown>;
-  onSave: (id: string, controlText: string, rationale: string) => Promise<void>;
+  onSave: (id: string, controlText: string, rationale: string, editType: "manual" | "apply_fix") => Promise<boolean>;
   onApprove: (id: string, promoteAsExemplar: boolean) => Promise<void>;
 }) {
   const [controlText, setControlText] = useState(enhancement.control_text ?? "");
   const [rationale, setRationale] = useState(enhancement.rationale ?? "");
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [source, setSource] = useState<{ controls: { control: { title: string } | null; sourceFields: Record<string, string> }[] } | null>(null);
+  // Which kind of edit is currently unsaved in the boxes above - "apply_fix"
+  // once Apply fix has touched a field, until either a manual keystroke or a
+  // successful save resets it. Threaded through to onSave so
+  // drafter_enhancement_edits records the real source of the change, per
+  // SPEC.md's edit history.
+  const [pendingEditType, setPendingEditType] = useState<"manual" | "apply_fix">("manual");
   // Resets the editable fields whenever the server-side draft changes (e.g.
   // after "Draft this enhancement" succeeds) - done during render rather
   // than in an effect, per https://react.dev/learn/you-might-not-need-an-effect.
@@ -660,6 +684,8 @@ function EnhancementCard({
     setSyncedRationale(enhancement.rationale);
     setControlText(enhancement.control_text ?? "");
     setRationale(enhancement.rationale ?? "");
+    setPendingEditType("manual");
+    setSaveFailed(false);
   }
 
   const status = enhancement.review_result?.status ?? "not_reviewed";
@@ -674,6 +700,8 @@ function EnhancementCard({
     if (!result.applied) return;
     if (field === "control_text") setControlText(result.text);
     else setRationale(result.text);
+    setPendingEditType("apply_fix");
+    setSaveFailed(false);
   };
 
   const toggleSource = async () => {
@@ -792,13 +820,22 @@ function EnhancementCard({
       {status === "needs_input" && <p className="text-xs text-text-muted">Nothing to review yet - this enhancement needs input first.</p>}
 
       {!enhancement.is_gap && (
-        <div className="flex flex-wrap gap-2 pt-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           <button
-            className="text-xs px-3 py-1 rounded border border-border"
-            onClick={() => onSave(enhancement.id, controlText, rationale)}
+            className="text-xs px-3 py-1 rounded border border-border disabled:opacity-50"
+            disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              setSaveFailed(false);
+              const ok = await onSave(enhancement.id, controlText, rationale, pendingEditType);
+              setSaving(false);
+              if (ok) setPendingEditType("manual");
+              else setSaveFailed(true);
+            }}
           >
-            Save
+            {saving ? "Saving..." : "Save"}
           </button>
+          {saveFailed && <span className="text-xs text-red-600">Save failed - your edit above is NOT saved. Try again.</span>}
           <button className="text-xs px-3 py-1 rounded border border-border" onClick={() => onApprove(enhancement.id, false)}>
             Approve (save agreed wording)
           </button>
@@ -837,12 +874,12 @@ function EnhancementCard({
 
       <label className="flex flex-col gap-1 text-sm" onClick={(e) => e.stopPropagation()}>
         <span className="text-xs text-text-muted">Control enhancement</span>
-        <textarea className="border rounded px-2 py-1" rows={3} value={controlText} onChange={(e) => setControlText(e.target.value)} disabled={enhancement.is_gap} />
+        <textarea className="border rounded px-2 py-1" rows={3} value={controlText} onChange={(e) => { setControlText(e.target.value); setPendingEditType("manual"); setSaveFailed(false); }} disabled={enhancement.is_gap} />
       </label>
       {!enhancement.is_gap && (
         <label className="flex flex-col gap-1 text-sm" onClick={(e) => e.stopPropagation()}>
           <span className="text-xs text-text-muted">Control enhancement rationale</span>
-          <textarea className="border rounded px-2 py-1" rows={2} value={rationale} onChange={(e) => setRationale(e.target.value)} />
+          <textarea className="border rounded px-2 py-1" rows={2} value={rationale} onChange={(e) => { setRationale(e.target.value); setPendingEditType("manual"); setSaveFailed(false); }} />
         </label>
       )}
       <div className="text-xs text-text-muted">

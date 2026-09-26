@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { query } from "@/lib/db";
+import { centsToStoredUnits, fractionalCentsToStoredUnits, formatUsdFromStoredUnits } from "./money";
 
 /**
  * PRA Drafter model provider interface. See
@@ -30,9 +31,18 @@ interface RoleConfig {
 // its own per-role key env is unset. BASE_URL still comes from env (see
 // OPENROUTER_BASE_URL_DEFAULT in the repo's env example / .env.local) so a
 // deploy always states explicitly which host it talks to.
+// Judge default changed 2026-09-26 after a real-call bake-off
+// (docs/pra-drafter/JUDGE-BAKEOFF.md): minimax/minimax-m3 (the previous
+// default) failed validation on 7/8 real production enhancements. Winner is
+// qwen/qwen3-30b-a3b (12/12 valid JSON, 12/12 verdict agreement with the
+// expected labels, cheapest and fastest of the four candidates tried) -
+// note "qwen/qwen3.8-flash" named in the original bake-off brief has no
+// OpenRouter endpoint under a zero-data-retention policy (HTTP 404,
+// "Filter by Data Policy"), so qwen3-30b-a3b was substituted as the
+// cheap-Chinese-model candidate.
 const DEFAULT_MODELS: Record<"writer" | "judge", string> = {
   writer: "openai/gpt-5.6-luna",
-  judge: "minimax/minimax-m3",
+  judge: "qwen/qwen3-30b-a3b",
 };
 
 function envRoleConfig(role: "writer" | "judge"): RoleConfig | null {
@@ -87,6 +97,17 @@ export interface DrafterChatCallInput {
   temperature: number;
   praId?: string;
   enhancementId?: string;
+  /**
+   * Structured-output schema for providers that support
+   * `response_format: {type:"json_schema", json_schema:{...strict}}`. If the
+   * provider rejects it, callDrafterModel retries the SAME call once with
+   * `response_format: {type:"json_object"}` before giving up.
+   */
+  jsonSchema?: { name: string; strict: boolean; schema: Record<string, unknown> };
+  /** Overrides the model actually called for this one request (used by the judge bake-off harness to try several candidates without touching env config). */
+  modelOverride?: string;
+  /** Overrides the USD-cents-per-1M-token price used for cost calc on this one call (paired with modelOverride, since drafter_settings' prices are keyed by role, not by model). */
+  priceOverride?: { in: number; out: number };
 }
 
 export interface DrafterChatCallResult {
@@ -137,11 +158,18 @@ async function rolePrice(role: DrafterModelRole): Promise<RolePrice> {
  * that PRA; if this returns false, the caller must not call the model and
  * should show the cap message instead.
  */
+/**
+ * `spentPence`/`capPence` here are both in the STORED UNITS documented in
+ * ./money.ts (1/10,000 of a USD cent), NOT whole cents despite the field
+ * names (kept as-is to avoid touching every caller) - use
+ * `formatUsdFromStoredUnits` to display either one.
+ */
 export async function isUnderCostCap(praId: string): Promise<{ underCap: boolean; spentPence: number; capPence: number }> {
   const capRows = await query<{ value: number }>(
     `SELECT value FROM drafter_settings WHERE key = 'cost_cap_pence_per_pra'`
   );
-  const capPence = capRows[0]?.value ?? 0;
+  const capPenceCents = capRows[0]?.value ?? 0;
+  const capPence = centsToStoredUnits(capPenceCents);
 
   const spentRows = await query<{ total: string | null }>(
     `SELECT SUM(cost_estimate_pence) AS total FROM drafter_model_calls WHERE pra_id = $1`,
@@ -150,6 +178,11 @@ export async function isUnderCostCap(praId: string): Promise<{ underCap: boolean
   const spentPence = Number(spentRows[0]?.total ?? 0);
 
   return { underCap: capPence <= 0 || spentPence < capPence, spentPence, capPence };
+}
+
+/** Human-readable "spent $X of $Y cap" message, from an `isUnderCostCap` result. */
+export function formatCostCapMessage(capCheck: { spentPence: number; capPence: number }): string {
+  return `spent ${formatUsdFromStoredUnits(capCheck.spentPence)}, cap ${formatUsdFromStoredUnits(capCheck.capPence)}`;
 }
 
 /**
@@ -306,18 +339,19 @@ export async function callDrafterModel(
     const reason = roleDisabledReason(input.role) ?? "Model role not configured.";
     return { ok: false, error: reason };
   }
+  const modelName = input.modelOverride?.trim() || config.model;
 
-  try {
-    const response = await fetch(`${config.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+  async function postChat(responseFormat: Record<string, unknown>): Promise<Response> {
+    return fetch(`${config!.baseUrl.replace(/\/$/, "")}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
+        Authorization: `Bearer ${config!.apiKey}`,
       },
       body: JSON.stringify({
-        model: config.model,
+        model: modelName,
         temperature: input.temperature,
-        response_format: { type: "json_object" },
+        response_format: responseFormat,
         // OpenRouter provider preferences: this app sends internal client
         // material, so every request must forbid training/retention.
         provider: { data_collection: "deny", zdr: true },
@@ -327,10 +361,34 @@ export async function callDrafterModel(
         ],
       }),
     });
+  }
+
+  try {
+    // Prefer structured output (response_format: json_schema, strict) when
+    // a schema was given - it constrains the model's output shape at
+    // generation time rather than only catching a bad shape after the
+    // fact, which is what actually caused most of the "criterion X missing
+    // a quote" / "missing a criteria object" failures seen in production
+    // for minimax/minimax-m3. Not every OpenRouter-routed provider accepts
+    // json_schema, so a schema-request failure falls back to json_object
+    // once, on the SAME call (not counted as the one judge repair round).
+    let response = input.jsonSchema
+      ? await postChat({ type: "json_schema", json_schema: input.jsonSchema })
+      : await postChat({ type: "json_object" });
+
+    if (!response.ok && input.jsonSchema) {
+      const firstErrorText = await response.text();
+      if (/response_format|json_schema|schema/i.test(firstErrorText)) {
+        response = await postChat({ type: "json_object" });
+      } else {
+        await logCall(input, modelName, inputHash, null, 0, 0, 0, Date.now() - start, `HTTP ${response.status}: ${firstErrorText}`);
+        return { ok: false, error: `Model call failed (HTTP ${response.status})` };
+      }
+    }
 
     if (!response.ok) {
       const text = await response.text();
-      await logCall(input, config.model, inputHash, null, 0, 0, 0, Date.now() - start, `HTTP ${response.status}: ${text}`);
+      await logCall(input, modelName, inputHash, null, 0, 0, 0, Date.now() - start, `HTTP ${response.status}: ${text}`);
       return { ok: false, error: `Model call failed (HTTP ${response.status})` };
     }
 
@@ -339,18 +397,23 @@ export async function callDrafterModel(
     const json = JSON.parse(content);
     const promptTokens = body?.usage?.prompt_tokens ?? 0;
     const completionTokens = body?.usage?.completion_tokens ?? 0;
-    const price = await rolePrice(input.role);
-    const costEstimatePence = Math.round(
-      (promptTokens / 1_000_000) * price.in + (completionTokens / 1_000_000) * price.out
-    );
+    const price = input.priceOverride ?? (await rolePrice(input.role));
+    // price.in/out are USD cents per 1M tokens, so this is a cost in
+    // (fractional) USD cents - a real call typically costs a small
+    // fraction of one cent. Rounding straight to whole cents here (the
+    // previous behaviour) truncated every normal call to 0 and made total
+    // spend display as "$0.00" even after dozens of real calls - see
+    // ./money.ts for the fix (store in finer-grained "stored units").
+    const costEstimateCents = (promptTokens / 1_000_000) * price.in + (completionTokens / 1_000_000) * price.out;
+    const costEstimatePence = fractionalCentsToStoredUnits(costEstimateCents);
     const latencyMs = Date.now() - start;
 
-    await logCall(input, config.model, inputHash, json, promptTokens, completionTokens, costEstimatePence, latencyMs, null);
+    await logCall(input, modelName, inputHash, json, promptTokens, completionTokens, costEstimatePence, latencyMs, null);
 
-    return { ok: true, json, promptTokens, completionTokens, costEstimatePence, latencyMs, modelName: config.model };
+    return { ok: true, json, promptTokens, completionTokens, costEstimatePence, latencyMs, modelName };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown model call error";
-    await logCall(input, config.model, inputHash, null, 0, 0, 0, Date.now() - start, message);
+    await logCall(input, modelName, inputHash, null, 0, 0, 0, Date.now() - start, message);
     return { ok: false, error: message };
   }
 }

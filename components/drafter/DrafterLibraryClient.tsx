@@ -167,20 +167,27 @@ export default function DrafterLibraryClient() {
                   </p>
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {control.tags.map((tag) => (
-                      <span key={tag.id} className="inline-flex items-center gap-1">
-                        <Badge variant={tag.confirmed ? "info" : "default"}>
-                          {tag.tag_type}: {tag.value}
-                          {tag.origin === "suggested" && !tag.confirmed && " (suggested)"}
-                        </Badge>
-                        {tag.origin === "suggested" && !tag.confirmed && (
-                          <span className="flex gap-1">
-                            <button className="text-[10px] text-accent" onClick={() => decideTag(tag.id, "confirm")}>
-                              confirm
-                            </button>
-                            <button className="text-[10px] text-red-400" onClick={() => decideTag(tag.id, "reject")}>
-                              reject
-                            </button>
-                          </span>
+                      <span key={tag.id} className="inline-flex flex-col items-start gap-0.5">
+                        <span className="inline-flex items-center gap-1">
+                          <Badge variant={tag.confirmed ? "info" : "default"}>
+                            {tag.tag_type}: {tag.value}
+                            {tag.origin === "suggested" && !tag.confirmed && " (suggested)"}
+                          </Badge>
+                          {tag.origin === "suggested" && !tag.confirmed && (
+                            <span className="flex gap-1">
+                              <button className="text-[10px] text-accent" onClick={() => decideTag(tag.id, "confirm")}>
+                                confirm
+                              </button>
+                              <button className="text-[10px] text-red-400" onClick={() => decideTag(tag.id, "reject")}>
+                                reject
+                              </button>
+                            </span>
+                          )}
+                        </span>
+                        {/* SPEC.md: "A suggestion shows the phrase it was based on" - shown for every
+                            suggested tag, confirmed or not, so the evidence stays visible after the decision too. */}
+                        {tag.origin === "suggested" && tag.evidence_phrase && (
+                          <span className="text-[10px] text-text-muted italic pl-1">&quot;{tag.evidence_phrase}&quot;</span>
                         )}
                       </span>
                     ))}

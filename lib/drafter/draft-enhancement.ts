@@ -7,7 +7,7 @@
  * fact-boundary.test.ts and lint.test.ts.
  */
 
-import { callDrafterModel, isUnderCostCap, PROMPT_VERSIONS } from "./llm";
+import { callDrafterModel, isUnderCostCap, PROMPT_VERSIONS, formatCostCapMessage } from "./llm";
 import { buildWriterPrompt, draftInputsAreEmpty, type WriterDraftInputs } from "./prompts";
 import { applyFactBoundary, type FactBoundaryFlag, type FactBoundaryPlaceholder } from "./fact-boundary";
 import { lintEnhancement, isPlaceholderOnlyText } from "./lint";
@@ -103,7 +103,7 @@ export async function draftOneEnhancement(enhancementId: string, actor: string):
     } else {
       const capCheck = await isUnderCostCap(pra.id);
       if (!capCheck.underCap) {
-        return { ok: false, reason: `Cost cap reached for this PRA (spent ${capCheck.spentPence}, cap ${capCheck.capPence}). No further model calls will be made.` };
+        return { ok: false, reason: `Cost cap reached for this PRA (${formatCostCapMessage(capCheck)}). No further model calls will be made.` };
       }
 
       const { exemplars } = await getExemplarsForSectionType(section.title);

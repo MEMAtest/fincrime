@@ -5,6 +5,7 @@ import { getTemplateVersion } from "@/lib/repo/drafter-templates";
 import { getStylepackVersion } from "@/lib/repo/drafter-stylepacks";
 import { getDrafterSetting } from "@/lib/repo/drafter-settings";
 import type { SkeletonCustomerType } from "@/lib/drafter/skeleton";
+import { centsToStoredUnits } from "@/lib/drafter/money";
 
 export async function GET(request: NextRequest) {
   const gate = await requireDrafterActorApi(request);
@@ -51,6 +52,11 @@ export async function POST(request: NextRequest) {
   if (!stylepackVersion) return NextResponse.json({ error: "StylePack version not found." }, { status: 400 });
 
   const costCapSetting = (await getDrafterSetting("cost_cap_pence_per_pra")) ?? 0;
+  // The setting is in whole USD cents; drafter_pras.cost_cap_pence is
+  // compared/displayed alongside spend_pence, which is in the finer-grained
+  // "stored units" documented in lib/drafter/money.ts - convert once here so
+  // the two columns are always in the same unit.
+  const costCapPence = centsToStoredUnits(costCapSetting);
 
   const pra = await createPra({
     product,
@@ -60,7 +66,7 @@ export async function POST(request: NextRequest) {
     templateVersionId,
     stylepackVersionId,
     registerVersionId,
-    costCapPence: costCapSetting,
+    costCapPence,
     actor: actor.email,
   });
 

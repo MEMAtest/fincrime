@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireDrafterActorApi, invalidDrafterIds } from "@/lib/drafter/access";
-import { getEnhancement, getPra, updateEnhancementDraft, recordEnhancementEdit } from "@/lib/repo/drafter-pras";
+import { getEnhancement, getPra, saveEnhancementEdit } from "@/lib/repo/drafter-pras";
 import { getStylepackVersion } from "@/lib/repo/drafter-stylepacks";
 import { lintEnhancement, isPlaceholderOnlyText } from "@/lib/drafter/lint";
 import { combineStatus, type JudgeInvalid } from "@/lib/drafter/review-status";
@@ -52,11 +52,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "controlText and/or rationale is required" }, { status: 400 });
   }
 
+  const edits: { field: "control_text" | "rationale"; previousValue: string | null; newValue: string | null; editType: "manual" | "apply_fix"; actor: string }[] = [];
   if (controlText !== undefined && controlText !== enhancement.control_text) {
-    await recordEnhancementEdit({ enhancementId: enhId, field: "control_text", previousValue: enhancement.control_text, newValue: controlText, editType, actor: actor.email });
+    edits.push({ field: "control_text", previousValue: enhancement.control_text, newValue: controlText, editType, actor: actor.email });
   }
   if (rationale !== undefined && rationale !== enhancement.rationale) {
-    await recordEnhancementEdit({ enhancementId: enhId, field: "rationale", previousValue: enhancement.rationale, newValue: rationale, editType, actor: actor.email });
+    edits.push({ field: "rationale", previousValue: enhancement.rationale, newValue: rationale, editType, actor: actor.email });
   }
 
   const nextControlText = controlText ?? enhancement.control_text ?? "";
@@ -77,11 +78,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   const needsInput = enhancement.is_gap || isPlaceholderOnlyText(nextControlText) || !nextControlText.trim();
   const status = combineStatus({ lintIssues, judge: existingJudge, judgeStale, needsInput });
 
-  const updated = await updateEnhancementDraft(enhId, {
-    controlText,
-    rationale,
-    reviewResult: { lint: lintIssues, judge: existingJudge, judgeStale, status },
-  });
+  // Edit-history rows and the persisted text are written in one transaction
+  // (saveEnhancementEdit) so a save can never half-apply: either the edit
+  // history and the new control_text/rationale both commit, or neither does
+  // and this route returns a real error the client surfaces, instead of the
+  // silent "looks saved until the next reload" failure mode.
+  let updated;
+  try {
+    updated = await saveEnhancementEdit({
+      enhancementId: enhId,
+      edits,
+      draft: { controlText, rationale, reviewResult: { lint: lintIssues, judge: existingJudge, judgeStale, status } },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not save this edit.";
+    return NextResponse.json({ error: `Save failed: ${message}` }, { status: 500 });
+  }
   await maybeAdvancePraStatus(pra.id);
 
   return NextResponse.json({ enhancement: updated });

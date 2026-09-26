@@ -101,16 +101,33 @@ export interface BuiltJudgePrompt {
  * asked for explicitly (schema field order in the instructions) so the
  * model reasons from evidence to verdict, not the reverse.
  */
+const WORKED_EXAMPLE = `Worked example.
+Control text: "The onboarding system checks each new corporate customer against the sanctions list before an account is opened, and a compliance officer confirms any match before the customer is activated."
+Rationale: "This control addresses the risk of onboarding a sanctioned entity by stopping activation until a human has confirmed the automated check, rather than relying on the screening tool alone."
+Section: 2.1 Customer Due Diligence
+Correct JSON response:
+{"criteria": {
+  "mechanism_not_policy_restatement": {"quote": "The onboarding system checks each new corporate customer against the sanctions list before an account is opened, and a compliance officer confirms any match before the customer is activated.", "pass": true, "reason": "Describes the actual check and confirmation steps, not just that a policy exists.", "suggested_rewrite": null},
+  "trigger_actor_action_outcome": {"quote": "a compliance officer confirms any match before the customer is activated", "pass": true, "reason": "Trigger (a match), actor (compliance officer), action (confirms) and outcome (activation gated) are all present.", "suggested_rewrite": null},
+  "rationale_explains_risk": {"quote": "This control addresses the risk of onboarding a sanctioned entity by stopping activation until a human has confirmed the automated check, rather than relying on the screening tool alone.", "pass": true, "reason": "States the risk and the design choice in one sentence, not a register gap.", "suggested_rewrite": null},
+  "scope_stated": {"quote": "each new corporate customer", "pass": true, "reason": "Scope (corporate customers) is stated.", "suggested_rewrite": null},
+  "tone_measured": {"quote": "The onboarding system checks each new corporate customer against the sanctions list before an account is opened", "pass": true, "reason": "Plain, measured description, no hyperbole.", "suggested_rewrite": null},
+  "correct_section": {"quote": "The onboarding system checks each new corporate customer against the sanctions list before an account is opened", "pass": true, "reason": "Fits Customer Due Diligence at onboarding.", "suggested_rewrite": null}
+}}
+Notice every "quote" is copied character-for-character from the control text or rationale above - never paraphrased, shortened with "...", or invented. A passing criterion quotes the sentence that satisfies it; a failing criterion quotes the sentence that is the problem, and gives a suggested_rewrite.`;
+
 export function buildJudgePrompt(input: JudgePromptInput): BuiltJudgePrompt {
   const system = [
     "You are reviewing ONE control enhancement written for a Financial Crime Product Risk Assessment (PRA), against a fixed style/structure rubric. You judge style and structure only - never facts, numbers or whether the control is needed.",
     "For EACH of the 6 criteria below, return, in this exact field order: the exact sentence you quote from the control text or rationale as your evidence (quote first), then pass/fail, then your reason, then a suggested rewrite (only when failing; null when passing).",
-    "The quote MUST be an exact, verbatim substring of the control text or rationale given to you. Never quote something not in the text.",
-    "Criteria:",
+    "The quote MUST be copied verbatim, character-for-character, from the control text or rationale given to you - the same words, spacing and punctuation, not a paraphrase, summary or partial fragment stitched together with '...'. Whether the criterion passes or fails, quote the actual sentence that is your evidence: for a PASS, quote the sentence that satisfies the criterion; for a FAIL, quote the sentence that is the problem.",
+    "Never quote something that is not in the text given to you.",
+    "Criteria (exactly these 6 keys, no others):",
     ...JUDGE_CRITERIA.map((c, i) => `${i + 1}. ${c.key}: ${c.description}`),
     "Style rules the enhancement should already follow:",
     ...input.styleRules.map((r, i) => `${i + 1}. ${r}`),
-    'Respond with JSON only, in this exact shape: {"criteria": {"<criterion_key>": {"quote": string, "pass": boolean, "reason": string, "suggested_rewrite": string|null}, ...one entry per criterion...}}. Use exactly the criterion keys given above, no others.',
+    WORKED_EXAMPLE,
+    'Respond with JSON only, in exactly this shape (all 6 keys present, no extra keys, no markdown fencing): {"criteria": {"mechanism_not_policy_restatement": {"quote": string, "pass": boolean, "reason": string, "suggested_rewrite": string|null}, "trigger_actor_action_outcome": {...same shape...}, "rationale_explains_risk": {...}, "scope_stated": {...}, "tone_measured": {...}, "correct_section": {...}}}.',
   ].join("\n");
 
   const user = [
@@ -120,6 +137,105 @@ export function buildJudgePrompt(input: JudgePromptInput): BuiltJudgePrompt {
   ].join("\n\n");
 
   return { system, user };
+}
+
+/**
+ * One repair round (BUILD-DECISIONS/rehearsal fix): when the first judge
+ * response fails `validateJudgeOutput`, re-ask ONCE with the specific
+ * validation error and the previous (broken) response attached, asking the
+ * model to return the complete corrected JSON. If the repaired response is
+ * still invalid, judge-runner.ts leaves the result invalid - a repair
+ * attempt never gets a free pass.
+ */
+export function buildJudgeRepairPrompt(input: JudgePromptInput, previousRawJson: string, validationError: string): BuiltJudgePrompt {
+  const base = buildJudgePrompt(input);
+  const user = [
+    base.user,
+    "Your previous response (below) was rejected as invalid. Return the COMPLETE corrected JSON in the exact same schema (all 6 criteria, quote before pass/fail) - fix the specific problem described, and re-check every quote is copied verbatim from the control text or rationale above.",
+    `Validation error: ${validationError}`,
+    `Previous (invalid) response: ${previousRawJson}`,
+  ].join("\n\n");
+  return { system: base.system, user };
+}
+
+/**
+ * JSON Schema for the judge response, for providers that support
+ * `response_format: {type: "json_schema", json_schema: {...}}` (structured
+ * output) - falls back to `response_format: {type: "json_object"}` when a
+ * provider rejects it (see llm.ts callDrafterModel). Strict mode + fixed
+ * criterion keys removes the "missing a criteria object" / "unknown
+ * criterion" / "missing a criterion key" failure modes seen in production
+ * (minimax/minimax-m3 failed validation on 7/8 real enhancements) at the
+ * source, rather than only catching them after the fact.
+ */
+export function buildJudgeJsonSchema(): { name: string; strict: boolean; schema: Record<string, unknown> } {
+  const criterionSchema = {
+    type: "object",
+    properties: {
+      quote: { type: "string" },
+      pass: { type: "boolean" },
+      reason: { type: "string" },
+      suggested_rewrite: { type: ["string", "null"] },
+    },
+    required: ["quote", "pass", "reason", "suggested_rewrite"],
+    additionalProperties: false,
+  };
+  const properties: Record<string, unknown> = {};
+  for (const c of JUDGE_CRITERIA) properties[c.key] = criterionSchema;
+  return {
+    name: "pra_judge_result",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        criteria: {
+          type: "object",
+          properties,
+          required: JUDGE_CRITERIA.map((c) => c.key),
+          additionalProperties: false,
+        },
+      },
+      required: ["criteria"],
+      additionalProperties: false,
+    },
+  };
+}
+
+/**
+ * Normalises whitespace and "smart" typographic quotes/apostrophes so a
+ * quote that is verbatim in meaning but differs only in how a model
+ * re-typed curly quotes or collapsed/expanded whitespace is not rejected as
+ * fabricated. This is NOT fuzzy matching - it never accepts a paraphrase,
+ * a shortened fragment, or a quote missing/adding actual words; it only
+ * neutralises cosmetic re-typing on BOTH sides of the comparison.
+ */
+function normaliseForMatch(text: string): string {
+  return text
+    .replace(/[‘’ʼ‛]/g, "'")
+    .replace(/[“”‟]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Strips one trailing sentence-ending punctuation run, so a quote that omits (or adds) a trailing "." still matches - still an exact match of every word, just tolerant of where the sentence boundary punctuation landed. */
+function stripTrailingPunctuation(text: string): string {
+  return text.replace(/[.,;:!?]+$/, "").trim();
+}
+
+/**
+ * True when `quote` is a verbatim (word-for-word) substring of `haystack`,
+ * after normalising whitespace/smart-quotes on both sides and allowing a
+ * trailing punctuation mismatch. Never a fuzzy/partial match - every other
+ * character must agree exactly.
+ */
+export function isVerbatimQuote(haystack: string, quote: string): boolean {
+  if (!quote || !quote.trim()) return false;
+  const normalisedHaystack = normaliseForMatch(haystack);
+  const normalisedQuote = normaliseForMatch(quote);
+  if (normalisedHaystack.includes(normalisedQuote)) return true;
+  const trimmedQuote = stripTrailingPunctuation(normalisedQuote);
+  if (trimmedQuote && normalisedHaystack.includes(trimmedQuote)) return true;
+  return false;
 }
 
 export interface JudgeValidationError {
@@ -172,7 +288,7 @@ export function validateJudgeOutput(raw: unknown, judgedText: string): JudgeVali
     if (typeof quote !== "string" || quote.trim().length === 0) {
       return { ok: false, reason: `Criterion "${def.key}" was missing a quote.` };
     }
-    if (!judgedText.includes(quote)) {
+    if (!isVerbatimQuote(judgedText, quote)) {
       return { ok: false, reason: `Criterion "${def.key}" quoted text not found verbatim in the enhancement: "${quote}".` };
     }
     const pass = entry.pass;

@@ -317,7 +317,55 @@ export async function recordEnhancementEdit(input: {
      VALUES ($1,$2,$3,$4,$5,$6)`,
     [input.enhancementId, input.field, input.previousValue, input.newValue, input.editType, input.actor]
   );
-  await writeDrafterAudit(input.actor, `enhancement.edit.${input.editType}`, "drafter_enhancement", input.enhancementId, { field: input.field });
+}
+
+/**
+ * Atomic version of "record edit(s) then persist the new text" (the PATCH
+ * route's save-edit path). Previously the route ran `recordEnhancementEdit`
+ * and `updateEnhancementDraft` as two independent pool.connect() calls
+ * (lib/db.ts's `query`) - if the second write failed for any reason (a bad
+ * connection, a DB hiccup, a thrown error further down the route before the
+ * update ran) the edit-history row could be written with no matching text
+ * change, or the route could 500 after already recording history but before
+ * persisting - and the client's PATCH handler did not surface that failure,
+ * so the reviewer saw their edited text stay in the textarea (nothing
+ * visibly failed) until the next hard reload, when the still-unpersisted
+ * server value reappeared and looked like a "revert". Wrapping both writes
+ * in one transaction makes the save atomic: either both the history row(s)
+ * and the new text commit, or neither does, and any error propagates to the
+ * caller instead of leaving a half-applied save.
+ */
+export async function saveEnhancementEdit(input: {
+  enhancementId: string;
+  edits: { field: "control_text" | "rationale"; previousValue: string | null; newValue: string | null; editType: "manual" | "apply_fix"; actor: string }[];
+  draft: { controlText?: string; rationale?: string; reviewResult: DrafterEnhancementRow["review_result"] };
+}): Promise<DrafterEnhancementRow> {
+  return withTransaction(async (client) => {
+    for (const edit of input.edits) {
+      await queryWithClient(
+        client,
+        `INSERT INTO drafter_enhancement_edits (enhancement_id, field, previous_value, new_value, edit_type, actor)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [input.enhancementId, edit.field, edit.previousValue, edit.newValue, edit.editType, edit.actor]
+      );
+    }
+    const rows = await queryWithClient<DrafterEnhancementRow>(
+      client,
+      `UPDATE drafter_enhancements SET
+         control_text = COALESCE($2, control_text),
+         rationale = COALESCE($3, rationale),
+         review_result = COALESCE($4, review_result),
+         updated_at = now()
+       WHERE id = $1 RETURNING *`,
+      [
+        input.enhancementId,
+        input.draft.controlText ?? null,
+        input.draft.rationale ?? null,
+        input.draft.reviewResult ? JSON.stringify(input.draft.reviewResult) : null,
+      ]
+    );
+    return rows[0];
+  });
 }
 
 export interface OpenItemRow {

@@ -386,9 +386,11 @@ INSERT INTO drafter_settings (key, value, updated_by) VALUES
     }
   ]', 'system'),
   ('cost_cap_pence_per_pra', '2000', 'system'),
+  -- Judge default changed 2026-09-26 to qwen/qwen3-30b-a3b after a real-call
+  -- bake-off (docs/pra-drafter/JUDGE-BAKEOFF.md) - see lib/drafter/llm.ts.
   ('model_prices_per_million_tokens_usd_cents', '{
     "writer": {"model": "openai/gpt-5.6-luna", "in": 20, "out": 120},
-    "judge": {"model": "minimax/minimax-m3", "in": 30, "out": 120}
+    "judge": {"model": "qwen/qwen3-30b-a3b", "in": 10, "out": 30}
   }', 'system'),
   ('judge_agreement_threshold_pct', '80', 'system'),
   ('control_text_word_limits', '{"min": 60, "max": 150}', 'system')

@@ -4,8 +4,8 @@
  * lib/drafter/judge.ts, this file composes it with the repo layer and the
  * model provider.
  */
-import { callDrafterModel, isUnderCostCap, PROMPT_VERSIONS } from "./llm";
-import { buildJudgePrompt, validateJudgeOutput, type JudgeResult } from "./judge";
+import { callDrafterModel, isUnderCostCap, PROMPT_VERSIONS, formatCostCapMessage } from "./llm";
+import { buildJudgePrompt, buildJudgeRepairPrompt, buildJudgeJsonSchema, validateJudgeOutput, type JudgeResult } from "./judge";
 import { combineStatus } from "./review-status";
 import { isPlaceholderOnlyText } from "./lint";
 import {
@@ -47,7 +47,7 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
 
   const capCheck = await isUnderCostCap(pra.id);
   if (!capCheck.underCap) {
-    return { ok: false, reason: `Cost cap reached for this PRA (spent ${capCheck.spentPence}, cap ${capCheck.capPence}). No further model calls will be made.` };
+    return { ok: false, reason: `Cost cap reached for this PRA (${formatCostCapMessage(capCheck)}). No further model calls will be made.` };
   }
 
   const controlText = enhancement.control_text ?? "";
@@ -63,6 +63,7 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
     styleRules: stylepackVersion.rules,
   });
 
+  const jsonSchema = buildJudgeJsonSchema();
   const call = await callDrafterModel({
     role: "judge",
     promptVersion: PROMPT_VERSIONS.judge_rubric,
@@ -71,6 +72,7 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
     temperature: 0,
     praId: pra.id,
     enhancementId: enhancement.id,
+    jsonSchema,
   });
 
   if (!call.ok) {
@@ -82,24 +84,66 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
     return { ok: false, reason: call.error, enhancement: updated };
   }
 
-  const validated = validateJudgeOutput(call.json, judgedText);
+  let validated = validateJudgeOutput(call.json, judgedText);
+  let finalCall = call;
+  let repaired = false;
+
+  // One repair round (never more): the first invalid response is shown back
+  // to the model with the specific validation error and it is asked to
+  // return the complete corrected JSON. Both calls are logged
+  // (callDrafterModel logs every call to drafter_model_calls on its own).
+  // If the repaired response is STILL invalid, the result stays invalid -
+  // a repair attempt never gets a free pass, per BUILD-DECISIONS "absence
+  // must never render as a pass".
+  if (!validated.ok) {
+    const repairPrompt = buildJudgeRepairPrompt(
+      { controlText, rationale, sectionTitle: `${section.section_number} ${section.title}`, styleRules: stylepackVersion.rules },
+      JSON.stringify(call.json),
+      validated.reason
+    );
+    const repairCall = await callDrafterModel({
+      role: "judge",
+      promptVersion: PROMPT_VERSIONS.judge_rubric,
+      systemPrompt: repairPrompt.system,
+      userPrompt: repairPrompt.user,
+      temperature: 0,
+      praId: pra.id,
+      enhancementId: enhancement.id,
+      jsonSchema,
+    });
+    if (repairCall.ok) {
+      const repairValidated = validateJudgeOutput(repairCall.json, judgedText);
+      finalCall = repairCall;
+      validated = repairValidated;
+      repaired = true;
+    } else {
+      // The repair call itself failed to even return - keep the original
+      // (invalid) validation result and reason, but still account for the
+      // repair attempt's spend below via finalCall's cost only (0 here).
+    }
+  }
+
+  const totalCostPence = call.costEstimatePence + (repaired && finalCall !== call ? finalCall.costEstimatePence : 0);
+
   if (!validated.ok) {
     // Invalid JSON per the schema (unknown criterion, missing quote, quote
     // not found, malformed) is a FAILED review, never a pass - this is the
     // "quote not in text" / "unknown criterion" / "malformed JSON" guard.
+    // Still invalid after the one repair round: recorded as invalid, not a
+    // pass.
     const judge = { error: validated.reason, invalid: true as const };
     const updated = await updateEnhancementReview(enhancement.id, {
       reviewResult: { lint: existingLint, judge, judgeStale: false, status: combineStatus({ lintIssues: existingLint, judge, judgeStale: false, needsInput }) },
     });
-    await writeDrafterAudit(actor, "enhancement.judge.invalid", "drafter_enhancement", enhancement.id, { reason: validated.reason });
-    if (call.costEstimatePence > 0) await bumpSpend(pra.id, call.costEstimatePence);
+    await writeDrafterAudit(actor, "enhancement.judge.invalid", "drafter_enhancement", enhancement.id, { reason: validated.reason, repaired });
+    if (totalCostPence > 0) await bumpSpend(pra.id, totalCostPence);
     return { ok: false, reason: validated.reason, enhancement: updated };
   }
 
   const judgeResult: JudgeResult = {
     criteria: validated.criteria,
     overall: validated.overall,
-    modelName: call.modelName,
+    modelName: finalCall.modelName,
     promptVersion: PROMPT_VERSIONS.judge_rubric,
   };
 
@@ -112,8 +156,8 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
     },
   });
 
-  if (call.costEstimatePence > 0) await bumpSpend(pra.id, call.costEstimatePence);
-  await writeDrafterAudit(actor, "enhancement.judge.run", "drafter_enhancement", enhancement.id, { overall: judgeResult.overall, modelName: call.modelName });
+  if (totalCostPence > 0) await bumpSpend(pra.id, totalCostPence);
+  await writeDrafterAudit(actor, "enhancement.judge.run", "drafter_enhancement", enhancement.id, { overall: judgeResult.overall, modelName: finalCall.modelName, repaired });
   await maybeAdvancePraStatus(pra.id);
 
   return { ok: true, enhancement: updated };
