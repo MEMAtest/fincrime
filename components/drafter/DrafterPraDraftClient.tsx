@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
 import { applyFix as applyFixText, fieldForQuote } from "@/lib/drafter/apply-fix";
+import { STATUS_LABELS } from "@/lib/drafter/review-status";
+import ModelStatusBanner from "./ModelStatusBanner";
 
 interface Pra {
   id: string;
@@ -76,6 +79,7 @@ interface OpenItem {
   id: string;
   item_type: string;
   description: string;
+  enhancement_id: string | null;
 }
 
 interface CandidateControl {
@@ -105,7 +109,16 @@ const STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "default
   minor: "warning",
   critical: "danger",
   not_reviewed: "default",
+  needs_input: "default",
 };
+
+function statusLabel(status: string): string {
+  return STATUS_LABELS[status as keyof typeof STATUS_LABELS] ?? status.replace(/_/g, " ");
+}
+
+function formatUsd(pence: number | null | undefined): string {
+  return `$${((pence ?? 0) / 100).toFixed(2)}`;
+}
 
 function isJudgeInvalid(judge: JudgeResult | JudgeInvalid | null | undefined): judge is JudgeInvalid {
   return Boolean(judge && "invalid" in judge && judge.invalid);
@@ -127,6 +140,8 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState<{ blocking: { enhancementId: string; reason: string }[] } | null>(null);
   const [calibrationBanner, setCalibrationBanner] = useState<string | null>(null);
+  const [selectedEnhId, setSelectedEnhId] = useState<string | null>(null);
+  const [reviewContainer, setReviewContainer] = useState<HTMLDivElement | null>(null);
   const [submittingCandidates, setSubmittingCandidates] = useState(false);
   // A ref lock, not just the `submittingCandidates` state: React state
   // updates only take effect on the next render, so two clicks dispatched
@@ -333,6 +348,8 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
             <Badge>{pra.status.replace(/_/g, " ")}</Badge>
           </div>
 
+          <ModelStatusBanner />
+
           {calibrationBanner && (
             <div className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-xs text-amber-800">{calibrationBanner}</div>
           )}
@@ -424,8 +441,8 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
             <>
               <div className="glass-card rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
                 <div className="text-sm text-text-muted">
-                  Token spend so far: {pra.spend_pence}
-                  {pra.cost_cap_pence ? ` / cap ${pra.cost_cap_pence}` : ""} (smallest unit of the configured writer/judge currency)
+                  Spend {formatUsd(pra.spend_pence)}
+                  {pra.cost_cap_pence ? ` of ${formatUsd(pra.cost_cap_pence)} cap` : ""}
                   {progress && ` - ${progress.done}/${progress.total}`}
                 </div>
                 <div className="flex gap-2">
@@ -454,46 +471,48 @@ export default function DrafterPraDraftClient({ praId }: { praId: string }) {
                 </div>
               )}
 
-              {sections.map((section) => {
-                const sectionEnhancements = enhancements.filter((e) => e.section_id === section.id);
-                return (
-                  <div key={section.id} className="glass-card rounded-2xl p-6 space-y-4">
-                    <h2 className="text-lg font-semibold text-foreground">
-                      {section.section_number} {section.title}
-                    </h2>
-                    {sectionEnhancements.length === 0 ? (
-                      <p className="text-sm text-text-muted italic">No control enhancements apply to this section for the current product.</p>
-                    ) : (
-                      sectionEnhancements.map((e) => (
-                        <EnhancementCard
-                          key={e.id}
-                          praId={praId}
-                          enhancement={e}
-                          onDraft={() => draftOne(e.id)}
-                          onJudge={() => judgeOne(e.id)}
-                          onSave={saveEdit}
-                          onApprove={approveOne}
-                        />
-                      ))
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 items-start">
+                {/* Document page: the PRA's sections and enhancements, read as a document. */}
+                <div className="space-y-6 min-w-0">
+                  {sections.map((section) => {
+                    const sectionEnhancements = enhancements.filter((e) => e.section_id === section.id);
+                    return (
+                      <div key={section.id} className="glass-card rounded-2xl p-6 space-y-4">
+                        <h2 className="text-lg font-semibold text-foreground">
+                          {section.section_number} {section.title}
+                        </h2>
+                        {sectionEnhancements.length === 0 ? (
+                          <p className="text-sm text-text-muted italic">No control enhancements apply to this section for the current product.</p>
+                        ) : (
+                          sectionEnhancements.map((e) => (
+                            <EnhancementCard
+                              key={e.id}
+                              praId={praId}
+                              enhancement={e}
+                              isSelected={selectedEnhId === e.id}
+                              reviewContainer={reviewContainer}
+                              onSelect={() => setSelectedEnhId(e.id)}
+                              onDraft={() => draftOne(e.id)}
+                              onJudge={() => judgeOne(e.id)}
+                              onSave={saveEdit}
+                              onApprove={approveOne}
+                            />
+                          ))
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Review panel: beside the document on wide screens, stacked below it on mobile. Shows the selected enhancement's review. */}
+                <div className="lg:sticky lg:top-6 space-y-4">
+                  <div ref={setReviewContainer} className="glass-card rounded-2xl p-5 min-h-[160px]">
+                    {!selectedEnhId && (
+                      <p className="text-sm text-text-muted">Select an enhancement on the left to see its review here.</p>
                     )}
                   </div>
-                );
-              })}
-
-              <div className="glass-card rounded-2xl p-6">
-                <h2 className="text-lg font-semibold text-foreground mb-2">Open items ({openItems.length})</h2>
-                {openItems.length === 0 ? (
-                  <p className="text-sm text-text-muted">None.</p>
-                ) : (
-                  <ul className="space-y-1 text-sm">
-                    {openItems.map((item) => (
-                      <li key={item.id}>
-                        <Badge variant={item.item_type === "placeholder" ? "warning" : item.item_type === "gap" ? "danger" : "info"}>{item.item_type}</Badge>{" "}
-                        {item.description}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                  <OpenItemsPanel openItems={openItems} selectedEnhId={selectedEnhId} />
+                </div>
               </div>
             </>
           )}
@@ -524,9 +543,52 @@ function ExportOverride({ onOverride }: { onOverride: (reason: string) => void }
   );
 }
 
+function OpenItemsPanel({ openItems, selectedEnhId }: { openItems: OpenItem[]; selectedEnhId: string | null }) {
+  const [tab, setTab] = useState<"selected" | "all">("selected");
+  const items = tab === "selected" && selectedEnhId ? openItems.filter((i) => i.enhancement_id === selectedEnhId) : openItems;
+
+  return (
+    <div className="glass-card rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-semibold text-foreground">Open items</h2>
+        <div className="flex gap-1 text-xs">
+          <button
+            className={`px-2 py-0.5 rounded ${tab === "selected" ? "bg-accent/10 text-accent font-medium" : "text-text-muted"}`}
+            onClick={() => setTab("selected")}
+            disabled={!selectedEnhId}
+          >
+            This item
+          </button>
+          <button
+            className={`px-2 py-0.5 rounded ${tab === "all" ? "bg-accent/10 text-accent font-medium" : "text-text-muted"}`}
+            onClick={() => setTab("all")}
+          >
+            All ({openItems.length})
+          </button>
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-sm text-text-muted">None.</p>
+      ) : (
+        <ul className="space-y-1 text-sm">
+          {items.map((item) => (
+            <li key={item.id}>
+              <Badge variant={item.item_type === "placeholder" ? "warning" : item.item_type === "gap" ? "danger" : "info"}>{item.item_type}</Badge>{" "}
+              {item.description}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function EnhancementCard({
   praId,
   enhancement,
+  isSelected,
+  reviewContainer,
+  onSelect,
   onDraft,
   onJudge,
   onSave,
@@ -534,6 +596,9 @@ function EnhancementCard({
 }: {
   praId: string;
   enhancement: Enhancement;
+  isSelected: boolean;
+  reviewContainer: HTMLDivElement | null;
+  onSelect: () => void;
   onDraft: () => Promise<unknown>;
   onJudge: () => Promise<unknown>;
   onSave: (id: string, controlText: string, rationale: string) => Promise<void>;
@@ -580,71 +645,51 @@ function EnhancementCard({
     setShowSource((s) => !s);
   };
 
-  return (
-    <div className="border border-border rounded-lg p-4 space-y-2">
+  const reviewPanel = (
+    <div className="space-y-3">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <Badge variant={STATUS_VARIANT[status] ?? "default"}>{status.replace(/_/g, " ")}</Badge>
-          {judgeStale && <Badge variant="warning">judge result stale - text changed since</Badge>}
-          {enhancement.model_name && <span className="text-xs text-text-muted">model: {enhancement.model_name}</span>}
-        </div>
-        <div className="flex gap-2">
-          {enhancement.is_gap ? (
-            <Badge variant="warning">Manual gap - placeholder</Badge>
-          ) : (
-            <>
-              {!enhancement.control_text ? (
-                <button
-                  className="text-xs px-3 py-1 rounded bg-accent text-white disabled:opacity-50"
-                  disabled={busy}
-                  onClick={async () => {
-                    setBusy(true);
-                    await onDraft();
-                    setBusy(false);
-                  }}
-                >
-                  Draft this enhancement
-                </button>
-              ) : (
-                <button
-                  className="text-xs px-3 py-1 rounded border border-border disabled:opacity-50"
-                  disabled={busy}
-                  onClick={async () => {
-                    setBusy(true);
-                    await onJudge();
-                    setBusy(false);
-                  }}
-                >
-                  Run judge
-                </button>
-              )}
-              <button className="text-xs px-3 py-1 rounded border border-border" onClick={toggleSource}>
-                Source
-              </button>
-            </>
-          )}
-        </div>
+        <h3 className="text-sm font-semibold text-foreground">Review</h3>
+        <Badge variant={STATUS_VARIANT[status] ?? "default"}>{statusLabel(status)}</Badge>
       </div>
+      {judgeStale && <Badge variant="warning">Judge result out of date - text changed since</Badge>}
+      {enhancement.model_name && <p className="text-xs text-text-muted">Drafted by model: {enhancement.model_name}</p>}
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-xs text-text-muted">Control enhancement</span>
-        <textarea className="border rounded px-2 py-1" rows={3} value={controlText} onChange={(e) => setControlText(e.target.value)} disabled={enhancement.is_gap} />
-      </label>
       {!enhancement.is_gap && (
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-xs text-text-muted">Control enhancement rationale</span>
-          <textarea className="border rounded px-2 py-1" rows={2} value={rationale} onChange={(e) => setRationale(e.target.value)} />
-        </label>
+        <div className="flex flex-wrap gap-2">
+          {!enhancement.control_text ? (
+            <button
+              className="text-xs px-3 py-1 rounded bg-accent text-white disabled:opacity-50"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await onDraft();
+                setBusy(false);
+              }}
+            >
+              Draft this enhancement
+            </button>
+          ) : (
+            <button
+              className="text-xs px-3 py-1 rounded border border-border disabled:opacity-50"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await onJudge();
+                setBusy(false);
+              }}
+            >
+              Run judge
+            </button>
+          )}
+          <button className="text-xs px-3 py-1 rounded border border-border" onClick={toggleSource}>
+            {showSource ? "Hide source" : "Source"}
+          </button>
+        </div>
       )}
-      <div className="text-xs text-text-muted">
-        <span className="font-medium">Backoffice control impacted (read-only):</span> {enhancement.backoffice_control_label ?? "(none)"}
-      </div>
-      <div className="text-xs text-text-muted">
-        <span className="font-medium">Evidence of delivery (read-only):</span> {enhancement.evidence_refs.map((ev) => ev.value).join(", ") || "(none)"}
-      </div>
 
       {showSource && source && (
         <div className="rounded border border-border bg-surface-alt p-3 text-xs space-y-2">
+          <p className="font-semibold text-foreground">Source (register rows this was drafted from)</p>
           {source.controls.map((c, i) => (
             <div key={i}>
               <p className="font-semibold">{c.control?.title ?? "Control"}</p>
@@ -661,13 +706,16 @@ function EnhancementCard({
       )}
 
       {enhancement.review_result?.lint && enhancement.review_result.lint.length > 0 && (
-        <ul className="text-xs text-amber-700 space-y-0.5">
-          {enhancement.review_result.lint.map((issue, i) => (
-            <li key={i}>
-              {issue.severity === "critical" ? "Critical" : "Warning"}: {issue.message}
-            </li>
-          ))}
-        </ul>
+        <div>
+          <p className="text-xs font-semibold text-foreground mb-1">Lint findings</p>
+          <ul className="text-xs text-amber-700 space-y-0.5">
+            {enhancement.review_result.lint.map((issue, i) => (
+              <li key={i}>
+                {issue.severity === "critical" ? "Critical" : "Warning"}: {issue.message}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {enhancement.review_result?.error && <p className="text-xs text-red-600">Model error: {enhancement.review_result.error}</p>}
 
@@ -679,8 +727,8 @@ function EnhancementCard({
               <p>
                 <Badge variant={c.pass ? "success" : "danger"}>{c.pass ? "pass" : "fail"}</Badge> <span className="font-medium">{key.replace(/_/g, " ")}</span>
               </p>
-              <p className="text-text-muted italic">&quot;{c.quote}&quot;</p>
-              <p>{c.reason}</p>
+              <p className="text-text-muted italic">Quote: &quot;{c.quote}&quot;</p>
+              <p>Reason: {c.reason}</p>
               {!c.pass && c.suggestedRewrite && (
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-text-muted">Suggested: {c.suggestedRewrite}</span>
@@ -697,9 +745,13 @@ function EnhancementCard({
         </div>
       )}
       {judge && isJudgeInvalid(judge) && <p className="text-xs text-red-600">Judge result invalid: {judge.error}</p>}
+      {!judge && status !== "needs_input" && enhancement.control_text && (
+        <p className="text-xs text-text-muted">Not reviewed yet. Run judge above to see criteria here.</p>
+      )}
+      {status === "needs_input" && <p className="text-xs text-text-muted">Nothing to review yet - this enhancement needs input first.</p>}
 
       {!enhancement.is_gap && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 pt-1">
           <button
             className="text-xs px-3 py-1 rounded border border-border"
             onClick={() => onSave(enhancement.id, controlText, rationale)}
@@ -714,6 +766,52 @@ function EnhancementCard({
           </button>
         </div>
       )}
+    </div>
+  );
+
+  return (
+    <div
+      className={`border rounded-lg p-4 space-y-2 cursor-pointer transition-colors ${isSelected ? "border-accent bg-accent/5" : "border-border"}`}
+      onClick={onSelect}
+    >
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <Badge variant={STATUS_VARIANT[status] ?? "default"}>{statusLabel(status)}</Badge>
+          {judgeStale && <Badge variant="warning">judge result out of date</Badge>}
+        </div>
+        {enhancement.is_gap ? (
+          <Badge variant="warning">Manual gap - placeholder</Badge>
+        ) : (
+          <button
+            className={`text-xs px-3 py-1 rounded ${isSelected ? "bg-accent text-white" : "border border-border"}`}
+            onClick={(ev) => {
+              ev.stopPropagation();
+              onSelect();
+            }}
+          >
+            {isSelected ? "Reviewing" : "Review"}
+          </button>
+        )}
+      </div>
+
+      <label className="flex flex-col gap-1 text-sm" onClick={(e) => e.stopPropagation()}>
+        <span className="text-xs text-text-muted">Control enhancement</span>
+        <textarea className="border rounded px-2 py-1" rows={3} value={controlText} onChange={(e) => setControlText(e.target.value)} disabled={enhancement.is_gap} />
+      </label>
+      {!enhancement.is_gap && (
+        <label className="flex flex-col gap-1 text-sm" onClick={(e) => e.stopPropagation()}>
+          <span className="text-xs text-text-muted">Control enhancement rationale</span>
+          <textarea className="border rounded px-2 py-1" rows={2} value={rationale} onChange={(e) => setRationale(e.target.value)} />
+        </label>
+      )}
+      <div className="text-xs text-text-muted">
+        <span className="font-medium">Backoffice control impacted (read-only):</span> {enhancement.backoffice_control_label ?? "(none)"}
+      </div>
+      <div className="text-xs text-text-muted">
+        <span className="font-medium">Evidence of delivery (read-only):</span> {enhancement.evidence_refs.map((ev) => ev.value).join(", ") || "(none)"}
+      </div>
+
+      {isSelected && reviewContainer ? createPortal(reviewPanel, reviewContainer) : null}
     </div>
   );
 }

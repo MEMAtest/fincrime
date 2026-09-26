@@ -5,6 +5,7 @@ import ToolFrame from "@/components/layout/ToolFrame";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
+import ModelStatusBanner from "./ModelStatusBanner";
 
 interface ControlTag {
   id: string;
@@ -52,7 +53,6 @@ export default function DrafterLibraryClient() {
   const [mergeGroups, setMergeGroups] = useState<MergeGroup[]>([]);
   const [filterGroup, setFilterGroup] = useState<Control["group"] | "all">("all");
   const [message, setMessage] = useState<string | null>(null);
-  const [writerDisabledReason, setWriterDisabledReason] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     const [controlsRes, mergeRes] = await Promise.all([
@@ -76,9 +76,7 @@ export default function DrafterLibraryClient() {
       { method: "POST" }
     );
     if (!res.ok) {
-      const reason = "error" in res.data ? (res.data.error as string) : "Tag suggestion is unavailable.";
-      setWriterDisabledReason(reason);
-      setMessage(reason);
+      setMessage("Tag suggestion is switched off until a model provider is configured.");
       return;
     }
     await reload();
@@ -102,10 +100,14 @@ export default function DrafterLibraryClient() {
       <main className="flex-1">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-2xl font-bold text-foreground mb-1">Controls library</h1>
-          <p className="text-sm text-text-muted mb-6 max-w-2xl">
+          <p className="text-sm text-text-muted mb-4 max-w-2xl">
             Controls built from accepted register rows. Code tags come straight from the register; suggested tags
             need your confirmation before they are used for matching.
           </p>
+
+          <div className="mb-6">
+            <ModelStatusBanner />
+          </div>
 
           {message && <div className="glass-card rounded-xl p-4 text-sm mb-6">{message}</div>}
 
@@ -190,8 +192,6 @@ export default function DrafterLibraryClient() {
               ))}
             </div>
           )}
-
-          {writerDisabledReason && <p className="text-xs text-text-muted mt-4">{writerDisabledReason}</p>}
         </div>
       </main>
     </ToolFrame>

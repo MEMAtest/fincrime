@@ -55,4 +55,19 @@ describe("combineStatus", () => {
       combineStatus({ lintIssues: [{ rule: "dash", severity: "warning", message: "x" }], judge: goodJudge, judgeStale: false })
     ).toBe("minor");
   });
+
+  it("is needs_input when needsInput is set, even with a critical lint issue or a failing judge (prod walkthrough item 3: a placeholder must never be labelled critical)", () => {
+    expect(
+      combineStatus({
+        lintIssues: [{ rule: "unfilled_placeholder", severity: "critical", message: "x" }],
+        judge: { ...goodJudge, overall: "fail" },
+        judgeStale: false,
+        needsInput: true,
+      })
+    ).toBe("needs_input");
+  });
+
+  it("is never pass when needsInput is set, even with clean lint and a passing judge", () => {
+    expect(combineStatus({ lintIssues: [], judge: goodJudge, judgeStale: false, needsInput: true })).toBe("needs_input");
+  });
 });

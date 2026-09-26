@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lintEnhancement, lintStatus } from "../lint";
+import { lintEnhancement, lintStatus, isPlaceholderOnlyText } from "../lint";
 
 const GOOD_TEXT =
   "The system checks each new correspondent relationship against the applicable due diligence control before it is onboarded, and a nominated reviewer confirms the outcome is recorded before any transactions are processed under the new relationship, closing the gap at the point of greatest exposure for the firm and its customers across every jurisdiction served by this product line today and going forward.";
@@ -59,6 +59,18 @@ describe("lintEnhancement", () => {
   it("flags a formula error carried through as text", () => {
     const issues = lintEnhancement({ controlText: GOOD_TEXT, rationale: "#REF!" });
     expect(issues.some((i) => i.rule === "formula_error")).toBe(true);
+  });
+
+  it("isPlaceholderOnlyText is true only when the whole text is one bracketed placeholder", () => {
+    expect(isPlaceholderOnlyText("[Agreed wording not held for this control]")).toBe(true);
+    expect(isPlaceholderOnlyText("  [Agreed wording not held for this control]  ")).toBe(true);
+    expect(isPlaceholderOnlyText(`${GOOD_TEXT} [figure]`)).toBe(false);
+    expect(isPlaceholderOnlyText(GOOD_TEXT)).toBe(false);
+  });
+
+  it("does not flag word count on a placeholder-only control text (prod walkthrough item 3: no double-counted 'needs input' + 'below 60-150 words')", () => {
+    const issues = lintEnhancement({ controlText: "[Agreed wording not held for this control]", rationale: "" });
+    expect(issues.some((i) => i.rule === "word_count")).toBe(false);
   });
 
   it("lintStatus is pass with no issues, minor with only warnings, critical with any critical", () => {

@@ -86,7 +86,7 @@ export interface DrafterEnhancementRow {
   placeholders: { original: string; reason: string }[];
   review_result: {
     lint: LintIssue[];
-    status: "pass" | "minor" | "critical" | "not_reviewed";
+    status: "pass" | "minor" | "critical" | "not_reviewed" | "needs_input";
     error?: string;
     judge?: unknown;
     judgeStale?: boolean;

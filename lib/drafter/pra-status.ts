@@ -8,7 +8,7 @@
 import { listEnhancementsForPra, getPra, setPraStatus, type DrafterPraRow } from "@/lib/repo/drafter-pras";
 import { combineStatus, type JudgeInvalid } from "./review-status";
 import type { JudgeResult } from "./judge";
-import type { LintIssue } from "./lint";
+import { isPlaceholderOnlyText, type LintIssue } from "./lint";
 
 export interface ExportBlockingReason {
   enhancementId: string;
@@ -30,9 +30,11 @@ export async function checkExportReadiness(praId: string): Promise<ExportReadine
     const lint: LintIssue[] = rr?.lint ?? [];
     const judge = (rr?.judge ?? null) as JudgeResult | JudgeInvalid | null;
     const judgeStale = Boolean(rr?.judgeStale);
-    const status = combineStatus({ lintIssues: lint, judge, judgeStale });
+    const needsInput = isPlaceholderOnlyText(e.control_text ?? "") || !e.control_text?.trim();
+    const status = combineStatus({ lintIssues: lint, judge, judgeStale, needsInput });
     if (status === "critical") blocking.push({ enhancementId: e.id, reason: "Critical lint or judge failure." });
     else if (status === "not_reviewed") blocking.push({ enhancementId: e.id, reason: "Not yet judged (or judge result is stale)." });
+    else if (status === "needs_input") blocking.push({ enhancementId: e.id, reason: "Needs input before it can be reviewed (placeholder or missing agreed wording)." });
   }
   return { ready: blocking.length === 0, blocking };
 }

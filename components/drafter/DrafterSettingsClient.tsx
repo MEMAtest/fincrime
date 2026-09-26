@@ -161,12 +161,14 @@ export default function DrafterSettingsClient() {
           <section className="glass-card rounded-xl p-5 mb-6">
             <h2 className="font-medium text-foreground mb-3">Cost cap &amp; model prices</h2>
             <label className="flex flex-col gap-1 text-sm mb-3">
-              Cost cap per PRA (smallest currency unit)
+              Cost cap per PRA (USD)
               <input
                 type="number"
+                step="0.01"
+                min="0"
                 className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 max-w-xs"
-                defaultValue={settings.cost_cap_pence_per_pra}
-                onBlur={(e) => save("cost_cap_pence_per_pra", Number(e.target.value))}
+                defaultValue={(settings.cost_cap_pence_per_pra / 100).toFixed(2)}
+                onBlur={(e) => save("cost_cap_pence_per_pra", Math.round(Number(e.target.value) * 100))}
               />
             </label>
             <p className="text-xs text-text-muted">

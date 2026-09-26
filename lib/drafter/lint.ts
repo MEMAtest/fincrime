@@ -123,17 +123,29 @@ function lintFormulaErrors(text: string): LintIssue[] {
 
 const DEFAULT_WORD_LIMITS = { min: 60, max: 150 };
 
+/**
+ * True when the control text is nothing but a single bracketed placeholder
+ * (e.g. "[Agreed wording not held for this control]") - there is no real
+ * prose to have a word count. Used to suppress the word-count lint on a
+ * placeholder-only enhancement so it doesn't ALSO get a spurious "below
+ * 60-150 words" warning on top of "needs input" (prod walkthrough item 3).
+ */
+export function isPlaceholderOnlyText(text: string): boolean {
+  return /^\[[^\]]*\]$/.test(text.trim());
+}
+
 /** Runs every code lint rule against one enhancement's control_text + rationale. Word count applies to control_text only, per SPEC.md rule 9. */
 export function lintEnhancement(input: LintInput): LintIssue[] {
   const bannedPhrases = input.bannedPhrases ?? [];
   const wordLimits = input.wordLimits ?? DEFAULT_WORD_LIMITS;
   const combined = `${input.controlText}\n${input.rationale}`;
+  const placeholderOnly = isPlaceholderOnlyText(input.controlText);
   return [
     ...lintBannedPhrases(combined, bannedPhrases),
     ...lintReqIdsOutsideEvidence(combined),
     ...lintDashes(combined),
     ...lintTense(combined),
-    ...lintWordCount(input.controlText, wordLimits),
+    ...(placeholderOnly ? [] : lintWordCount(input.controlText, wordLimits)),
     ...lintUnfilledPlaceholders(combined),
     ...lintFormulaErrors(combined),
   ];

@@ -12,7 +12,16 @@
 import type { LintIssue } from "./lint";
 import type { JudgeResult } from "./judge";
 
-export type CombinedStatus = "pass" | "minor" | "critical" | "not_reviewed";
+export type CombinedStatus = "pass" | "minor" | "critical" | "not_reviewed" | "needs_input";
+
+/** Plain-English label for a compliance user - never an env var or internal term (prod walkthrough item 3). */
+export const STATUS_LABELS: Record<CombinedStatus, string> = {
+  needs_input: "Needs input",
+  not_reviewed: "Not reviewed",
+  minor: "Minor issues",
+  critical: "Critical issues",
+  pass: "Pass",
+};
 
 export interface JudgeInvalid {
   error: string;
@@ -41,7 +50,16 @@ export function combineStatus(input: {
   lintIssues: LintIssue[];
   judge: JudgeResult | JudgeInvalid | null;
   judgeStale: boolean;
+  /**
+   * True for a placeholder / missing-agreed-wording / manual-gap
+   * enhancement - there is nothing to review yet. Takes priority over
+   * every other signal: a placeholder must never be labelled "critical",
+   * and nothing unreviewed is ever shown as "pass" (prod walkthrough item
+   * 3).
+   */
+  needsInput?: boolean;
 }): CombinedStatus {
+  if (input.needsInput) return "needs_input";
   const lintStatus = lintOnlyStatus(input.lintIssues);
   if (lintStatus === "critical") return "critical";
   if (!input.judge || isJudgeInvalid(input.judge) || input.judgeStale) return "not_reviewed";

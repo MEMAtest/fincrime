@@ -10,7 +10,7 @@
 import { callDrafterModel, isUnderCostCap, PROMPT_VERSIONS } from "./llm";
 import { buildWriterPrompt, draftInputsAreEmpty, type WriterDraftInputs } from "./prompts";
 import { applyFactBoundary, type FactBoundaryFlag, type FactBoundaryPlaceholder } from "./fact-boundary";
-import { lintEnhancement } from "./lint";
+import { lintEnhancement, isPlaceholderOnlyText } from "./lint";
 import { combineStatus } from "./review-status";
 import {
   getEnhancement,
@@ -163,7 +163,8 @@ export async function draftOneEnhancement(enhancementId: string, actor: string):
   });
   // A (re)draft always invalidates any previous judge result - the text
   // just changed, so a stale "pass" must never be shown.
-  const status = combineStatus({ lintIssues, judge: null, judgeStale: false });
+  const needsInput = enhancement.is_gap || isPlaceholderOnlyText(controlText) || !controlText.trim();
+  const status = combineStatus({ lintIssues, judge: null, judgeStale: false, needsInput });
 
   const updated = await updateEnhancementDraft(enhancement.id, {
     controlText,

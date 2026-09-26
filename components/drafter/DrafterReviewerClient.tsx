@@ -4,6 +4,7 @@ import { useState } from "react";
 import ToolFrame from "@/components/layout/ToolFrame";
 import Badge from "@/components/ui/Badge";
 import { drafterFetch } from "./drafterFetch";
+import ModelStatusBanner from "./ModelStatusBanner";
 
 interface LintIssue {
   rule: string;
@@ -65,6 +66,8 @@ export default function DrafterReviewerClient() {
             <p className="text-sm text-text-muted">Paste control text, its rationale and the section it targets to get the same lint + judge review a drafted enhancement gets. Nothing here is saved.</p>
           </div>
 
+          <ModelStatusBanner />
+
           <div className="glass-card rounded-2xl p-6 space-y-3">
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-xs text-text-muted">Section</span>
@@ -105,7 +108,9 @@ export default function DrafterReviewerClient() {
 
               <div>
                 <h2 className="text-sm font-semibold mb-1">Judge</h2>
-                {result.judgeDisabledReason && <p className="text-xs text-text-muted">{result.judgeDisabledReason}</p>}
+                {result.judgeDisabledReason && (
+                  <p className="text-xs text-text-muted">Automated review is switched off until a model provider is configured.</p>
+                )}
                 {result.judge?.error && <p className="text-xs text-red-600">{result.judge.error}</p>}
                 {result.judge?.criteria &&
                   Object.entries(result.judge.criteria).map(([key, c]) => (

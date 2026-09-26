@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireDrafterActorApi } from "@/lib/drafter/access";
 import { getEnhancement, getPra, updateEnhancementDraft, recordEnhancementEdit } from "@/lib/repo/drafter-pras";
 import { getStylepackVersion } from "@/lib/repo/drafter-stylepacks";
-import { lintEnhancement } from "@/lib/drafter/lint";
+import { lintEnhancement, isPlaceholderOnlyText } from "@/lib/drafter/lint";
 import { combineStatus, type JudgeInvalid } from "@/lib/drafter/review-status";
 import type { JudgeResult } from "@/lib/drafter/judge";
 import { maybeAdvancePraStatus } from "@/lib/drafter/pra-status";
@@ -70,7 +70,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   // counted as current.
   const existingJudge = (enhancement.review_result?.judge ?? null) as JudgeResult | JudgeInvalid | null;
   const judgeStale = Boolean(existingJudge);
-  const status = combineStatus({ lintIssues, judge: existingJudge, judgeStale });
+  const needsInput = enhancement.is_gap || isPlaceholderOnlyText(nextControlText) || !nextControlText.trim();
+  const status = combineStatus({ lintIssues, judge: existingJudge, judgeStale, needsInput });
 
   const updated = await updateEnhancementDraft(enhId, {
     controlText,

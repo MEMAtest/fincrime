@@ -7,6 +7,7 @@
 import { callDrafterModel, isUnderCostCap, PROMPT_VERSIONS } from "./llm";
 import { buildJudgePrompt, validateJudgeOutput, type JudgeResult } from "./judge";
 import { combineStatus } from "./review-status";
+import { isPlaceholderOnlyText } from "./lint";
 import {
   getEnhancement,
   getPra,
@@ -53,6 +54,7 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
   const rationale = enhancement.rationale ?? "";
   const judgedText = `${controlText}\n${rationale}`;
   const existingLint = enhancement.review_result?.lint ?? [];
+  const needsInput = enhancement.is_gap || isPlaceholderOnlyText(controlText);
 
   const prompt = buildJudgePrompt({
     controlText,
@@ -74,7 +76,7 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
   if (!call.ok) {
     const judge = { error: call.error, invalid: true as const };
     const updated = await updateEnhancementReview(enhancement.id, {
-      reviewResult: { lint: existingLint, judge, judgeStale: false, status: combineStatus({ lintIssues: existingLint, judge, judgeStale: false }) },
+      reviewResult: { lint: existingLint, judge, judgeStale: false, status: combineStatus({ lintIssues: existingLint, judge, judgeStale: false, needsInput }) },
     });
     await writeDrafterAudit(actor, "enhancement.judge.error", "drafter_enhancement", enhancement.id, { error: call.error });
     return { ok: false, reason: call.error, enhancement: updated };
@@ -87,7 +89,7 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
     // "quote not in text" / "unknown criterion" / "malformed JSON" guard.
     const judge = { error: validated.reason, invalid: true as const };
     const updated = await updateEnhancementReview(enhancement.id, {
-      reviewResult: { lint: existingLint, judge, judgeStale: false, status: combineStatus({ lintIssues: existingLint, judge, judgeStale: false }) },
+      reviewResult: { lint: existingLint, judge, judgeStale: false, status: combineStatus({ lintIssues: existingLint, judge, judgeStale: false, needsInput }) },
     });
     await writeDrafterAudit(actor, "enhancement.judge.invalid", "drafter_enhancement", enhancement.id, { reason: validated.reason });
     if (call.costEstimatePence > 0) await bumpSpend(pra.id, call.costEstimatePence);
@@ -106,7 +108,7 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
       lint: existingLint,
       judge: judgeResult,
       judgeStale: false,
-      status: combineStatus({ lintIssues: existingLint, judge: judgeResult, judgeStale: false }),
+      status: combineStatus({ lintIssues: existingLint, judge: judgeResult, judgeStale: false, needsInput }),
     },
   });
 
