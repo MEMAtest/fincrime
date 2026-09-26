@@ -299,7 +299,7 @@ export default function RegisterTable({
                   ))}
                 </div>
               )}
-              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="px-2.5 py-1.5 rounded-lg border border-surface-border bg-white/5 text-xs text-foreground focus:outline-none focus:border-accent cursor-pointer">
+              <select aria-label="Rows per page" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="px-2.5 py-1.5 rounded-lg border border-surface-border bg-white/5 text-xs text-foreground focus:outline-none focus:border-accent cursor-pointer">
                 <option value={25}>25 per page</option>
                 <option value={50}>50 per page</option>
               </select>

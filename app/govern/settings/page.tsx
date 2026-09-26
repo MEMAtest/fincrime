@@ -512,8 +512,9 @@ export default function SettingsPage() {
                     onBlur={saveOrganisation}
                   />
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-medium text-ink-soft">Date format</label>
+                    <label htmlFor="settings-date-format" className="text-sm font-medium text-ink-soft">Date format</label>
                     <select
+                      id="settings-date-format"
                       value={dateFormat}
                       onChange={(e) => {
                         setDateFormat(e.target.value as "en-GB" | "iso");
@@ -664,8 +665,9 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <div className="flex flex-col gap-1.5 max-w-xs">
-                      <label className="text-sm font-medium text-ink-soft">Frequency</label>
+                      <label htmlFor="settings-notification-frequency" className="text-sm font-medium text-ink-soft">Frequency</label>
                       <select
+                        id="settings-notification-frequency"
                         value={notifFrequency}
                         onChange={(e) => changeFrequency(e.target.value as NotificationFrequency)}
                         className="px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
@@ -755,8 +757,9 @@ export default function SettingsPage() {
                   <div className="grid sm:grid-cols-3 gap-3">
                     <Input label="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-medium text-ink-soft">Role</label>
+                      <label htmlFor="settings-new-person-role" className="text-sm font-medium text-ink-soft">Role</label>
                       <select
+                        id="settings-new-person-role"
                         value={newRole}
                         onChange={(e) => setNewRole(e.target.value as PersonRole)}
                         className="px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"

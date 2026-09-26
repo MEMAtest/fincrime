@@ -172,8 +172,9 @@ export default function NewChangeClient({ preselectedControlId }: NewChangeClien
 
           <form onSubmit={onSubmit} className="glass-card rounded-2xl p-6 space-y-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-ink-soft">Control</label>
+              <label htmlFor="change-control" className="text-sm font-medium text-ink-soft">Control</label>
               <select
+                id="change-control"
                 value={workspaceControlId}
                 onChange={(e) => setWorkspaceControlId(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
@@ -198,8 +199,9 @@ export default function NewChangeClient({ preselectedControlId }: NewChangeClien
             />
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-ink-soft">Change type (optional)</label>
+              <label htmlFor="change-type" className="text-sm font-medium text-ink-soft">Change type (optional)</label>
               <select
+                id="change-type"
                 value={changeType}
                 onChange={(e) => setChangeType(e.target.value as ControlChangeType | "")}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
