@@ -36,6 +36,7 @@ const ROUTE_MAP: { prefix: string; id?: SidebarId; label: string }[] = [
   { prefix: "/govern/settings", id: "settings", label: "Settings" },
   { prefix: "/workspace", id: "workspace", label: "Workspace" },
   { prefix: "/account", label: "Account" },
+  { prefix: "/drafter", id: "drafter", label: "PRA Drafter" },
 ];
 
 // A leaf label for known deep routes, so e.g. TypologyIQ results reads

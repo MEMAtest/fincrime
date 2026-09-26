@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense, type ReactNode } from "react";
+import { useState, useEffect, Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import {
   Home, ClipboardCheck, Crosshair, Blocks, Sparkles, Building2, ShieldCheck, UserCheck,
@@ -29,7 +29,7 @@ export type SidebarId =
   | "home" | "firm-research" | "firm-profiles" | "typology-iq" | "enforcement"
   | "control-builder" | "controls-library" | "screening-designer" | "partner-map" | "kyc" | "maturity"
   | "assess-pra" | "change-lab" | "market-readiness" | "control-testing" | "incidents" | "workspace"
-  | "regulatory-response" | "governance-dashboard" | "reports" | "settings" | "help";
+  | "regulatory-response" | "governance-dashboard" | "reports" | "settings" | "help" | "drafter";
 
 interface SidebarItem {
   id: SidebarId;
@@ -104,6 +104,26 @@ export default function AppShell({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+  const [drafterAllowed, setDrafterAllowed] = useState(false);
+
+  // PRA Drafter is a private module (see docs/pra-drafter/BUILD-DECISIONS.md
+  // "Private"): the nav entry only appears once the server confirms the
+  // signed-in session is on PRA_DRAFTER_ALLOWED_EMAILS. Everyone else gets a
+  // 404 from /api/drafter/me, same as every other drafter route, so this
+  // check never itself reveals the module beyond "not found".
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/drafter/me", { credentials: "include" })
+      .then((res) => {
+        if (!cancelled) setDrafterAllowed(res.ok);
+      })
+      .catch(() => {
+        if (!cancelled) setDrafterAllowed(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const renderItem = (item: SidebarItem) => {
     const isActive = item.id === activeId;
@@ -131,6 +151,16 @@ export default function AppShell({
     <>
       {renderItem(HOME_ITEM)}
       <div className="my-3 border-t border-surface-border" />
+      {drafterAllowed && (
+        <div className="pb-3 mb-3 border-b border-surface-border">
+          {!collapsed && (
+            <p className="px-3 pb-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-text-muted/60">Private</p>
+          )}
+          <div className="space-y-1">
+            {renderItem({ id: "drafter", label: "PRA Drafter", icon: FileText, href: "/drafter" })}
+          </div>
+        </div>
+      )}
       {GROUPS.map((group, i) => (
         <div key={group.label} className={i > 0 ? "mt-3 pt-3 border-t border-surface-border" : undefined}>
           {!collapsed && (
