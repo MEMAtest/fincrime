@@ -241,6 +241,42 @@ export async function deleteRegisterImport(
   }
 
   await withTransaction(async (client) => {
+    // Controls are built from this import's rows. Remove those rows from
+    // every control; a control left with no rows came only from this import
+    // and is deleted with its tags and history, so the library never keeps
+    // orphans from a deleted register. History rows pointing at these
+    // versions go too (their FK would otherwise block the delete).
+    if (versionIds.length > 0) {
+      const rowFilter = `SELECT id FROM drafter_register_rows WHERE register_version_id = ANY($1::uuid[])`;
+      await queryWithClient(
+        client,
+        `DELETE FROM drafter_control_history WHERE superseded_by_register_version_id = ANY($1::uuid[])`,
+        [versionIds]
+      );
+      const touched = await queryWithClient<{ id: string; remaining: number }>(
+        client,
+        `UPDATE drafter_controls
+            SET register_row_ids = ARRAY(SELECT r FROM unnest(register_row_ids) r WHERE r NOT IN (${rowFilter})),
+                updated_at = now()
+          WHERE register_row_ids && ARRAY(${rowFilter})
+      RETURNING id, cardinality(register_row_ids) AS remaining`,
+        [versionIds]
+      );
+      const orphanIds = touched.filter((t) => Number(t.remaining) === 0).map((t) => t.id);
+      if (orphanIds.length > 0) {
+        await queryWithClient(client, `DELETE FROM drafter_control_tags WHERE control_id = ANY($1::uuid[])`, [orphanIds]);
+        await queryWithClient(client, `DELETE FROM drafter_control_history WHERE control_id = ANY($1::uuid[])`, [orphanIds]);
+        await queryWithClient(
+          client,
+          `UPDATE drafter_merge_groups
+              SET member_control_ids = ARRAY(SELECT m FROM unnest(member_control_ids) m WHERE m <> ALL($1::uuid[]))
+            WHERE member_control_ids && $1::uuid[]`,
+          [orphanIds]
+        );
+        await queryWithClient(client, `UPDATE drafter_controls SET merge_group_id = NULL WHERE id = ANY($1::uuid[])`, [orphanIds]);
+        await queryWithClient(client, `DELETE FROM drafter_controls WHERE id = ANY($1::uuid[])`, [orphanIds]);
+      }
+    }
     for (const versionId of versionIds) {
       await queryWithClient(
         client,

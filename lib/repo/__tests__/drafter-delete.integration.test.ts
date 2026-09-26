@@ -151,6 +151,44 @@ describe("delete actions (prod walkthrough item 5)", () => {
     cleanupImportIds.splice(cleanupImportIds.indexOf(importId), 1);
   });
 
+  it("deleteRegisterImport removes controls built only from it, with their tags and history, and keeps shared ones", async () => {
+    const docId = await makeDocument("free");
+    const { importId, versionId } = await makeRegisterImportWithVersion(docId);
+    const [rowA] = await query<{ id: string }>(
+      `INSERT INTO drafter_register_rows (register_version_id, req_id, row_index, fields) VALUES ($1,'REQ-A',0,'{}') RETURNING id`,
+      [versionId]
+    );
+    const otherDoc = await makeDocument("free");
+    const other = await makeRegisterImportWithVersion(otherDoc);
+    const [rowB] = await query<{ id: string }>(
+      `INSERT INTO drafter_register_rows (register_version_id, req_id, row_index, fields) VALUES ($1,'REQ-B',0,'{}') RETURNING id`,
+      [other.versionId]
+    );
+    const [only] = await query<{ id: string }>(
+      `INSERT INTO drafter_controls (title, req_ids, register_row_ids) VALUES ('only','{REQ-A}',ARRAY[$1]::uuid[]) RETURNING id`,
+      [rowA.id]
+    );
+    const [shared] = await query<{ id: string }>(
+      `INSERT INTO drafter_controls (title, req_ids, register_row_ids) VALUES ('shared','{REQ-A,REQ-B}',ARRAY[$1,$2]::uuid[]) RETURNING id`,
+      [rowA.id, rowB.id]
+    );
+    await query(`INSERT INTO drafter_control_tags (control_id, tag_type, value, origin) VALUES ($1,'coverage','yes','code')`, [only.id]);
+    await query(
+      `INSERT INTO drafter_control_history (control_id, snapshot, superseded_by_register_version_id) VALUES ($1,'{}',$2)`,
+      [shared.id, versionId]
+    );
+
+    const result = await deleteRegisterImport(importId, ACTOR);
+    expect(result.deleted).toBe(true);
+    expect((await query(`SELECT id FROM drafter_controls WHERE id = $1`, [only.id])).length).toBe(0);
+    expect((await query(`SELECT id FROM drafter_control_tags WHERE control_id = $1`, [only.id])).length).toBe(0);
+    const [kept] = await query<{ register_row_ids: string[] }>(`SELECT register_row_ids FROM drafter_controls WHERE id = $1`, [shared.id]);
+    expect(kept.register_row_ids).toEqual([rowB.id]);
+    cleanupImportIds.splice(cleanupImportIds.indexOf(importId), 1);
+
+    await query(`DELETE FROM drafter_controls WHERE id = $1`, [shared.id]);
+  });
+
   it("deleteDrafterDocument refuses with an explanation when a register import still references it", async () => {
     const docId = await makeDocument("doc-blocked");
     const { importId } = await makeRegisterImportWithVersion(docId);
