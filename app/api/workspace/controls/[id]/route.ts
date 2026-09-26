@@ -53,7 +53,14 @@ interface RouteContext {
 export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context) => {
   try {
     const { id } = await context.params;
-    const raw = await request.json();
+    // A non-UUID id would raise 22P02 in Postgres and surface as a 500.
+    if (!UUID_RE.test(id)) return NextResponse.json({ error: "Control not found" }, { status: 404 });
+    let raw;
+    try {
+      raw = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     if (!raw || typeof raw !== "object") {
       return NextResponse.json({ error: "Missing request body" }, { status: 400 });
     }

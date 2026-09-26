@@ -23,7 +23,12 @@ interface OpLoadTotals {
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const { productName, productDescription, customers, jurisdictions, topRisks, appetiteResult, gapCount, opLoad } = body;
 
     if (!productName) {
@@ -67,7 +72,7 @@ export async function POST(request: NextRequest) {
     const narrative = await generateNarrative(systemPrompt, userPrompt);
 
     return NextResponse.json({
-      narrative: narrative || "Risk summary is currently unavailable. Please check your Groq API configuration.",
+      narrative: narrative || "Risk summary is currently unavailable. Please try again later.",
     });
   } catch (error) {
     console.error("PRA narrative generation error:", error);

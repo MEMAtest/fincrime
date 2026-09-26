@@ -76,7 +76,12 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
 
     const isHistorical = existing.status === "implemented" || existing.status === "rolled_back";
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const patch: UpdateControlChangeInput = {};
 
     if (body?.title !== undefined) {

@@ -80,7 +80,12 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       return conflict("Cannot update an incident that is already closed or cancelled");
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const patch: UpdateIncidentInput = {};
 
     if (body?.reference !== undefined) {

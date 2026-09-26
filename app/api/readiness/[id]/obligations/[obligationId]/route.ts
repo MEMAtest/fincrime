@@ -33,7 +33,12 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
     const obligation = await requireReadinessObligation(workspace.id, id, obligationId);
     if (!obligation) return notFound("Readiness obligation not found");
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const patch: UpdateReadinessObligationInput = {};
 
     if (body?.workspaceControlId !== undefined) {

@@ -4,7 +4,12 @@ import { coerceList } from "@/lib/list-params";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const {
       typologyTitle,
       typologyDescription,
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     const narrative = await generateNarrative(systemPrompt, userPrompt);
 
-    return NextResponse.json({ narrative: narrative || "Risk overview is currently unavailable. Please check your Groq API configuration." });
+    return NextResponse.json({ narrative: narrative || "Risk overview is currently unavailable. Please try again later." });
   } catch (error) {
     console.error("Risk overview generation error:", error);
     return NextResponse.json({ narrative: null }, { status: 200 });

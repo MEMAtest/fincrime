@@ -97,7 +97,12 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
       return conflict("Control change is already implemented or rolled back and can no longer be decided");
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     if (!isDecisionOutcome(body?.outcome)) {
       return badRequest("Missing or invalid outcome: must be approve, approve_with_conditions, or reject");

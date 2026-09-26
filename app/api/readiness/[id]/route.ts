@@ -97,7 +97,12 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
       return conflict("Cannot update a readiness assessment that is already approved_global, rejected, or cancelled");
     }
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     if (body?.entityType !== undefined || body?.jurisdiction !== undefined) {
       return badRequest(

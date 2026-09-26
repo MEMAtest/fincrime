@@ -23,7 +23,12 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
     const risk = await requireAssessmentRisk(workspace.id, id, riskId);
     if (!risk) return notFound("Risk not found");
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const patch: UpdateAssessmentRiskInput = {};
 
     if (typeof body?.title === "string" && body.title.trim()) patch.title = body.title.trim();

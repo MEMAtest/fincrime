@@ -164,7 +164,12 @@ function coerce<T extends string>(value: unknown, allowed: readonly T[]): T | nu
 
 export async function POST(request: NextRequest) {
   try {
-    const raw = (await request.json()) as FirmResearchRequest;
+    let raw: FirmResearchRequest;
+    try {
+      raw = (await request.json()) as FirmResearchRequest;
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     // Sanitise and enforce length limits on all fields
     const body: FirmResearchRequest = {

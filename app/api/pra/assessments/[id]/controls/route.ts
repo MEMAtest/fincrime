@@ -45,7 +45,12 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const assessment = await requireAssessment(workspace.id, id);
     if (!assessment) return notFound("Assessment not found");
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const riskId = typeof body?.riskId === "string" ? body.riskId : "";
     if (!riskId) return badRequest("Missing required field: riskId");
 

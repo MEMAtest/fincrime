@@ -38,7 +38,12 @@ export const GET = withWorkspace(async (_request, workspace) => {
  */
 export const POST = withWorkspace(async (request, workspace, _context, actor) => {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     if (!isUuid(body?.workspaceControlId)) {
       return badRequest("workspaceControlId must be a valid UUID");

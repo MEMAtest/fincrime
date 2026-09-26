@@ -9,6 +9,8 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * PATCH /api/workspace/conditions/[id] - lets an approver mark a condition
  * attached to a decision as met or breached (or edit its description, due
@@ -19,6 +21,8 @@ interface RouteContext {
 export const PATCH = withWorkspace<RouteContext>(async (request, workspace, context, actor) => {
   try {
     const { id } = await context.params;
+    // A non-UUID id would raise 22P02 in Postgres and surface as a 500.
+    if (!UUID_RE.test(id)) return notFound("Condition not found");
     const existing = await getCondition(workspace.id, id);
     if (!existing) return notFound("Condition not found");
 

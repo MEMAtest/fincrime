@@ -20,7 +20,12 @@ export const GET = withWorkspace(async (_request, workspace) => {
 
 export const POST = withWorkspace(async (request, workspace) => {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const name = typeof body?.name === "string" ? body.name.trim() : "";
     const role = body?.role;
     const email = typeof body?.email === "string" ? body.email.trim() : "";

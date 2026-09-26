@@ -66,8 +66,19 @@ export function serverError(context: string, error: unknown): NextResponse {
   return NextResponse.json({ error: "Internal server error" }, { status: 500 });
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Ids come straight from the URL or request body. A non-UUID would make Postgres raise 22P02
+ * (invalid input syntax for type uuid) and surface as a 500, so treat it as "not found" instead.
+ */
+function isUuid(value: string): boolean {
+  return UUID_RE.test(value);
+}
+
 /** Loads an assessment and implicitly verifies it belongs to the authed workspace. */
 export async function requireAssessment(workspaceId: string, id: string): Promise<AssessmentRow | null> {
+  if (!isUuid(id)) return null;
   return getAssessment(workspaceId, id);
 }
 
@@ -77,6 +88,7 @@ export async function requireAssessmentRisk(
   assessmentId: string,
   riskId: string
 ): Promise<AssessmentRiskRow | null> {
+  if (!isUuid(riskId)) return null;
   const risk = await getAssessmentRisk(workspaceId, riskId);
   if (!risk || risk.assessment_id !== assessmentId) return null;
   return risk;
@@ -88,6 +100,7 @@ export async function requireAssessmentControl(
   assessmentId: string,
   controlId: string
 ): Promise<AssessmentControlRow | null> {
+  if (!isUuid(controlId)) return null;
   const control = await getAssessmentControl(workspaceId, controlId);
   if (!control || control.assessment_id !== assessmentId) return null;
   return control;
@@ -150,10 +163,12 @@ export async function requireWorkspaceControl(
   workspaceId: string,
   id: string
 ): Promise<WorkspaceControlRow | null> {
+  if (!isUuid(id)) return null;
   return getWorkspaceControl(workspaceId, id);
 }
 
 /** Loads a workspace_people row and verifies it belongs to the authed workspace, for decision/condition/action owner references. */
 export async function requirePerson(workspaceId: string, id: string): Promise<PersonRow | null> {
+  if (!isUuid(id)) return null;
   return getPerson(workspaceId, id);
 }

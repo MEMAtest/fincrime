@@ -68,7 +68,12 @@ export const GET = withWorkspace(async (_request, workspace) => {
  */
 export const POST = withWorkspace(async (request, workspace) => {
   try {
-    const raw = await request.json();
+    let raw;
+    try {
+      raw = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     if (!raw || typeof raw !== "object") {
       return NextResponse.json({ error: "Missing request body" }, { status: 400 });
     }

@@ -46,7 +46,12 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     if (!test) return notFound("Control test not found");
     if (isFinalTestStatus(test.status)) return conflict("Cannot add evidence to a test that is already complete or cancelled");
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     const type = typeof body?.type === "string" ? body.type.trim() : "";
     if (!type) return badRequest("Missing required field: type");

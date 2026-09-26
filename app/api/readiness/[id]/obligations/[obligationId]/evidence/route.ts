@@ -50,7 +50,12 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const obligation = await requireReadinessObligation(workspace.id, id, obligationId);
     if (!obligation) return notFound("Readiness obligation not found");
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     const type = typeof body?.type === "string" ? body.type.trim() : "";
     if (!type) return badRequest("Missing required field: type");

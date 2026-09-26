@@ -30,7 +30,12 @@ export const PATCH = withWorkspace<RouteContext>(async (request, workspace, cont
     const existing = await requireAssessmentControl(workspace.id, id, controlId);
     if (!existing) return notFound("Control mapping not found");
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const patch: UpdateAssessmentControlInput = {};
 
     if (body?.coverage !== undefined) {

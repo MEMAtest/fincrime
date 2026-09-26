@@ -83,7 +83,12 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     const assessment = await requireAssessment(workspace.id, id);
     if (!assessment) return notFound("Assessment not found");
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     if (!isDecisionOutcome(body?.outcome)) {
       return badRequest("Missing or invalid outcome: must be approve, approve_with_conditions, or reject");

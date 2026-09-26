@@ -52,7 +52,12 @@ export const POST = withWorkspace<RouteContext>(async (request, workspace, conte
     if (!incident) return notFound("Incident not found");
     if (isFinalIncidentStatus(incident.status)) return conflict("Cannot add actions to an incident that is already closed or cancelled");
 
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
 
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     if (!title) return badRequest("Missing required field: title");
