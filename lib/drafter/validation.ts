@@ -76,9 +76,10 @@ export function validateRow(
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
 
-  // Formula error in a used column: blocking for filter columns, warning otherwise.
+  // Formula error in a mapped column: blocking for filter columns, warning
+  // otherwise (SPEC.md's own example lists "Current Owner", an unused
+  // status column, alongside a filter column at "warning otherwise").
   for (const col of mapping) {
-    if (col.role === "unused") continue;
     const cell = row.cellsByHeader[col.sourceHeader];
     if (!cell) continue;
     const error = cell.error ?? detectFormulaError(cell.text);

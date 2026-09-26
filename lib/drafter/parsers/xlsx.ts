@@ -55,10 +55,12 @@ function cellToXlsxCell(cell: ExcelJS.Cell): XlsxCell {
 /**
  * Detects the header row: scans the first `scanRows` rows and scores each by
  * the count of non-empty text cells. The row with the highest score wins,
- * with ties broken toward the LATER row - a title/caption row above the
+ * with ties broken toward the EARLIER row - a title/caption row above the
  * real header typically has fewer populated cells than the header row
- * itself (which has one label per column). Not assumed to be row 1, per
- * SPEC.md.
+ * itself (one label per column), and the header row itself typically has as
+ * many or more populated cells as any single data row below it, so the
+ * first row to reach the maximum is the header, not a data row repeating
+ * the same column count. Not assumed to be row 1, per SPEC.md.
  */
 export function detectHeaderRowIndex(worksheet: ExcelJS.Worksheet, scanRows = 15): number {
   let bestRow = 1;
@@ -71,7 +73,7 @@ export function detectHeaderRowIndex(worksheet: ExcelJS.Worksheet, scanRows = 15
       const v = cellToXlsxCell(cell).text;
       if (v.trim()) score++;
     });
-    if (score >= bestScore) {
+    if (score > bestScore) {
       bestScore = score;
       bestRow = r;
     }

@@ -12,6 +12,9 @@ import { fileURLToPath } from "node:url";
  * as a value) need real alias resolution.
  */
 export default defineConfig({
+  test: {
+    setupFiles: ["./test/setup-env.ts"],
+  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL(".", import.meta.url)),
