@@ -52,7 +52,7 @@ export default function DrafterHomeClient() {
             <h1 className="text-2xl font-bold text-foreground">PRA Drafter</h1>
             <p className="text-sm text-text-muted mt-1 max-w-2xl">
               Drafts the control enhancement sections of a Product Risk Assessment from an approved PRA&apos;s house
-              style and a requirements register. Private module, allowlisted users only.
+              style and a requirements register. Private module.
             </p>
           </div>
 
@@ -67,7 +67,7 @@ export default function DrafterHomeClient() {
                 ) : standardReady ? (
                   "An approved PRA and a style brief have been uploaded and confirmed."
                 ) : (
-                  "Not ready. Skeleton extraction from an approved PRA is a later phase of this build - upload documents here in the meantime."
+                  "Not ready. Upload and confirm an approved PRA and a style brief, then confirm the template."
                 )
               }
               badge={standardReady ? <Badge variant="info">Documents confirmed</Badge> : <Badge>Not started</Badge>}

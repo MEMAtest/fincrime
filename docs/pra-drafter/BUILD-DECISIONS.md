@@ -12,19 +12,20 @@ These override or clarify `SPEC.md` (the product spec). Read both before touchin
 
 ## Private
 The module is private. It must not be discoverable or usable by the public.
-- Access requires a **signed-in account session with a VERIFIED email** (cookie, see `lib/auth/*`,
-  `lib/repo/sessions.ts`) whose email is in the env var `PRA_DRAFTER_ALLOWED_EMAILS`
-  (comma-separated, case-insensitive, trimmed). Unset/empty = nobody has access.
-- The anonymous workspace token path must NEVER grant access.
+- **No accounts** (owner decision 2026-09-26, supersedes the allowlisted-account design).
+  Access is a shared key in `PRA_DRAFTER_ACCESS_KEY` (min 24 chars; unset = nobody). Entering
+  it plus a name on `/drafter/unlock` (`POST /api/drafter-unlock`, rate limited) sets a
+  30-day httpOnly SameSite=Strict cookie `fincrime_drafter`, HMAC-signed with a key derived
+  from the access key, so rotating the key revokes every browser. The name is the audit actor.
+- Neither the anonymous workspace token nor an account session grants access.
 - Unauthorised requests get **404** (pages via `notFound()`, APIs a 404 JSON) so the module's
   existence is not revealed. Enforce on the server for every page and every API route through
   one shared guard (`lib/drafter/access.ts`), plus a unit test that every `app/api/drafter/**`
   route file uses it.
 - Not in the public nav, footer, sitemap, search index (`components/search/searchIndex.ts`),
   methodology or glossary. Pages set `robots: { index: false, follow: false }`. The AppShell
-  shows a "PRA Drafter" nav entry only when `/api/auth/me` (or a small drafter endpoint)
-  says the signed-in user is allowed.
-- Data is shared by all allowlisted users (single-purpose tool, not multi-client, no
+  shows a "PRA Drafter" nav entry only when `/api/drafter/me` returns 200 for this browser.
+- Data is shared by everyone holding the key (single-purpose tool, not multi-client, no
   per-client workspaces). Every mutation records the actor email in the drafter audit trail.
 - Uploaded originals go to Vercel Blob as **private** blobs (reuse `lib/storage/blob.ts`
   patterns and the authenticated streaming approach used for evidence files). Never a public URL.

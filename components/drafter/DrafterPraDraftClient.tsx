@@ -509,7 +509,7 @@ function ExportOverride({ onOverride }: { onOverride: (reason: string) => void }
     <div className="flex gap-2 items-center">
       <input
         className="border rounded px-2 py-1 text-sm flex-1"
-        placeholder="Reason for exporting with unresolved issues (logged with your account)"
+        placeholder="Reason for exporting with unresolved issues (logged with your name)"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
       />

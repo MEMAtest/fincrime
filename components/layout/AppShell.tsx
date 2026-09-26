@@ -107,8 +107,8 @@ export default function AppShell({
   const [drafterAllowed, setDrafterAllowed] = useState(false);
 
   // PRA Drafter is a private module (see docs/pra-drafter/BUILD-DECISIONS.md
-  // "Private"): the nav entry only appears once the server confirms the
-  // signed-in session is on PRA_DRAFTER_ALLOWED_EMAILS. Everyone else gets a
+  // "Private"): the nav entry only appears once the server confirms this
+  // browser holds a valid drafter access-key cookie. Everyone else gets a
   // 404 from /api/drafter/me, same as every other drafter route, so this
   // check never itself reveals the module beyond "not found".
   useEffect(() => {

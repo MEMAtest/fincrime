@@ -337,9 +337,10 @@ Set, per role (writer and/or judge can be switched independently):
   ones. `PRA_MODEL_STUB` is refused outright whenever
   `VERCEL_ENV === "production"`, regardless of its value - this is a hard
   safety rail, not a toggle.
-- `PRA_DRAFTER_ALLOWED_EMAILS` - comma-separated allowlist; unset/empty
-  means nobody can reach the module (404 for everyone, including a
-  correctly-signed-in user).
+- `PRA_DRAFTER_ACCESS_KEY` - the shared access key (min 24 chars) entered
+  at `/drafter/unlock`; unset/short means nobody can reach the module.
+  Replaced the earlier `PRA_DRAFTER_ALLOWED_EMAILS` account allowlist
+  (owner wants no accounts). Rotate it to revoke every browser.
 - `BLOB_READ_WRITE_TOKEN` - needed for the client-direct upload flow
   (#11) and for private-blob storage of uploaded originals generally; its
   absence degrades cleanly to local `fallback_bytes` storage and disables

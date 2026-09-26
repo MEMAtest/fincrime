@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { resolveDrafterActor, isDrafterAllowedEmail } from "../access";
+import { resolveDrafterActor, checkAccessKey, issueDrafterToken, cleanLabel } from "../access";
 
 const API_DRAFTER_DIR = join(process.cwd(), "app", "api", "drafter");
 
@@ -39,36 +39,53 @@ describe("drafter API routes always use the access guard", () => {
   });
 });
 
-describe("resolveDrafterActor", () => {
-  it("returns null when no token is given", async () => {
-    const actor = await resolveDrafterActor(null);
-    expect(actor).toBeNull();
+describe("access key and drafter cookie", () => {
+  const KEY = "k".repeat(20) + "-long-enough-secret";
+  const prev = process.env.PRA_DRAFTER_ACCESS_KEY;
+  beforeEach(() => {
+    process.env.PRA_DRAFTER_ACCESS_KEY = KEY;
+  });
+  afterEach(() => {
+    if (prev === undefined) delete process.env.PRA_DRAFTER_ACCESS_KEY;
+    else process.env.PRA_DRAFTER_ACCESS_KEY = prev;
   });
 
-  it("returns null when PRA_DRAFTER_ALLOWED_EMAILS is unset", async () => {
-    const prev = process.env.PRA_DRAFTER_ALLOWED_EMAILS;
-    delete process.env.PRA_DRAFTER_ALLOWED_EMAILS;
-    const actor = await resolveDrafterActor("some-token");
-    expect(actor).toBeNull();
-    if (prev !== undefined) process.env.PRA_DRAFTER_ALLOWED_EMAILS = prev;
-  });
-});
-
-describe("isDrafterAllowedEmail", () => {
-  const prev = process.env.PRA_DRAFTER_ALLOWED_EMAILS;
-
-  it("matches case-insensitively and trims", async () => {
-    process.env.PRA_DRAFTER_ALLOWED_EMAILS = " Ademola@memaconsultants.com , other@x.com";
-    expect(await isDrafterAllowedEmail("ademola@memaconsultants.com")).toBe(true);
-    expect(await isDrafterAllowedEmail("ADEMOLA@MEMACONSULTANTS.COM")).toBe(true);
-    expect(await isDrafterAllowedEmail("nope@x.com")).toBe(false);
-    expect(await isDrafterAllowedEmail(null)).toBe(false);
-    process.env.PRA_DRAFTER_ALLOWED_EMAILS = prev;
+  it("denies everyone when the key is unset or too short", () => {
+    delete process.env.PRA_DRAFTER_ACCESS_KEY;
+    expect(checkAccessKey(KEY)).toBe(false);
+    expect(issueDrafterToken("A")).toBeNull();
+    process.env.PRA_DRAFTER_ACCESS_KEY = "short";
+    expect(checkAccessKey("short")).toBe(false);
   });
 
-  it("denies everyone when unset", async () => {
-    delete process.env.PRA_DRAFTER_ALLOWED_EMAILS;
-    expect(await isDrafterAllowedEmail("anyone@x.com")).toBe(false);
-    if (prev !== undefined) process.env.PRA_DRAFTER_ALLOWED_EMAILS = prev;
+  it("accepts only the exact key", () => {
+    expect(checkAccessKey(KEY)).toBe(true);
+    expect(checkAccessKey(KEY + "x")).toBe(false);
+    expect(checkAccessKey("")).toBe(false);
+    expect(checkAccessKey(undefined)).toBe(false);
+  });
+
+  it("round-trips a signed cookie to an actor named at unlock", () => {
+    const token = issueDrafterToken("Ademola")!;
+    expect(resolveDrafterActor(token)).toEqual({ userId: "access-key", email: "Ademola" });
+  });
+
+  it("rejects missing, tampered, expired and rotated-key cookies", () => {
+    const token = issueDrafterToken("Ademola")!;
+    expect(resolveDrafterActor(null)).toBeNull();
+    const [label, exp, sig] = token.split(".");
+    expect(resolveDrafterActor(`${Buffer.from("Mallory").toString("base64url")}.${exp}.${sig}`)).toBeNull();
+    expect(resolveDrafterActor(`${label}.${Number(exp) + 999999}.${sig}`)).toBeNull();
+    expect(resolveDrafterActor(`${label}.${exp}.${sig}x`)).toBeNull();
+    expect(resolveDrafterActor(token, (Number(exp) + 1) * 1000)).toBeNull();
+    process.env.PRA_DRAFTER_ACCESS_KEY = "a-completely-different-rotated-key";
+    expect(resolveDrafterActor(token)).toBeNull();
+  });
+
+  it("cleans the name used in the audit trail", () => {
+    expect(cleanLabel("<script>alert(1)</script> Ade")).toBe("scriptalert1script Ade");
+    expect(cleanLabel("")).toBe("Drafter user");
+    expect(cleanLabel(42)).toBe("Drafter user");
+    expect(cleanLabel("x".repeat(100)).length).toBe(60);
   });
 });

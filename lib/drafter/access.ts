@@ -1,61 +1,96 @@
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
-import { readSessionCookie } from "@/lib/auth/session-cookie";
-import { verifySession } from "@/lib/repo/sessions";
-import { getUserById } from "@/lib/repo/users";
 
 /**
  * PRA Drafter is a private module (see docs/pra-drafter/BUILD-DECISIONS.md
- * "Private"). Access requires a signed-in account session whose email is in
- * PRA_DRAFTER_ALLOWED_EMAILS (comma-separated, case-insensitive, trimmed).
- * The anonymous workspace token path (lib/workspace-auth.ts) is NEVER
- * consulted here - it must not be able to grant access to this module.
+ * "Private"). There are no accounts: access is granted by a shared access key
+ * held in the PRA_DRAFTER_ACCESS_KEY env var. Entering it on /drafter/unlock
+ * sets a signed, httpOnly cookie. Unset or short key = nobody has access.
+ *
+ * The cookie is HMAC-signed with a key derived from the access key, so
+ * rotating PRA_DRAFTER_ACCESS_KEY revokes every issued cookie at once.
+ * Neither the anonymous workspace token nor an account session is consulted.
  *
  * Unauthorised requests get 404, not 401/403, so the module's existence is
- * not revealed to anyone who is not allowlisted.
+ * not revealed.
  */
 
-function allowedEmails(): Set<string> {
-  const raw = process.env.PRA_DRAFTER_ALLOWED_EMAILS || "";
-  return new Set(
-    raw
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean)
-  );
-}
+export const DRAFTER_COOKIE_NAME = "fincrime_drafter";
+export const DRAFTER_COOKIE_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
+const MIN_KEY_LENGTH = 24;
+const MAX_LABEL_LENGTH = 60;
 
 export interface DrafterActor {
   userId: string;
+  /** Who is acting, for the audit trail: the name entered at unlock. */
   email: string;
 }
 
+function accessKey(): string | null {
+  const key = (process.env.PRA_DRAFTER_ACCESS_KEY || "").trim();
+  return key.length >= MIN_KEY_LENGTH ? key : null;
+}
+
+function signingKey(key: string): Buffer {
+  return createHash("sha256").update(`pra-drafter-cookie:${key}`).digest();
+}
+
+function sign(payload: string, key: string): string {
+  return createHmac("sha256", signingKey(key)).update(payload).digest("base64url");
+}
+
+function safeEqual(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
+/** Strips anything but plain name characters so the label is safe to store and display. */
+export function cleanLabel(raw: unknown): string {
+  const text = typeof raw === "string" ? raw : "";
+  const cleaned = text.replace(/[^\p{L}\p{N} .'@_-]/gu, "").replace(/\s+/g, " ").trim();
+  return cleaned.slice(0, MAX_LABEL_LENGTH) || "Drafter user";
+}
+
+/** True when the submitted key matches PRA_DRAFTER_ACCESS_KEY (constant time). */
+export function checkAccessKey(submitted: unknown): boolean {
+  const key = accessKey();
+  if (!key || typeof submitted !== "string" || !submitted) return false;
+  return safeEqual(submitted.trim(), key);
+}
+
+/** Builds the cookie value: base64url(label).expiresAt.signature */
+export function issueDrafterToken(label: string, nowMs: number = Date.now()): string | null {
+  const key = accessKey();
+  if (!key) return null;
+  const expiresAt = Math.floor(nowMs / 1000) + DRAFTER_COOKIE_MAX_AGE_SECONDS;
+  const payload = `${Buffer.from(cleanLabel(label)).toString("base64url")}.${expiresAt}`;
+  return `${payload}.${sign(payload, key)}`;
+}
+
 /**
- * Resolves the request's session to a DrafterActor if (a) a valid session
- * cookie is present, (b) it resolves to a real user, and (c) that user's
- * email is in PRA_DRAFTER_ALLOWED_EMAILS. Returns null otherwise - callers
- * must treat null as "does not exist" (404), never leak WHY access failed.
+ * Resolves a drafter cookie value to an actor, or null when it is missing,
+ * malformed, expired, or signed with a different (e.g. rotated) key.
  */
-export async function resolveDrafterActor(token: string | null): Promise<DrafterActor | null> {
-  if (!token) return null;
-  const allowed = allowedEmails();
-  if (allowed.size === 0) return null;
-
-  const session = await verifySession(token);
-  if (!session) return null;
-
-  const user = await getUserById(session.user_id);
-  if (!user) return null;
-
-  if (!allowed.has(user.email.trim().toLowerCase())) return null;
-
-  // Signup does not prove mailbox ownership, so an unverified account could
-  // claim an allowlisted address before its owner registers. Only a verified
-  // email counts.
-  if (!user.email_verified_at) return null;
-
-  return { userId: user.id, email: user.email };
+export function resolveDrafterActor(token: string | null | undefined, nowMs: number = Date.now()): DrafterActor | null {
+  const key = accessKey();
+  if (!key || !token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [labelPart, expiresPart, signature] = parts;
+  const payload = `${labelPart}.${expiresPart}`;
+  if (!safeEqual(signature, sign(payload, key))) return null;
+  const expiresAt = Number(expiresPart);
+  if (!Number.isInteger(expiresAt) || expiresAt * 1000 <= nowMs) return null;
+  let label: string;
+  try {
+    label = cleanLabel(Buffer.from(labelPart, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+  return { userId: "access-key", email: label };
 }
 
 /**
@@ -67,8 +102,7 @@ export async function resolveDrafterActor(token: string | null): Promise<Drafter
 export async function requireDrafterActorApi(
   request: NextRequest
 ): Promise<{ actor: DrafterActor } | { response: NextResponse }> {
-  const token = readSessionCookie(request);
-  const actor = await resolveDrafterActor(token);
+  const actor = resolveDrafterActor(request.cookies.get(DRAFTER_COOKIE_NAME)?.value);
   if (!actor) {
     return { response: NextResponse.json({ error: "Not found" }, { status: 404 }) };
   }
@@ -76,32 +110,14 @@ export async function requireDrafterActorApi(
 }
 
 /**
- * For server-component pages under app/drafter/**. Calls next/navigation's
- * notFound() (renders the app's normal 404 page) when the signed-in user is
- * not allowlisted, or throws via notFound() - callers should NOT catch this.
+ * For server-component pages under app/drafter/**. Calls notFound() when
+ * the request carries no valid drafter cookie - callers should NOT catch it.
  */
 export async function requireDrafterActorPage(): Promise<DrafterActor> {
   const store = await cookies();
-  const token = store.get(readSessionCookieName())?.value ?? null;
-  const actor = await resolveDrafterActor(token);
+  const actor = resolveDrafterActor(store.get(DRAFTER_COOKIE_NAME)?.value);
   if (!actor) {
     notFound();
   }
   return actor as DrafterActor;
-}
-
-function readSessionCookieName(): string {
-  // Keep in sync with lib/auth/session-cookie.ts's SESSION_COOKIE_NAME
-  // without importing a NextRequest-typed helper into a cookies()-based path.
-  return "fincrime_session";
-}
-
-/**
- * For the AppShell nav entry and any lightweight "am I allowed" check from
- * the client (e.g. /api/drafter/me). Same allow rule as the guards above,
- * exposed as a boolean so the UI can hide the nav entry for everyone else.
- */
-export async function isDrafterAllowedEmail(email: string | null | undefined): Promise<boolean> {
-  if (!email) return false;
-  return allowedEmails().has(email.trim().toLowerCase());
 }
