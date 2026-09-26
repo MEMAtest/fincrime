@@ -234,8 +234,10 @@ export default function AppShell({
           <WorkflowBar />
         </Suspense>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0 flex flex-col">{children}</div>
+        {/* Content. `relative` lifts page text above the fixed FieldBackground layers (which come earlier in
+            the DOM) on pages that don't render their own <main>; no z-index, so it doesn't create a stacking
+            context that would trap inline modals under the sticky header. */}
+        <div className="relative flex-1 min-w-0 flex flex-col">{children}</div>
       </div>
     </div>
   );
