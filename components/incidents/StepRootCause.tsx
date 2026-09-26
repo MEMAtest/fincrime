@@ -169,7 +169,7 @@ export default function StepRootCause({
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-ink-soft">Root cause category</label>
-        <select
+        <select aria-label="Root cause category"
           key={`${incident.id}-rootCauseCategory`}
           defaultValue={incident.root_cause_category ?? ""}
           disabled={readOnly}

@@ -117,7 +117,7 @@ export default function StepIntake({ incident, people, readOnly, onSave, onCreat
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-ink-soft">Source</label>
-          <select
+          <select aria-label="Source"
             key={`${incident.id}-source`}
             defaultValue={incident.source ?? ""}
             disabled={readOnly}
@@ -135,7 +135,7 @@ export default function StepIntake({ incident, people, readOnly, onSave, onCreat
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-ink-soft">Severity</label>
-          <select
+          <select aria-label="Severity"
             key={`${incident.id}-severity`}
             defaultValue={incident.severity}
             disabled={readOnly}

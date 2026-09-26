@@ -67,7 +67,7 @@ export default function StepControl({ change, control, people, onSave }: StepCon
         />
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-ink-soft">Change type</label>
-          <select
+          <select aria-label="Change type"
             key={change.id}
             defaultValue={change.change_type ?? ""}
             onChange={(e) => void onSave({ changeType: e.target.value || null })}

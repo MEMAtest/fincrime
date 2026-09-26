@@ -122,7 +122,7 @@ export default function StepRequest({ request, people, readOnly, onSave, onCreat
 
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-ink-soft">Channel</label>
-        <select
+        <select aria-label="Channel"
           key={`${request.id}-channel`}
           defaultValue={request.channel ?? ""}
           disabled={readOnly}

@@ -247,7 +247,7 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
           <form onSubmit={onSubmit} className="glass-card rounded-2xl p-6 space-y-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-ink-soft">Control</label>
-              <select
+              <select aria-label="Control"
                 value={workspaceControlId}
                 onChange={(e) => setWorkspaceControlId(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
@@ -273,7 +273,7 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
 
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-ink-soft">Method (optional)</label>
-              <select
+              <select aria-label="Method (optional)"
                 value={method}
                 onChange={(e) => setMethod(e.target.value as ControlTestMethod | "")}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
@@ -314,7 +314,7 @@ export default function NewTestClient({ preselectedControlId }: NewTestClientPro
             <div>
               <label className="text-sm font-medium text-ink-soft">Tester (optional)</label>
               <div className="flex items-center gap-2 mt-1.5">
-                <select
+                <select aria-label="Tester (optional)"
                   value={testerPersonId}
                   onChange={(e) => setTesterPersonId(e.target.value)}
                   className="flex-1 px-3 py-2 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"

@@ -133,7 +133,7 @@ export default function StepScope({ test, control, people, readOnly, onSave, onC
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-ink-soft">Method</label>
-          <select
+          <select aria-label="Method"
             value={method}
             onChange={(e) => setMethod(e.target.value as ControlTestMethod | "")}
             disabled={readOnly}
@@ -168,7 +168,7 @@ export default function StepScope({ test, control, people, readOnly, onSave, onC
         <div>
           <label className="text-sm font-medium text-ink-soft">Tester</label>
           <div className="flex items-center gap-2 mt-1.5">
-            <select
+            <select aria-label="Tester"
               value={testerPersonId}
               onChange={(e) => setTesterPersonId(e.target.value)}
               disabled={readOnly}

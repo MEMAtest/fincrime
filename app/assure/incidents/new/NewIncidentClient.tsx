@@ -198,7 +198,7 @@ export default function NewIncidentClient({
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-ink-soft">Source</label>
-                  <select
+                  <select aria-label="Source"
                     value={source}
                     onChange={(e) => setSource(e.target.value as IncidentSource | "")}
                     className="w-full px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
@@ -213,7 +213,7 @@ export default function NewIncidentClient({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-ink-soft">Severity</label>
-                  <select
+                  <select aria-label="Severity"
                     value={severity}
                     onChange={(e) => setSeverity(e.target.value as IncidentSeverity)}
                     className="w-full px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
@@ -237,7 +237,7 @@ export default function NewIncidentClient({
               <div>
                 <label className="text-sm font-medium text-ink-soft">Owner (optional)</label>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <select
+                  <select aria-label="Owner (optional)"
                     value={ownerPersonId}
                     onChange={(e) => setOwnerPersonId(e.target.value)}
                     className="flex-1 px-3 py-2 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"

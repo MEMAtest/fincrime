@@ -166,7 +166,7 @@ export default function NewRegResponseClient({ preselectedIncidentId }: NewRegRe
 
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-ink-soft">Channel (optional)</label>
-              <select
+              <select aria-label="Channel (optional)"
                 value={channel}
                 onChange={(e) => setChannel(e.target.value as RegRequestChannel | "")}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-colors"
@@ -188,7 +188,7 @@ export default function NewRegResponseClient({ preselectedIncidentId }: NewRegRe
             <div>
               <label className="text-sm font-medium text-ink-soft">Owner (optional)</label>
               <div className="flex items-center gap-2 mt-1.5">
-                <select
+                <select aria-label="Owner (optional)"
                   value={ownerPersonId}
                   onChange={(e) => setOwnerPersonId(e.target.value)}
                   className="flex-1 px-3 py-2 rounded-lg border border-line-2 bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
