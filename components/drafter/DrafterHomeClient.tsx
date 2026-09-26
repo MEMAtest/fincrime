@@ -107,17 +107,26 @@ export default function DrafterHomeClient() {
                 <Settings className="h-3.5 w-3.5" /> Settings
               </Link>
             </div>
-            <p className="text-sm text-text-muted">
-              Starting a PRA (product setup, candidate controls, drafting and review) is not built in this pass -
-              see docs/pra-drafter/HANDOFF-2.md. Documents, the register import and the controls library are ready
-              for the next phase to build on.
+            <p className="text-sm text-text-muted mb-3">
+              Set the standard (template and house style), then start a PRA: pick candidate controls, draft each
+              enhancement and review the lint results and open items.
             </p>
+            <div className="flex gap-3">
+              <Link href="/drafter/templates" className="text-sm text-accent hover:underline">
+                Template and house style
+              </Link>
+              <Link href="/drafter/pras" className="text-sm text-accent hover:underline">
+                Start / open a PRA
+              </Link>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <NavLink href="/drafter/documents" label="Documents" icon={FileText} />
             <NavLink href="/drafter/register" label="Register" icon={Table} />
             <NavLink href="/drafter/library" label="Library" icon={Library} />
+            <NavLink href="/drafter/templates" label="Templates" icon={FileText} />
+            <NavLink href="/drafter/pras" label="PRA drafts" icon={Table} />
             <NavLink href="/drafter/settings" label="Settings" icon={Settings} />
           </div>
         </div>

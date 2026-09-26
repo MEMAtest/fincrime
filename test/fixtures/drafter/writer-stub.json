@@ -1,0 +1,60 @@
+{
+  "writer": {
+    "pra-writer-enhancement-v1": {
+      "default": {
+        "response": {
+          "control_text": "The system screens each new correspondent relationship against the firm's sanctions and adverse media sources before the relationship is opened, and a nominated reviewer confirms the outcome is recorded before any payment instructions are accepted from the respondent. Where the screening returns a potential match, onboarding is paused until the second line has assessed and closed the alert. This applies to every new correspondent relationship regardless of the respondent's home jurisdiction, keeping the check consistent across the book rather than only where a risk is already suspected, and reduces the chance of a sanctioned or high-risk counterparty being onboarded before a proper review has taken place.",
+          "rationale": "A correspondent relationship extends the firm's exposure to a respondent's own downstream customers, so screening has to happen before the relationship opens rather than after funds have moved. Pausing onboarding on a potential match, rather than raising it after the fact, keeps the decision auditable and puts the burden of proof on clearing the alert before any exposure begins.",
+          "placeholders": []
+        }
+      },
+      "entries": [
+        {
+          "matchIncludes": ["REQ-0001-BAD-NUMBER"],
+          "response": {
+            "control_text": "The system reviews correspondent relationships every 3 months and escalates any relationship exceeding a 40% risk score to the Senior Risk Committee, which was informed via the FCRM engine and will confirm sign-off within 5 working days.",
+            "rationale": "This was designed to reduce risk, and will be delivered by the FinCrime Ops Guild once resourcing is confirmed.",
+            "placeholders": []
+          }
+        },
+        {
+          "matchIncludes": ["REQ-0001-BANNED-PHRASE"],
+          "response": {
+            "control_text": "This non-negotiable check is severe and prevents contagion by requiring immediate escalation through dedicated rails before any correspondent relationship is opened, and a nominated reviewer confirms every outcome is recorded before any payment instructions are accepted from the respondent institution across the full portfolio of relationships the firm holds today.",
+            "rationale": "This is a non-negotiable and severe control that prevents contagion across the firm's correspondent book.",
+            "placeholders": []
+          }
+        },
+        {
+          "matchIncludes": ["REQ-0001-REQID-IN-TEXT"],
+          "response": {
+            "control_text": "The system screens each new correspondent relationship under REQ-0012 and Art. 19 (1) before the relationship is opened, and a nominated reviewer confirms the outcome is recorded before any payment instructions are accepted from the respondent institution, applying consistently across every jurisdiction the firm operates a correspondent banking relationship in today and going forward as the book grows.",
+            "rationale": "REQ-0012 requires this check to happen before exposure begins rather than after, per Art. 19 (1), keeping the decision auditable and evidenced.",
+            "placeholders": []
+          }
+        },
+        {
+          "matchIncludes": ["REQ-0001-EM-DASH"],
+          "response": {
+            "control_text": "The system screens each new correspondent relationship against sanctions and adverse media sources — before the relationship is opened — and a nominated reviewer confirms the outcome is recorded before any payment instructions are accepted from the respondent institution, applying consistently across the full portfolio of relationships the firm holds regardless of jurisdiction or transaction volume expected in the first year.",
+            "rationale": "A correspondent relationship extends exposure to a respondent's own customers — so screening happens before the relationship opens, not after.",
+            "placeholders": []
+          }
+        },
+        {
+          "matchIncludes": ["REQ-0001-TOO-LONG"],
+          "response": {
+            "control_text": "The system screens each new correspondent relationship against the firm's sanctions and adverse media sources before the relationship is opened, and a nominated reviewer confirms the outcome is recorded before any payment instructions are accepted from the respondent, and this happens for every relationship regardless of jurisdiction, and the second line reviews every alert raised by the screening tool within one business day of it being raised, and the compliance team maintains a log of every decision taken, and that log is reviewed quarterly by the second line as part of its ongoing oversight of the correspondent banking book, and any theme identified in that review is reported to the relevant committee, and the committee considers whether the control remains adequate given the volume and nature of relationships in scope, and where it does not the committee directs a remediation plan with an owner and a target date, and that plan is tracked to completion and closed out only once evidenced, and the entire cycle repeats twice a year as a matter of course for as long as the correspondent banking product remains live and available to customers of the firm across every market it serves today and into the foreseeable future as the book continues to grow in scale and complexity over time.",
+            "rationale": "This keeps the control's operation auditable end to end, from the initial screening decision through to committee oversight and remediation tracking, which matters because correspondent banking exposure compounds quickly if a weak link in the respondent's own controls is not caught early.",
+            "placeholders": []
+          }
+        },
+        {
+          "matchIncludes": ["REQ-0001-MALFORMED"],
+          "malformed": true
+        }
+      ]
+    }
+  },
+  "judge": {}
+}
