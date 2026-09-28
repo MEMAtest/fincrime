@@ -5,7 +5,18 @@
  * model provider.
  */
 import { callDrafterModel, isUnderCostCap, PROMPT_VERSIONS, formatCostCapMessage } from "./llm";
-import { buildJudgePrompt, buildJudgeRepairPrompt, buildJudgeJsonSchema, validateJudgeOutput, type JudgeResult, type JudgeCriterionResult } from "./judge";
+import {
+  buildJudgePrompt,
+  buildJudgeRepairPrompt,
+  buildJudgeJsonSchema,
+  validateJudgeOutput,
+  evaluateTriggerActorActionOutcome,
+  evaluateCorrectSection,
+  JUDGE_CRITERIA,
+  type JudgeResult,
+  type JudgeCriterionResult,
+  type JudgeExtraction,
+} from "./judge";
 import { combineStatus } from "./review-status";
 import { isPlaceholderOnlyText } from "./lint";
 import { applyFactBoundary } from "./fact-boundary";
@@ -86,8 +97,31 @@ export interface JudgeTextInput {
 }
 
 export type JudgeTextResult =
-  | { ok: true; criteria: Record<string, JudgeCriterionResult>; overall: "pass" | "fail"; modelName: string; promptVersion: string; costEstimatePence: number; repaired: boolean }
+  | { ok: true; criteria: Record<string, JudgeCriterionResult>; overall: "pass" | "fail"; modelName: string; promptVersion: string; costEstimatePence: number; repaired: boolean; extraction: JudgeExtraction }
   | { ok: false; reason: string; promptVersion: string; costEstimatePence: number; repaired: boolean };
+
+/**
+ * Overrides trigger_actor_action_outcome and correct_section with the
+ * deterministic (code-computed) verdicts, and recomputes `overall`
+ * accordingly. This is where the two criteria stop being "whatever the
+ * model said" - applied once, here, so every caller of `judgeText`
+ * (production judging AND calibration) is measured against the same
+ * deterministic rule.
+ */
+function applyDeterministicCriteria(
+  criteria: Record<string, JudgeCriterionResult>,
+  extraction: JudgeExtraction,
+  controlText: string,
+  sectionTitle: string
+): { criteria: Record<string, JudgeCriterionResult>; overall: "pass" | "fail" } {
+  const next: Record<string, JudgeCriterionResult> = {
+    ...criteria,
+    trigger_actor_action_outcome: evaluateTriggerActorActionOutcome(extraction, controlText),
+    correct_section: evaluateCorrectSection(extraction, sectionTitle, criteria.correct_section),
+  };
+  const overall: "pass" | "fail" = JUDGE_CRITERIA.every((def) => !def.critical || next[def.key].pass) ? "pass" : "fail";
+  return { criteria: next, overall };
+}
 
 /**
  * THE judge call, shared verbatim by production (`judgeOneEnhancement`) and
@@ -170,14 +204,17 @@ export async function judgeText(input: JudgeTextInput): Promise<JudgeTextResult>
     return { ok: false, reason: validated.reason, promptVersion: PROMPT_VERSIONS.judge_rubric, costEstimatePence: totalCostPence, repaired };
   }
 
+  const deterministic = applyDeterministicCriteria(validated.criteria, validated.extraction, input.controlText, input.sectionTitle);
+
   return {
     ok: true,
-    criteria: validated.criteria,
-    overall: validated.overall,
+    criteria: deterministic.criteria,
+    overall: deterministic.overall,
     modelName: finalCall.modelName,
     promptVersion: PROMPT_VERSIONS.judge_rubric,
     costEstimatePence: totalCostPence,
     repaired,
+    extraction: validated.extraction,
   };
 }
 
@@ -237,6 +274,7 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
     overall: result.overall,
     modelName: result.modelName,
     promptVersion: PROMPT_VERSIONS.judge_rubric,
+    extraction: result.extraction,
   };
 
   for (const description of openItemDescriptions) {

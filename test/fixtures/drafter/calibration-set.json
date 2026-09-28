@@ -1,5 +1,5 @@
 {
-  "description": "Judge calibration set v1 (2026-09-28). 36 synthetic correspondent banking / CDD / EDD enhancements, hand-labelled per criterion by the build team against SPEC.md style rules. No client material. Balanced so a judge that passes everything scores below 85 per cent on every critical criterion. Re-run on any judge model or prompt change; replace or extend with real labelled enhancements once available.",
+  "description": "Judge calibration set v1.1 (2026-09-28; C10, C20, C23 relabelled correct_section=fail: ongoing correspondent controls filed under an onboarding section). 36 synthetic correspondent banking / CDD / EDD enhancements, hand-labelled per criterion by the build team against SPEC.md style rules. No client material. Balanced so a judge that passes everything scores below 85 per cent on every critical criterion. Re-run on any judge model or prompt change; replace or extend with real labelled enhancements once available.",
   "labelOrder": [
     "mechanism_not_policy_restatement",
     "trigger_actor_action_outcome",
@@ -146,7 +146,7 @@
         "rationale_explains_risk": "fail",
         "scope_stated": "pass",
         "tone_measured": "pass",
-        "correct_section": "pass"
+        "correct_section": "fail"
       }
     },
     {
@@ -286,7 +286,7 @@
         "rationale_explains_risk": "fail",
         "scope_stated": "pass",
         "tone_measured": "pass",
-        "correct_section": "pass"
+        "correct_section": "fail"
       }
     },
     {
@@ -328,7 +328,7 @@
         "rationale_explains_risk": "pass",
         "scope_stated": "pass",
         "tone_measured": "pass",
-        "correct_section": "pass"
+        "correct_section": "fail"
       }
     },
     {

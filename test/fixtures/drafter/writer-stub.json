@@ -69,7 +69,7 @@
     }
   },
   "judge": {
-    "pra-judge-rubric-v1": {
+    "pra-judge-rubric-v2": {
       "entries": [
         {
           "matchIncludes": [
@@ -112,6 +112,24 @@
                 "pass": true,
                 "reason": "Fits the section.",
                 "suggested_rewrite": null
+              }
+            },
+            "extraction": {
+              "trigger": "before onboarding",
+              "actor": "The reviewer",
+              "action": "screens JUDGE-PASS every new relationship",
+              "outcome": "records the outcome",
+              "lifecycle_stage": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "customer_type": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "topic": {
+                "value": "other",
+                "quote": null
               }
             }
           }
@@ -158,6 +176,24 @@
                 "reason": "Fits the section.",
                 "suggested_rewrite": null
               }
+            },
+            "extraction": {
+              "trigger": "before onboarding",
+              "actor": "The reviewer",
+              "action": "screens JUDGE-MINOR every new relationship",
+              "outcome": "records the outcome",
+              "lifecycle_stage": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "customer_type": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "topic": {
+                "value": "other",
+                "quote": null
+              }
             }
           }
         },
@@ -203,6 +239,24 @@
                 "reason": "Fits the section.",
                 "suggested_rewrite": null
               }
+            },
+            "extraction": {
+              "trigger": null,
+              "actor": null,
+              "action": null,
+              "outcome": null,
+              "lifecycle_stage": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "customer_type": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "topic": {
+                "value": "other",
+                "quote": null
+              }
             }
           }
         },
@@ -247,6 +301,24 @@
                 "pass": true,
                 "reason": "ok",
                 "suggested_rewrite": null
+              }
+            },
+            "extraction": {
+              "trigger": null,
+              "actor": null,
+              "action": null,
+              "outcome": null,
+              "lifecycle_stage": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "customer_type": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "topic": {
+                "value": "other",
+                "quote": null
               }
             }
           }
@@ -299,6 +371,24 @@
                 "reason": "ok",
                 "suggested_rewrite": null
               }
+            },
+            "extraction": {
+              "trigger": null,
+              "actor": null,
+              "action": null,
+              "outcome": null,
+              "lifecycle_stage": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "customer_type": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "topic": {
+                "value": "other",
+                "quote": null
+              }
             }
           }
         },
@@ -343,6 +433,24 @@
                 "pass": true,
                 "reason": "Fits the section.",
                 "suggested_rewrite": null
+              }
+            },
+            "extraction": {
+              "trigger": null,
+              "actor": null,
+              "action": null,
+              "outcome": null,
+              "lifecycle_stage": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "customer_type": {
+                "value": "unspecified",
+                "quote": null
+              },
+              "topic": {
+                "value": "other",
+                "quote": null
               }
             }
           }

@@ -16,7 +16,7 @@ export type DrafterModelRole = "writer" | "judge" | "tagger";
 
 export const PROMPT_VERSIONS = {
   writer_enhancement: "pra-writer-enhancement-v1",
-  judge_rubric: "pra-judge-rubric-v1",
+  judge_rubric: "pra-judge-rubric-v2",
   tag_suggestion: "pra-tag-suggestion-v1",
 } as const;
 
@@ -200,13 +200,22 @@ function defaultStubResponse(role: DrafterModelRole, userPrompt: string): unknow
   }
   if (role === "judge") {
     return {
+      extraction: {
+        trigger: null,
+        actor: null,
+        action: null,
+        outcome: null,
+        lifecycle_stage: { value: "unspecified", quote: null },
+        customer_type: { value: "unspecified", quote: null },
+        topic: { value: "other", quote: null },
+      },
       criteria: {
-        mechanism_not_policy_restatement: { pass: true, quote: "", reason: "stub", critical: true },
-        trigger_actor_action_outcome: { pass: true, quote: "", reason: "stub", critical: true },
-        rationale_explains_risk: { pass: true, quote: "", reason: "stub", critical: true },
-        scope_stated: { pass: true, quote: "", reason: "stub", critical: false },
-        tone_measured: { pass: true, quote: "", reason: "stub", critical: false },
-        correct_section: { pass: true, quote: "", reason: "stub", critical: true },
+        mechanism_not_policy_restatement: { pass: true, quote: "", reason: "stub", suggested_rewrite: null },
+        trigger_actor_action_outcome: { pass: true, quote: "", reason: "stub", suggested_rewrite: null },
+        rationale_explains_risk: { pass: true, quote: "", reason: "stub", suggested_rewrite: null },
+        scope_stated: { pass: true, quote: "", reason: "stub", suggested_rewrite: null },
+        tone_measured: { pass: true, quote: "", reason: "stub", suggested_rewrite: null },
+        correct_section: { pass: true, quote: "", reason: "stub", suggested_rewrite: null },
       },
       overall: "pass",
     };

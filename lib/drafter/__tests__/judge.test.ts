@@ -1,5 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { buildJudgePrompt, buildJudgeRepairPrompt, buildJudgeJsonSchema, isVerbatimQuote, validateJudgeOutput, JUDGE_CRITERIA } from "../judge";
+import {
+  buildJudgePrompt,
+  buildJudgeRepairPrompt,
+  buildJudgeJsonSchema,
+  isVerbatimQuote,
+  validateJudgeOutput,
+  parseSectionTitle,
+  evaluateTriggerActorActionOutcome,
+  evaluateCorrectSection,
+  JUDGE_CRITERIA,
+  type JudgeExtraction,
+} from "../judge";
 
 describe("buildJudgePrompt", () => {
   it("puts the quote field before the verdict field in the schema instructions", () => {
@@ -22,9 +33,24 @@ describe("buildJudgePrompt", () => {
   });
 });
 
+function nullExtractionRaw() {
+  return {
+    trigger: null,
+    actor: null,
+    action: null,
+    outcome: null,
+    lifecycle_stage: { value: "unspecified", quote: null },
+    customer_type: { value: "unspecified", quote: null },
+    topic: { value: "other", quote: null },
+  };
+}
+
 function fullPassResponse(text: string) {
   const entry = { quote: text, pass: true, reason: "ok", suggested_rewrite: null };
-  return { criteria: Object.fromEntries(JUDGE_CRITERIA.map((c) => [c.key, { ...entry }])) };
+  return {
+    extraction: nullExtractionRaw(),
+    criteria: Object.fromEntries(JUDGE_CRITERIA.map((c) => [c.key, { ...entry }])),
+  };
 }
 
 describe("validateJudgeOutput", () => {
@@ -125,6 +151,179 @@ describe("buildJudgeJsonSchema", () => {
     const criteriaSchema = properties.criteria;
     expect(criteriaSchema.required).toEqual(JUDGE_CRITERIA.map((c) => c.key));
     expect(criteriaSchema.additionalProperties).toBe(false);
+  });
+});
+
+describe("parseSectionTitle (deterministic correct_section)", () => {
+  it("parses a well-formed title", () => {
+    const parsed = parseSectionTitle("2.4 Correspondent Banking Due Diligence · Onboarding · Legal Person");
+    expect(parsed).toEqual({ stage: "onboarding", customerType: "legal_person", correspondentBanking: true });
+  });
+
+  it("recognises 'Both' as a customer type", () => {
+    const parsed = parseSectionTitle("2.3 Enhanced Due Diligence (EDD) · Ongoing Monitoring · Both");
+    expect(parsed).toEqual({ stage: "ongoing_monitoring", customerType: "both", correspondentBanking: false });
+  });
+
+  it("returns null when the title cannot be split into exactly 3 parts", () => {
+    expect(parseSectionTitle("2.1 Customer Due Diligence")).toBeNull();
+  });
+
+  it("returns null when the stage segment is not recognised", () => {
+    expect(parseSectionTitle("2.1 Topic · Sometime · Both")).toBeNull();
+  });
+
+  it("returns null when the customer-type segment is not recognised", () => {
+    expect(parseSectionTitle("2.1 Topic · Onboarding · Everyone")).toBeNull();
+  });
+});
+
+function extraction(overrides: Partial<JudgeExtraction> = {}): JudgeExtraction {
+  return {
+    trigger: null,
+    actor: null,
+    action: null,
+    outcome: null,
+    lifecycleStage: "unspecified",
+    lifecycleStageQuote: null,
+    customerType: "unspecified",
+    customerTypeQuote: null,
+    topic: "other",
+    topicQuote: null,
+    ...overrides,
+  };
+}
+
+describe("evaluateTriggerActorActionOutcome (computed in code, model verdict ignored)", () => {
+  const controlText = "When a match is found, a compliance officer confirms the alert before the account is activated.";
+
+  it("passes when all four are present and verbatim in the control text", () => {
+    const result = evaluateTriggerActorActionOutcome(
+      extraction({ trigger: "a match is found", actor: "a compliance officer", action: "confirms the alert", outcome: "the account is activated" }),
+      controlText
+    );
+    expect(result.pass).toBe(true);
+  });
+
+  it("fails and names the missing element when one is not stated", () => {
+    const result = evaluateTriggerActorActionOutcome(
+      extraction({ trigger: "a match is found", actor: "a compliance officer", action: "confirms the alert", outcome: null }),
+      controlText
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("outcome");
+  });
+
+  it("fails when an extracted quote is not actually verbatim in the control text (hallucinated extraction)", () => {
+    const result = evaluateTriggerActorActionOutcome(
+      extraction({ trigger: "a match is found", actor: "a compliance officer", action: "confirms the alert", outcome: "the customer receives a welcome email" }),
+      controlText
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("outcome");
+  });
+
+  it("a contradictory model verdict for this criterion is never consulted - only the extraction decides", () => {
+    // Same extraction, same verdict either way - proves the function's
+    // signature does not even take the model's verdict as an input.
+    const result = evaluateTriggerActorActionOutcome(
+      extraction({ trigger: "a match is found", actor: "a compliance officer", action: "confirms the alert", outcome: "the account is activated" }),
+      controlText
+    );
+    expect(result.pass).toBe(true);
+  });
+});
+
+describe("evaluateCorrectSection (computed in code, model verdict ignored except as a parse fallback)", () => {
+  const modelSaysPass = { quote: "some quote", pass: true, reason: "model reason", suggestedRewrite: null };
+  const modelSaysFail = { quote: "some quote", pass: false, reason: "model reason", suggestedRewrite: "rewrite" };
+
+  it("passes when lifecycle stage, customer type and topic all fit the section", () => {
+    const result = evaluateCorrectSection(
+      extraction({ lifecycleStage: "onboarding", customerType: "legal_person", topic: "other" }),
+      "2.2 Customer Due Diligence (CDD) · Onboarding · Legal Person",
+      modelSaysFail // the model's own verdict is ignored - result should still pass
+    );
+    expect(result.pass).toBe(true);
+  });
+
+  it("fails when the lifecycle stage conflicts", () => {
+    const result = evaluateCorrectSection(
+      extraction({ lifecycleStage: "exit", customerType: "unspecified", topic: "other" }),
+      "2.2 Customer Due Diligence (CDD) · Onboarding · Legal Person",
+      modelSaysPass // the model's own verdict is ignored - result should still fail
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason.toLowerCase()).toContain("lifecycle stage");
+  });
+
+  it("treats periodic_review as compatible with an Ongoing Monitoring section", () => {
+    const result = evaluateCorrectSection(
+      extraction({ lifecycleStage: "periodic_review", customerType: "unspecified", topic: "other" }),
+      "2.3 Enhanced Due Diligence (EDD) · Ongoing Monitoring · Both",
+      modelSaysPass
+    );
+    expect(result.pass).toBe(true);
+  });
+
+  it("treats exit as compatible with an Ongoing Monitoring section", () => {
+    const result = evaluateCorrectSection(
+      extraction({ lifecycleStage: "exit", customerType: "unspecified", topic: "other" }),
+      "2.3 Enhanced Due Diligence (EDD) · Ongoing Monitoring · Both",
+      modelSaysPass
+    );
+    expect(result.pass).toBe(true);
+  });
+
+  it("a 'Both' section accepts any specified customer type", () => {
+    const result = evaluateCorrectSection(
+      extraction({ lifecycleStage: "unspecified", customerType: "natural_person", topic: "other" }),
+      "2.3 Enhanced Due Diligence (EDD) · Ongoing Monitoring · Both",
+      modelSaysPass
+    );
+    expect(result.pass).toBe(true);
+  });
+
+  it("fails when the customer type conflicts", () => {
+    const result = evaluateCorrectSection(
+      extraction({ lifecycleStage: "unspecified", customerType: "natural_person", topic: "other" }),
+      "2.2 Customer Due Diligence (CDD) · Onboarding · Legal Person",
+      modelSaysPass
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason.toLowerCase()).toContain("customer type");
+  });
+
+  it("fails when the text is correspondent banking but the section is not", () => {
+    const result = evaluateCorrectSection(
+      extraction({ lifecycleStage: "unspecified", customerType: "unspecified", topic: "correspondent_banking" }),
+      "2.2 Customer Due Diligence (CDD) · Onboarding · Legal Person",
+      modelSaysPass
+    );
+    expect(result.pass).toBe(false);
+  });
+
+  it("fails when the section is correspondent banking but the text is not", () => {
+    const result = evaluateCorrectSection(
+      extraction({ lifecycleStage: "onboarding", customerType: "legal_person", topic: "other" }),
+      "2.4 Correspondent Banking Due Diligence · Onboarding · Legal Person",
+      modelSaysPass
+    );
+    expect(result.pass).toBe(false);
+  });
+
+  it("never fails purely on CDD-vs-EDD wording in the section title (EDD controls can sit under a CDD section)", () => {
+    const result = evaluateCorrectSection(
+      extraction({ lifecycleStage: "ongoing_monitoring", customerType: "legal_person", topic: "other" }),
+      "2.2 Customer Due Diligence (CDD) · Ongoing Monitoring · Legal Person",
+      modelSaysPass
+    );
+    expect(result.pass).toBe(true);
+  });
+
+  it("falls back to the model's own verdict when the section title cannot be parsed", () => {
+    const result = evaluateCorrectSection(extraction({ lifecycleStage: "exit", customerType: "natural_person", topic: "correspondent_banking" }), "2.1 Customer Due Diligence", modelSaysFail);
+    expect(result).toEqual(modelSaysFail);
   });
 });
 

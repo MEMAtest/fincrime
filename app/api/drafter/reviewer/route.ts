@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireDrafterActorApi } from "@/lib/drafter/access";
 import { lintEnhancement } from "@/lib/drafter/lint";
-import { buildJudgePrompt, validateJudgeOutput, JUDGE_CRITERIA } from "@/lib/drafter/judge";
+import { JUDGE_CRITERIA } from "@/lib/drafter/judge";
+import { judgeText } from "@/lib/drafter/judge-runner";
 import { combineStatus } from "@/lib/drafter/review-status";
-import { callDrafterModel, isRoleConfigured, roleDisabledReason, PROMPT_VERSIONS } from "@/lib/drafter/llm";
+import { isRoleConfigured, roleDisabledReason } from "@/lib/drafter/llm";
 import { getLatestStylepackVersion } from "@/lib/repo/drafter-stylepacks";
 
 /**
@@ -44,29 +45,18 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const judgedText = `${controlText}\n${rationale}`;
-  const prompt = buildJudgePrompt({ controlText, rationale, sectionTitle, styleRules });
-  const call = await callDrafterModel({
-    role: "judge",
-    promptVersion: PROMPT_VERSIONS.judge_rubric,
-    systemPrompt: prompt.system,
-    userPrompt: prompt.user,
-    temperature: 0,
-  });
+  const result = await judgeText({ controlText, rationale, sectionTitle, styleRules });
 
-  if (!call.ok) {
+  if (!result.ok) {
     return NextResponse.json({
       lint,
-      judge: { error: call.error, invalid: true },
-      status: combineStatus({ lintIssues: lint, judge: { error: call.error, invalid: true }, judgeStale: false }),
+      judge: { error: result.reason, invalid: true },
+      status: combineStatus({ lintIssues: lint, judge: { error: result.reason, invalid: true }, judgeStale: false }),
       criteriaDefs: JUDGE_CRITERIA,
     });
   }
 
-  const validated = validateJudgeOutput(call.json, judgedText);
-  const judge = validated.ok
-    ? { criteria: validated.criteria, overall: validated.overall, modelName: call.modelName, promptVersion: PROMPT_VERSIONS.judge_rubric }
-    : { error: validated.reason, invalid: true as const };
+  const judge = { criteria: result.criteria, overall: result.overall, modelName: result.modelName, promptVersion: result.promptVersion };
 
   return NextResponse.json({
     lint,
