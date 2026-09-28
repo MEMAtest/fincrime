@@ -1,0 +1,201 @@
+{
+  "description": "Holdout set (2026-09-28): 14 synthetic items written AFTER the judge rules were tuned, never used for tuning.",
+  "items": [
+    {
+      "id": "H01",
+      "sectionType": "2.1 Customer Due Diligence (CDD) · Onboarding · Natural Person",
+      "text": "When a natural person applicant gives an occupation on the firm's cash-intensive occupation list, the onboarding system asks for the expected monthly cash deposits and the source of those funds. A CDD analyst reviews the answers against the stated income and either approves the application or refers it to the EDD team before the account is opened. This applies to all personal account applicants who select a listed occupation.",
+      "rationale": "Cash-intensive occupations give more opportunity to mix criminal cash with legitimate income. Asking for expected deposits and their source at onboarding gives the firm a baseline to compare later activity against.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H02",
+      "sectionType": "2.2 Customer Due Diligence (CDD) · Onboarding · Legal Person",
+      "text": "The firm is committed to knowing its business customers and has zero appetite for onboarding entities it does not understand.",
+      "rationale": "Business customers can be used to disguise the movement of criminal funds. Understanding them reduces that risk.",
+      "labels": {
+        "mechanism_not_policy_restatement": "fail",
+        "trigger_actor_action_outcome": "fail",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "fail",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H03",
+      "sectionType": "2.3 Enhanced Due Diligence (EDD) · Ongoing Monitoring · Both",
+      "text": "Each month, the screening system rescreens all customers against updated sanctions lists. A potential match is sent to a sanctions analyst, who confirms or discounts it within the alert queue; a confirmed match results in the account being frozen and a report made to the sanctions team. This covers all natural and legal person customers.",
+      "rationale": "Sanctions designations change frequently, so a customer who was clear at onboarding can become designated later. Monthly rescreening with a human decision on every match stops the firm continuing to serve a newly designated person.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H04",
+      "sectionType": "2.4 Correspondent Banking Due Diligence · Onboarding · Legal Person",
+      "text": "When a respondent bank applies for a correspondent account, the correspondent onboarding team checks the respondent's regulator's register to confirm it holds a banking licence, and a senior manager approves the relationship only if the licence is current. This applies to all new respondent banks.",
+      "rationale": "The register review identified this requirement as partially covered. This enhancement closes the gap noted in the register for licence verification.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "fail",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H05",
+      "sectionType": "2.2 Customer Due Diligence (CDD) · Onboarding · Legal Person",
+      "text": "When a legal person applicant has a director or owner resident in a high-risk jurisdiction, the onboarding system routes the application to a CDD analyst, who obtains proof of address and source of funds for that individual. The onboarding manager approves or declines the application before activation. This applies to companies, partnerships and trusts.",
+      "rationale": "Owners and directors in high-risk jurisdictions can be harder to verify and may be exposed to weaker AML supervision. Obtaining extra evidence for those individuals before activation applies more scrutiny where the risk is higher.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H06",
+      "sectionType": "2.1 Customer Due Diligence (CDD) · Onboarding · Natural Person",
+      "text": "Each quarter, the transaction monitoring team reviews business accounts with turnover above the expected level and refers unexplained increases to the MLRO team. This covers all legal person customers.",
+      "rationale": "Businesses whose turnover rises without explanation may be moving third-party or criminal funds. A quarterly review against expected turnover highlights those accounts for investigation.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "fail"
+      }
+    },
+    {
+      "id": "H07",
+      "sectionType": "2.3 Enhanced Due Diligence (EDD) · Ongoing Monitoring · Both",
+      "text": "Customers rated high risk are subject to enhanced ongoing monitoring in line with the firm's EDD standard.",
+      "rationale": "High-risk customers are more likely to be used to launder funds. Enhanced monitoring focuses attention where it is needed.",
+      "labels": {
+        "mechanism_not_policy_restatement": "fail",
+        "trigger_actor_action_outcome": "fail",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H08",
+      "sectionType": "2.1 Customer Due Diligence (CDD) · Onboarding · Natural Person",
+      "text": "When an applicant under 18 applies for a savings account, the onboarding system requires a parent or guardian to be verified as the account's co-holder. An onboarding analyst checks the relationship evidence and opens the account only once both identities are verified. This applies to all applicants aged 16 or 17.",
+      "rationale": "Accounts for minors can be misused by adults to hold funds in someone else's name. Verifying a responsible adult alongside the minor keeps control of the account with a known, verified person.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H09",
+      "sectionType": "2.3 Enhanced Due Diligence (EDD) · Ongoing Monitoring · Both",
+      "text": "When a customer's account receives payments from more than the expected number of unrelated third parties in a month, the transaction monitoring system raises an alert. An EDD analyst reviews the payers and either records an explanation or refers the customer to the MLRO team, and this is absolutely critical to stop catastrophic money mule activity. This covers all customers rated high risk.",
+      "rationale": "Many unrelated incoming payments can indicate a money mule account. Alerting on that pattern and requiring an analyst decision brings suspected mule activity to a specialist quickly.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "fail",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H10",
+      "sectionType": "2.4 Correspondent Banking Due Diligence · Onboarding · Legal Person",
+      "text": "When a respondent bank's ownership changes, the correspondent onboarding team repeats the ownership and sanctions checks on the new owners, and a senior manager approves continuation of the relationship or refers it for exit. This applies to all respondent banks.",
+      "rationale": "A change of ownership can bring in owners who are sanctioned or connected to financial crime. Repeating the checks and requiring senior approval stops the relationship continuing on out-of-date information.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "fail"
+      }
+    },
+    {
+      "id": "H11",
+      "sectionType": "2.2 Customer Due Diligence (CDD) · Onboarding · Legal Person",
+      "text": "Beneficial owners of corporate customers are identified at onboarding.",
+      "rationale": "Companies can hide the people who control them. Identifying owners at onboarding reduces the chance the firm deals with a concealed owner.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "fail",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H12",
+      "sectionType": "2.2 Customer Due Diligence (CDD) · Onboarding · Legal Person",
+      "text": "When a charity applies for a business account, a CDD analyst checks its registration with the charity regulator and identifies its trustees, and verifies the identity of the trustees who will operate the account before it is activated. This applies to all registered charities applying for an account.",
+      "rationale": "Charities can be abused to raise or move funds for terrorism or fraud. Checking registration and verifying the trustees who operate the account confirms the charity is genuine and that the people controlling it are known.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H13",
+      "sectionType": "2.3 Enhanced Due Diligence (EDD) · Ongoing Monitoring · Both",
+      "text": "When an EDD review finds that a customer's source of wealth cannot be evidenced, the EDD analyst refers the customer to the MLRO team, who decide whether to exit the relationship. This applies to all customers under EDD.",
+      "rationale": "Rule 14 of the EDD standard requires unevidenced wealth to be escalated. This enhancement implements that rule.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "fail",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    },
+    {
+      "id": "H14",
+      "sectionType": "2.1 Customer Due Diligence (CDD) · Onboarding · Natural Person",
+      "text": "When a natural person applicant is identified as resident in a country subject to UK financial sanctions, the onboarding system blocks the application and a sanctions analyst reviews whether any licence applies before the application is declined or approved. This applies to all personal account applicants.",
+      "rationale": "Serving residents of sanctioned countries without a licence can breach sanctions law. Blocking the application until an analyst has checked for a licence prevents an account being opened unlawfully.",
+      "labels": {
+        "mechanism_not_policy_restatement": "pass",
+        "trigger_actor_action_outcome": "pass",
+        "rationale_explains_risk": "pass",
+        "scope_stated": "pass",
+        "tone_measured": "pass",
+        "correct_section": "pass"
+      }
+    }
+  ]
+}
