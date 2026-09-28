@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import path from "node:path";
 import { query } from "@/lib/db";
-import { judgeOneEnhancement } from "../judge-runner";
+import { judgeOneEnhancement, judgeText } from "../judge-runner";
 import { checkExportReadiness } from "../pra-status";
 
 /**
@@ -143,6 +143,25 @@ describe("judgeOneEnhancement (real DB + stub judge fixtures)", () => {
     const openItems = await query<{ description: string }>(`SELECT description FROM drafter_open_items WHERE enhancement_id = $1`, [id]);
     expect(openItems.some((i) => i.description.includes("every 12 months"))).toBe(true);
     expect(openItems.some((i) => i.description.includes("MLRO"))).toBe(true);
+  });
+
+  it("SHARED JUDGE PATH: judgeText (used by calibration) gives the same verdict as judgeOneEnhancement (production) for the same text, style rules and stub fixture - calibration measures the SAME judge, not a hand-rolled approximation", async () => {
+    const controlText = "The reviewer screens JUDGE-PASS every new relationship before onboarding and records the outcome.";
+    const rationale = "This addresses the onboarding risk because it catches issues before exposure begins.";
+
+    const id = await makeEnhancement(controlText, rationale);
+    const viaProduction = await judgeOneEnhancement(id, ACTOR);
+    expect(viaProduction.ok).toBe(true);
+    expect(viaProduction.enhancement?.review_result?.status).toBe("pass");
+
+    const viaShared = await judgeText({ controlText, rationale, sectionTitle: "2.1 Customer Due Diligence", styleRules: [] });
+    expect(viaShared.ok).toBe(true);
+    if (viaShared.ok) expect(viaShared.overall).toBe("pass");
+  });
+
+  it("SHARED JUDGE PATH: judgeText also gets the one repair round and verbatim-quote validation, never a free pass on a malformed response - same as production", async () => {
+    const result = await judgeText({ controlText: "JUDGE-MALFORMED control text here.", rationale: "Rationale text.", sectionTitle: "2.1 Customer Due Diligence", styleRules: [] });
+    expect(result.ok).toBe(false);
   });
 
   it("checkExportReadiness blocks on a critical or not_reviewed enhancement, and clears once every enhancement passes", async () => {

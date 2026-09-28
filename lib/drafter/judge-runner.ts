@@ -75,6 +75,112 @@ export interface JudgeRunResult {
   reason?: string;
 }
 
+export interface JudgeTextInput {
+  controlText: string;
+  rationale: string;
+  sectionTitle: string;
+  styleRules: string[];
+  /** Attached to drafter_model_calls when this judge call belongs to a real PRA (omitted for calibration, which judges free-standing text). */
+  praId?: string;
+  enhancementId?: string;
+}
+
+export type JudgeTextResult =
+  | { ok: true; criteria: Record<string, JudgeCriterionResult>; overall: "pass" | "fail"; modelName: string; promptVersion: string; costEstimatePence: number; repaired: boolean }
+  | { ok: false; reason: string; promptVersion: string; costEstimatePence: number; repaired: boolean };
+
+/**
+ * THE judge call, shared verbatim by production (`judgeOneEnhancement`) and
+ * calibration (`app/api/drafter/calibration/items/[id]/judge`) - same
+ * prompt builder, same structured-output schema, same one repair round, same
+ * verbatim-quote validation. Calibration must measure the SAME judge
+ * production uses, not a hand-rolled approximation of it (SPEC.md
+ * calibration: "run the judge on them" - not "run a similar prompt").
+ *
+ * Does NOT run the rewrite fact-check (BUILD-DECISIONS "Fact boundary") -
+ * that needs a real enhancement's allowed input texts, which calibration
+ * items do not have. Callers with a real enhancement/PRA apply that
+ * themselves (see `sanitiseRewrites` below), "where applicable" per the
+ * task brief.
+ */
+export async function judgeText(input: JudgeTextInput): Promise<JudgeTextResult> {
+  const judgedText = `${input.controlText}\n${input.rationale}`;
+  const promptInput = { controlText: input.controlText, rationale: input.rationale, sectionTitle: input.sectionTitle, styleRules: input.styleRules };
+  const prompt = buildJudgePrompt(promptInput);
+  const jsonSchema = buildJudgeJsonSchema();
+
+  const call = await callDrafterModel({
+    role: "judge",
+    promptVersion: PROMPT_VERSIONS.judge_rubric,
+    systemPrompt: prompt.system,
+    userPrompt: prompt.user,
+    temperature: 0,
+    praId: input.praId,
+    enhancementId: input.enhancementId,
+    jsonSchema,
+  });
+
+  if (!call.ok) {
+    return { ok: false, reason: call.error, promptVersion: PROMPT_VERSIONS.judge_rubric, costEstimatePence: 0, repaired: false };
+  }
+
+  let validated = validateJudgeOutput(call.json, judgedText);
+  let finalCall = call;
+  let repaired = false;
+
+  // One repair round (never more): the first invalid response is shown back
+  // to the model with the specific validation error and it is asked to
+  // return the complete corrected JSON. Both calls are logged
+  // (callDrafterModel logs every call to drafter_model_calls on its own).
+  // If the repaired response is STILL invalid, the result stays invalid -
+  // a repair attempt never gets a free pass, per BUILD-DECISIONS "absence
+  // must never render as a pass".
+  if (!validated.ok) {
+    const repairPrompt = buildJudgeRepairPrompt(promptInput, JSON.stringify(call.json), validated.reason);
+    const repairCall = await callDrafterModel({
+      role: "judge",
+      promptVersion: PROMPT_VERSIONS.judge_rubric,
+      systemPrompt: repairPrompt.system,
+      userPrompt: repairPrompt.user,
+      temperature: 0,
+      praId: input.praId,
+      enhancementId: input.enhancementId,
+      jsonSchema,
+    });
+    if (repairCall.ok) {
+      const repairValidated = validateJudgeOutput(repairCall.json, judgedText);
+      finalCall = repairCall;
+      validated = repairValidated;
+      repaired = true;
+    } else {
+      // The repair call itself failed to even return - keep the original
+      // (invalid) validation result and reason, but still account for the
+      // repair attempt's spend below via finalCall's cost only (0 here).
+    }
+  }
+
+  const totalCostPence = call.costEstimatePence + (repaired && finalCall !== call ? finalCall.costEstimatePence : 0);
+
+  if (!validated.ok) {
+    // Invalid JSON per the schema (unknown criterion, missing quote, quote
+    // not found, malformed) is a FAILED review, never a pass - this is the
+    // "quote not in text" / "unknown criterion" / "malformed JSON" guard.
+    // Still invalid after the one repair round: recorded as invalid, not a
+    // pass.
+    return { ok: false, reason: validated.reason, promptVersion: PROMPT_VERSIONS.judge_rubric, costEstimatePence: totalCostPence, repaired };
+  }
+
+  return {
+    ok: true,
+    criteria: validated.criteria,
+    overall: validated.overall,
+    modelName: finalCall.modelName,
+    promptVersion: PROMPT_VERSIONS.judge_rubric,
+    costEstimatePence: totalCostPence,
+    repaired,
+  };
+}
+
 /**
  * Runs the judge against an enhancement's CURRENT control_text/rationale.
  * Lint must already have been run (it is, by draft/PATCH). A malformed or
@@ -102,100 +208,34 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
 
   const controlText = enhancement.control_text ?? "";
   const rationale = enhancement.rationale ?? "";
-  const judgedText = `${controlText}\n${rationale}`;
   const existingLint = enhancement.review_result?.lint ?? [];
   const needsInput = enhancement.is_gap || isPlaceholderOnlyText(controlText);
 
-  const prompt = buildJudgePrompt({
+  const result = await judgeText({
     controlText,
     rationale,
     sectionTitle: `${section.section_number} ${section.title}`,
     styleRules: stylepackVersion.rules,
-  });
-
-  const jsonSchema = buildJudgeJsonSchema();
-  const call = await callDrafterModel({
-    role: "judge",
-    promptVersion: PROMPT_VERSIONS.judge_rubric,
-    systemPrompt: prompt.system,
-    userPrompt: prompt.user,
-    temperature: 0,
     praId: pra.id,
     enhancementId: enhancement.id,
-    jsonSchema,
   });
 
-  if (!call.ok) {
-    const judge = { error: call.error, invalid: true as const };
+  if (!result.ok) {
+    const judge = { error: result.reason, invalid: true as const };
     const updated = await updateEnhancementReview(enhancement.id, {
       reviewResult: { lint: existingLint, judge, judgeStale: false, status: combineStatus({ lintIssues: existingLint, judge, judgeStale: false, needsInput }) },
     });
-    await writeDrafterAudit(actor, "enhancement.judge.error", "drafter_enhancement", enhancement.id, { error: call.error });
-    return { ok: false, reason: call.error, enhancement: updated };
+    await writeDrafterAudit(actor, "enhancement.judge.invalid", "drafter_enhancement", enhancement.id, { reason: result.reason, repaired: result.repaired });
+    if (result.costEstimatePence > 0) await bumpSpend(pra.id, result.costEstimatePence);
+    return { ok: false, reason: result.reason, enhancement: updated };
   }
 
-  let validated = validateJudgeOutput(call.json, judgedText);
-  let finalCall = call;
-  let repaired = false;
-
-  // One repair round (never more): the first invalid response is shown back
-  // to the model with the specific validation error and it is asked to
-  // return the complete corrected JSON. Both calls are logged
-  // (callDrafterModel logs every call to drafter_model_calls on its own).
-  // If the repaired response is STILL invalid, the result stays invalid -
-  // a repair attempt never gets a free pass, per BUILD-DECISIONS "absence
-  // must never render as a pass".
-  if (!validated.ok) {
-    const repairPrompt = buildJudgeRepairPrompt(
-      { controlText, rationale, sectionTitle: `${section.section_number} ${section.title}`, styleRules: stylepackVersion.rules },
-      JSON.stringify(call.json),
-      validated.reason
-    );
-    const repairCall = await callDrafterModel({
-      role: "judge",
-      promptVersion: PROMPT_VERSIONS.judge_rubric,
-      systemPrompt: repairPrompt.system,
-      userPrompt: repairPrompt.user,
-      temperature: 0,
-      praId: pra.id,
-      enhancementId: enhancement.id,
-      jsonSchema,
-    });
-    if (repairCall.ok) {
-      const repairValidated = validateJudgeOutput(repairCall.json, judgedText);
-      finalCall = repairCall;
-      validated = repairValidated;
-      repaired = true;
-    } else {
-      // The repair call itself failed to even return - keep the original
-      // (invalid) validation result and reason, but still account for the
-      // repair attempt's spend below via finalCall's cost only (0 here).
-    }
-  }
-
-  const totalCostPence = call.costEstimatePence + (repaired && finalCall !== call ? finalCall.costEstimatePence : 0);
-
-  if (!validated.ok) {
-    // Invalid JSON per the schema (unknown criterion, missing quote, quote
-    // not found, malformed) is a FAILED review, never a pass - this is the
-    // "quote not in text" / "unknown criterion" / "malformed JSON" guard.
-    // Still invalid after the one repair round: recorded as invalid, not a
-    // pass.
-    const judge = { error: validated.reason, invalid: true as const };
-    const updated = await updateEnhancementReview(enhancement.id, {
-      reviewResult: { lint: existingLint, judge, judgeStale: false, status: combineStatus({ lintIssues: existingLint, judge, judgeStale: false, needsInput }) },
-    });
-    await writeDrafterAudit(actor, "enhancement.judge.invalid", "drafter_enhancement", enhancement.id, { reason: validated.reason, repaired });
-    if (totalCostPence > 0) await bumpSpend(pra.id, totalCostPence);
-    return { ok: false, reason: validated.reason, enhancement: updated };
-  }
-
-  const { criteria: sanitisedCriteria, openItemDescriptions } = await sanitiseRewrites(validated.criteria, enhancement, pra);
+  const { criteria: sanitisedCriteria, openItemDescriptions } = await sanitiseRewrites(result.criteria, enhancement, pra);
 
   const judgeResult: JudgeResult = {
     criteria: sanitisedCriteria,
-    overall: validated.overall,
-    modelName: finalCall.modelName,
+    overall: result.overall,
+    modelName: result.modelName,
     promptVersion: PROMPT_VERSIONS.judge_rubric,
   };
 
@@ -212,8 +252,8 @@ export async function judgeOneEnhancement(enhancementId: string, actor: string):
     },
   });
 
-  if (totalCostPence > 0) await bumpSpend(pra.id, totalCostPence);
-  await writeDrafterAudit(actor, "enhancement.judge.run", "drafter_enhancement", enhancement.id, { overall: judgeResult.overall, modelName: finalCall.modelName, repaired });
+  if (result.costEstimatePence > 0) await bumpSpend(pra.id, result.costEstimatePence);
+  await writeDrafterAudit(actor, "enhancement.judge.run", "drafter_enhancement", enhancement.id, { overall: judgeResult.overall, modelName: result.modelName, repaired: result.repaired });
   await maybeAdvancePraStatus(pra.id);
 
   return { ok: true, enhancement: updated };

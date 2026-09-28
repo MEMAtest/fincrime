@@ -44,6 +44,7 @@ export interface DrafterSettings {
   cost_cap_pence_per_pra: number;
   model_prices_per_million_tokens_usd_cents: ModelPrices;
   judge_agreement_threshold_pct: number;
+  judge_calibration_min_items: number;
   control_text_word_limits: { min: number; max: number };
 }
 
@@ -57,6 +58,7 @@ const SETTINGS_KEYS = [
   "cost_cap_pence_per_pra",
   "model_prices_per_million_tokens_usd_cents",
   "judge_agreement_threshold_pct",
+  "judge_calibration_min_items",
   "control_text_word_limits",
 ] as const;
 

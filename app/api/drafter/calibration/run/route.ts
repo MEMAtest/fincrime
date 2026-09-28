@@ -1,65 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireDrafterActorApi } from "@/lib/drafter/access";
-import { listCalibrationItems, saveCalibrationItemJudgeOutput, saveCalibrationRun } from "@/lib/repo/drafter-calibration";
-import { computeAgreement, type CalibrationItem } from "@/lib/drafter/calibration";
-import { buildJudgePrompt, validateJudgeOutput, type JudgeResult } from "@/lib/drafter/judge";
-import { callDrafterModel, isRoleConfigured, roleDisabledReason, PROMPT_VERSIONS } from "@/lib/drafter/llm";
+import { listCalibrationItemsJudgedUnder, saveCalibrationRun } from "@/lib/repo/drafter-calibration";
+import { computeAgreement, passesThreshold, type CalibrationItem } from "@/lib/drafter/calibration";
+import type { JudgeCriterionResult } from "@/lib/drafter/judge";
+import { currentModelName, PROMPT_VERSIONS } from "@/lib/drafter/llm";
 import { getDrafterSetting } from "@/lib/repo/drafter-settings";
 
 /**
- * POST - runs the judge over the whole labelled calibration set and stores
- * a run keyed by model + prompt version (SPEC.md calibration: "keep run
- * history keyed by model + prompt version"). Each item's judge_output is
- * cached on the item row too, so a later run can be inspected item by item.
+ * POST - "finalise": computes and saves the calibration summary from items
+ * already judged one at a time (`POST .../items/[id]/judge`), under the
+ * CURRENT judge model + prompt version ONLY. This route no longer calls the
+ * model itself - judging 20-30 items sequentially inside one request used to
+ * risk the serverless function timeout (defect #2); the UI now judges items
+ * one request at a time with progress, then calls this to finalise.
  */
 export async function POST(request: NextRequest) {
   const gate = await requireDrafterActorApi(request);
   if ("response" in gate) return gate.response;
   const { actor } = gate;
 
-  if (!isRoleConfigured("judge")) {
-    return NextResponse.json({ error: roleDisabledReason("judge") }, { status: 422 });
+  const modelName = currentModelName("judge");
+  const promptVersion = PROMPT_VERSIONS.judge_rubric;
+
+  const rows = await listCalibrationItemsJudgedUnder(modelName, promptVersion);
+  if (rows.length === 0) {
+    return NextResponse.json({ error: "No calibration items have been judged under the current judge model + prompt version yet. Judge items first." }, { status: 400 });
   }
 
-  const items = await listCalibrationItems();
-  if (items.length === 0) return NextResponse.json({ error: "No calibration items to run against." }, { status: 400 });
+  const items: CalibrationItem[] = rows.map((row) => ({
+    id: row.id,
+    humanLabels: row.human_labels,
+    judgeOutput: row.judge_output && "criteria" in row.judge_output ? { criteria: row.judge_output.criteria as Record<string, JudgeCriterionResult> } : null,
+  }));
 
-  let modelName = "stub";
-  const results: CalibrationItem[] = [];
-
-  for (const item of items) {
-    const prompt = buildJudgePrompt({
-      controlText: item.enhancement_text,
-      rationale: item.rationale_text,
-      sectionTitle: item.section_type,
-      styleRules: [],
-    });
-    const call = await callDrafterModel({
-      role: "judge",
-      promptVersion: PROMPT_VERSIONS.judge_rubric,
-      systemPrompt: prompt.system,
-      userPrompt: prompt.user,
-      temperature: 0,
-    });
-
-    let judgeOutput: { criteria: JudgeResult["criteria"] } | null = null;
-    if (call.ok) {
-      modelName = call.modelName;
-      const validated = validateJudgeOutput(call.json, `${item.enhancement_text}\n${item.rationale_text}`);
-      if (validated.ok) judgeOutput = { criteria: validated.criteria };
-    }
-    await saveCalibrationItemJudgeOutput(item.id, judgeOutput);
-    results.push({ id: item.id, humanLabels: item.human_labels, judgeOutput });
-  }
-
-  const summary = computeAgreement(results);
-  const thresholdPct = (await getDrafterSetting("judge_agreement_threshold_pct")) ?? 80;
+  const summary = computeAgreement(items);
+  const thresholdPct = (await getDrafterSetting("judge_agreement_threshold_pct")) ?? 85;
+  const minItems = (await getDrafterSetting("judge_calibration_min_items")) ?? 20;
+  const passed = passesThreshold(summary, thresholdPct, minItems);
 
   const run = await saveCalibrationRun({
     modelName,
-    promptVersion: PROMPT_VERSIONS.judge_rubric,
+    promptVersion,
     summary,
     thresholdPct,
+    minItems,
+    passed,
     actor: actor.email,
   });
 
