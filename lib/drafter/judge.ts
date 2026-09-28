@@ -171,7 +171,7 @@ export function buildJudgePrompt(input: JudgePromptInput): BuiltJudgePrompt {
     "- `trigger`: the condition, event or timing that starts the control - e.g. 'When a customer is onboarded', 'Before the account is activated', 'Each week', 'If a match is found'. Look for a leading time/condition clause even when it is short.",
     "- `actor`: who or what system performs the action - e.g. 'a compliance officer', 'the screening system', 'a CDD analyst'.",
     "- `action`: the concrete step the actor takes - e.g. 'confirms the alert', 'reviews the file'.",
-    "- `outcome`: the result the action produces - e.g. 'before the customer is activated', 'the relationship is declined', 'the risk assessment is updated'.",
+    "- `outcome`: the result or decision the control produces - e.g. 'before the customer is activated', 'declines the application', 'records a new risk rating', 'refers the case to the MLRO team', 'the payment is returned'. When the result is stated as what the actor decides, records or refers, quote that part; it may sit in the same sentence as the action.",
     "Then classify `lifecycle_stage` (one of onboarding | ongoing_monitoring | periodic_review | exit | unspecified), `customer_type` (one of natural_person | legal_person | both | unspecified) and `topic` (one of correspondent_banking | other) as the text itself states or implies them - each with its own supporting verbatim quote from the control text (null when the value is unspecified/other and there is nothing to quote). Use `unspecified`/`other` honestly rather than guessing.",
     "For EACH of the 6 criteria below, return, in this exact field order: the exact sentence you quote from the control text or rationale as your evidence (quote first), then pass/fail, then your reason, then a suggested rewrite (only when failing; null when passing). Two of the six (trigger_actor_action_outcome, correct_section) are recorded but your verdict is IGNORED - the platform computes them deterministically from your `extraction` - so still fill them in the same shape, but your care should go into the extraction, not into second-guessing those two verdicts.",
     "The quote MUST be copied verbatim, character-for-character, from the control text or rationale given to you - the same words, spacing and punctuation, not a paraphrase, summary or partial fragment stitched together with '...'. Whether the criterion passes or fails, quote the actual sentence that is your evidence: for a PASS, quote the sentence that satisfies the criterion; for a FAIL, quote the sentence that is the problem.",
@@ -313,8 +313,11 @@ function stripTrailingPunctuation(text: string): string {
  */
 export function isVerbatimQuote(haystack: string, quote: string): boolean {
   if (!quote || !quote.trim()) return false;
-  const normalisedHaystack = normaliseForMatch(haystack);
-  const normalisedQuote = normaliseForMatch(quote);
+  // Case-insensitive: a model that quotes "a correspondent banking analyst"
+  // from a sentence starting "A correspondent banking analyst" has copied the
+  // words exactly. Wording, order and punctuation must still match.
+  const normalisedHaystack = normaliseForMatch(haystack).toLowerCase();
+  const normalisedQuote = normaliseForMatch(quote).toLowerCase();
   if (normalisedHaystack.includes(normalisedQuote)) return true;
   const trimmedQuote = stripTrailingPunctuation(normalisedQuote);
   if (trimmedQuote && normalisedHaystack.includes(trimmedQuote)) return true;
@@ -531,6 +534,29 @@ function stageCompatible(textStage: LifecycleStage, sectionStage: LifecycleStage
 }
 
 /**
+ * A sentence-leading condition or timing clause ("When a respondent bank
+ * applies ...", "Before any respondent bank is connected ...", "Each week",
+ * "Every 12 months"), returned verbatim up to the first comma or full stop.
+ * Only sentence-leading clauses count, so an incidental "before" mid-sentence
+ * is not mistaken for the control's trigger.
+ */
+const TRIGGER_LEAD = /(?:^|[.;:]\s+)((?:When|Whenever|Before|After|If|Where|Once|Each|Every|At|On|Upon|Following|During|Within)\b[^,.;]*)/;
+
+export function findTriggerClause(controlText: string): string | null {
+  const match = TRIGGER_LEAD.exec(controlText.trim());
+  const clause = match?.[1]?.trim();
+  return clause && clause.split(/\s+/).length >= 2 ? clause : null;
+}
+
+/** Extraction fields (trigger/actor/action/outcome) the model filled but did not copy verbatim from the control text. */
+export function nonVerbatimExtractionFields(extraction: JudgeExtraction, controlText: string): string[] {
+  return (["trigger", "actor", "action", "outcome"] as const).filter((key) => {
+    const value = extraction[key];
+    return !!value && !!value.trim() && !isVerbatimQuote(controlText, value);
+  });
+}
+
+/**
  * trigger_actor_action_outcome, computed IN CODE from the judge's
  * `extraction` (never the model's own verdict for this criterion): passes
  * only when all four of trigger/actor/action/outcome are present AND each
@@ -538,6 +564,14 @@ function stageCompatible(textStage: LifecycleStage, sectionStage: LifecycleStage
  * element(s) in the reason, per the task brief.
  */
 export function evaluateTriggerActorActionOutcome(extraction: JudgeExtraction, controlText: string): JudgeCriterionResult {
+  // Calibration showed the model reliably spots a leading "When ..." clause
+  // but files it under lifecycle_stage and leaves `trigger` null. A trigger
+  // clause is detectable in code, so the check does not depend on which
+  // field the model used.
+  if (!extraction.trigger || !isVerbatimQuote(controlText, extraction.trigger)) {
+    const clause = findTriggerClause(controlText);
+    if (clause) extraction = { ...extraction, trigger: clause };
+  }
   const fields: Array<{ key: "trigger" | "actor" | "action" | "outcome"; label: string }> = [
     { key: "trigger", label: "trigger" },
     { key: "action", label: "action" },

@@ -16,7 +16,7 @@ export type DrafterModelRole = "writer" | "judge" | "tagger";
 
 export const PROMPT_VERSIONS = {
   writer_enhancement: "pra-writer-enhancement-v1",
-  judge_rubric: "pra-judge-rubric-v2",
+  judge_rubric: "pra-judge-rubric-v2.2",
   tag_suggestion: "pra-tag-suggestion-v1",
 } as const;
 

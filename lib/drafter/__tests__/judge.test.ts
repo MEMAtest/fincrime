@@ -8,6 +8,8 @@ import {
   parseSectionTitle,
   evaluateTriggerActorActionOutcome,
   evaluateCorrectSection,
+  findTriggerClause,
+  nonVerbatimExtractionFields,
   JUDGE_CRITERIA,
   type JudgeExtraction,
 } from "../judge";
@@ -333,5 +335,44 @@ describe("buildJudgeRepairPrompt", () => {
     const { user } = buildJudgeRepairPrompt(input, '{"criteria": {}}', 'Judge response is missing criterion "tone_measured".');
     expect(user).toContain('Judge response is missing criterion "tone_measured".');
     expect(user).toContain('{"criteria": {}}');
+  });
+});
+
+describe("trigger clause detected in code", () => {
+  it("finds a sentence-leading condition or timing clause verbatim", () => {
+    expect(findTriggerClause("When a respondent bank applies to open a correspondent account, the team completes a questionnaire.")).toBe(
+      "When a respondent bank applies to open a correspondent account"
+    );
+    expect(findTriggerClause("Each night, the system compares activity.")).toBe("Each night");
+    expect(findTriggerClause("The system runs daily. Before any account is opened, an analyst approves it.")).toBe("Before any account is opened");
+  });
+
+  it("does not treat a mid-sentence 'before' or a subject-first sentence as a trigger", () => {
+    expect(findTriggerClause("A CDD analyst reviews the chart before signing off and the file is held until resolved.")).toBeNull();
+    expect(findTriggerClause("High-risk accounts are monitored on an ongoing basis.")).toBeNull();
+  });
+
+  it("passes TAAO when the model left trigger null but the text opens with a trigger clause", () => {
+    const text = "When a respondent bank applies, the onboarding team completes a questionnaire before any account is opened.";
+    const result = evaluateTriggerActorActionOutcome(
+      extraction({ trigger: null, actor: "the onboarding team", action: "completes a questionnaire", outcome: "before any account is opened" }),
+      text
+    );
+    expect(result.pass).toBe(true);
+  });
+
+  it("still fails TAAO when the actor is missing even though a trigger clause exists", () => {
+    const text = "Before activation, ownership is verified against the registry and discrepancies are declined.";
+    const result = evaluateTriggerActorActionOutcome(
+      extraction({ trigger: null, actor: null, action: "is verified against the registry", outcome: "discrepancies are declined" }),
+      text
+    );
+    expect(result.pass).toBe(false);
+    expect(result.reason).toContain("actor");
+  });
+
+  it("lists extraction fields that were not copied verbatim", () => {
+    const text = "When a match is found, a compliance officer confirms the alert.";
+    expect(nonVerbatimExtractionFields(extraction({ trigger: "a match is found", actor: "the compliance team", action: "confirms the alert", outcome: null }), text)).toEqual(["actor"]);
   });
 });

@@ -10,6 +10,7 @@ import {
   buildJudgeRepairPrompt,
   buildJudgeJsonSchema,
   validateJudgeOutput,
+  nonVerbatimExtractionFields,
   evaluateTriggerActorActionOutcome,
   evaluateCorrectSection,
   JUDGE_CRITERIA,
@@ -161,6 +162,7 @@ export async function judgeText(input: JudgeTextInput): Promise<JudgeTextResult>
   let validated = validateJudgeOutput(call.json, judgedText);
   let finalCall = call;
   let repaired = false;
+  let repairCost = 0;
 
   // One repair round (never more): the first invalid response is shown back
   // to the model with the specific validation error and it is asked to
@@ -169,8 +171,19 @@ export async function judgeText(input: JudgeTextInput): Promise<JudgeTextResult>
   // If the repaired response is STILL invalid, the result stays invalid -
   // a repair attempt never gets a free pass, per BUILD-DECISIONS "absence
   // must never render as a pass".
-  if (!validated.ok) {
-    const repairPrompt = buildJudgeRepairPrompt(promptInput, JSON.stringify(call.json), validated.reason);
+  // A valid answer whose trigger/actor/action/outcome were not copied
+  // verbatim would silently fail that criterion, so it also earns the one
+  // repair round. If the repair is no better, the original valid answer is
+  // kept and the criterion fails in code as before.
+  const nonVerbatim = validated.ok ? nonVerbatimExtractionFields(validated.extraction, input.controlText) : [];
+  const repairReason = !validated.ok
+    ? validated.reason
+    : nonVerbatim.length
+      ? `extraction.${nonVerbatim.join(", extraction.")} must be copied character-for-character from the control text (or null if the control text does not state it).`
+      : null;
+
+  if (repairReason) {
+    const repairPrompt = buildJudgeRepairPrompt(promptInput, JSON.stringify(call.json), repairReason);
     const repairCall = await callDrafterModel({
       role: "judge",
       promptVersion: PROMPT_VERSIONS.judge_rubric,
@@ -183,9 +196,14 @@ export async function judgeText(input: JudgeTextInput): Promise<JudgeTextResult>
     });
     if (repairCall.ok) {
       const repairValidated = validateJudgeOutput(repairCall.json, judgedText);
-      finalCall = repairCall;
-      validated = repairValidated;
+      const keepOriginal = validated.ok && !repairValidated.ok;
       repaired = true;
+      if (!keepOriginal) {
+        finalCall = repairCall;
+        validated = repairValidated;
+      } else {
+        repairCost = repairCall.costEstimatePence;
+      }
     } else {
       // The repair call itself failed to even return - keep the original
       // (invalid) validation result and reason, but still account for the
@@ -193,7 +211,7 @@ export async function judgeText(input: JudgeTextInput): Promise<JudgeTextResult>
     }
   }
 
-  const totalCostPence = call.costEstimatePence + (repaired && finalCall !== call ? finalCall.costEstimatePence : 0);
+  const totalCostPence = call.costEstimatePence + (repaired && finalCall !== call ? finalCall.costEstimatePence : 0) + repairCost;
 
   if (!validated.ok) {
     // Invalid JSON per the schema (unknown criterion, missing quote, quote
